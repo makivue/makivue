@@ -64,9 +64,9 @@ describe('regional story presets', () => {
 
     it('serves every preset from bundled local artwork regardless of cloud settings', () => {
         vi.stubEnv('NEXT_PUBLIC_STYLE_PREVIEW_BASE_URL', 'https://cdn.example.com')
-        expect(getStylePreviewSrc('na-urban-revenge')).toBe('/style-previews/na-urban-revenge.svg')
-        expect(getStylePreviewSrc('cinematic', 256)).toBe('/style-previews/cinematic.svg')
-        expect(STYLE_PREVIEW_ASSET_VERSION).toBe('local-v1')
+        expect(getStylePreviewSrc('na-urban-revenge')).toBe('/style-previews/na-urban-revenge.webp')
+        expect(getStylePreviewSrc('cinematic', 256)).toBe('/style-previews/thumbs/256/cinematic.webp')
+        expect(STYLE_PREVIEW_ASSET_VERSION).toBe('local-v2')
     })
 
     it('does not add regional narrative constraints to existing styles', () => {

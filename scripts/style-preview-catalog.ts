@@ -5,7 +5,7 @@ import { buildVisualStylePreviewPrompt, createVisualStyleProfile } from '../src/
 
 export { STYLE_PREVIEW_ASSET_VERSION }
 
-/** Read local additions directly; localhost APIs intentionally proxy to deployed test code. */
+/** Read presets and bundled image paths directly from the local source tree. */
 export function localStylePreviewCatalog() {
     return VISUAL_STYLE_PRESETS.map(style => ({
         key: style.key,

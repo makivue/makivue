@@ -1,13 +1,6 @@
 import { requireAdminPermission } from '@/lib/admin-permissions'
 import { apiError, apiResponse } from '@/lib/utils'
-import {
-    STYLE_PREVIEW_MAX_BYTES,
-    STYLE_PREVIEW_OBJECT_PREFIX,
-    STYLE_PREVIEW_THUMBNAIL_WIDTHS,
-    StylePreviewPublishError,
-    validateStylePreviewPublication,
-    type StylePreviewPublication
-} from '@/lib/style-preview-publishing'
+import { STYLE_PREVIEW_MAX_BYTES, STYLE_PREVIEW_THUMBNAIL_WIDTHS, StylePreviewPublishError, validateStylePreviewPublication, type StylePreviewPublication } from '@/lib/style-preview-publishing'
 import { publishStylePreview } from '@/services/style-preview-publishing'
 
 export const runtime = 'nodejs'
@@ -16,9 +9,6 @@ export const maxDuration = 180
 async function authorize(req: Request) {
     const auth = await requireAdminPermission(req, 'generate_style_previews')
     if (auth.response) return auth.response
-    if (!['prod', 'production'].includes(process.env.APP_ENV ?? '') || process.env.OSS_ENV !== 'prod') {
-        return apiError('Style preview publishing is only available on the production service', 503)
-    }
     return null
 }
 
@@ -26,10 +16,10 @@ async function authorize(req: Request) {
 export async function GET(req: Request) {
     const denied = await authorize(req)
     if (denied) return denied
-    return apiResponse({ environment: 'production', prefix: STYLE_PREVIEW_OBJECT_PREFIX, thumbnailWidths: STYLE_PREVIEW_THUMBNAIL_WIDTHS, maxBytes: STYLE_PREVIEW_MAX_BYTES })
+    return apiResponse({ environment: 'local', prefix: 'style-previews', thumbnailWidths: STYLE_PREVIEW_THUMBNAIL_WIDTHS, maxBytes: STYLE_PREVIEW_MAX_BYTES })
 }
 
-/** One raw PNG/JPEG/WebP body per request; local new keys need not exist in the deployed catalog. */
+/** One raw PNG/JPEG/WebP body per request; new keys are saved under public/style-previews. */
 export async function POST(req: Request) {
     const denied = await authorize(req)
     if (denied) return denied
@@ -63,6 +53,6 @@ export async function POST(req: Request) {
     } catch (error) {
         if (error instanceof StylePreviewPublishError) return apiError(error.message, error.status)
         console.error('[style-preview-publish] failed', { code: (error as { code?: string }).code ?? 'unknown' })
-        return apiError('Production OSS upload failed; retry the same image and version', 502)
+        return apiError('Local style preview save failed; retry the same image', 502)
     }
 }

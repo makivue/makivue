@@ -1,13 +1,13 @@
 import { NextRequest } from 'next/server'
 import path from 'path'
 import fs from 'fs/promises'
-import fsSync from 'fs'
+import os from 'node:os'
 import { generateImageUnified, IMAGE_GENERATION_MAX_CONCURRENCY } from '@/services/ai'
-import { saveLocalMediaFile } from '@/services/local-media'
+import { publishStylePreview } from '@/services/style-preview-publishing'
 import { apiResponse } from '@/lib/utils'
 import { VISUAL_STYLE_PRESETS } from '@/lib/novel'
 import { requireAdminPermission } from '@/lib/admin-permissions'
-import { STYLE_PREVIEW_PRESET_VERSION } from '@/lib/style-preview'
+import { STYLE_PREVIEW_ASSET_VERSION, STYLE_PREVIEW_PRESET_VERSION } from '@/lib/style-preview'
 import { NANO_BANANA_IMAGE_MODEL } from '@/lib/gemini-models'
 import { runWithConcurrency } from '@/lib/bounded-concurrency'
 import { buildVisualStylePreviewPrompt } from '@/lib/visual-style-profile'
@@ -42,10 +42,7 @@ export async function POST(req: NextRequest) {
     const auth = await requireAdminPermission(req, 'generate_style_previews')
     if (auth.response) return auth.response
 
-    const tmpDir = path.join(process.cwd(), '.tmp', 'style-previews')
-    if (!fsSync.existsSync(tmpDir)) {
-        await fs.mkdir(tmpDir, { recursive: true })
-    }
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'local-style-previews-'))
 
     const results: Array<{
         style: string
@@ -77,20 +74,17 @@ export async function POST(req: NextRequest) {
                 contentLabel: `风格预览“${style.label}”`
             })
 
-            console.log(`[preview] Uploading ${styleKey} to OSS...`)
-            const ossUrl = await saveLocalMediaFile(tmpFile, 'style-previews', `${styleKey}.png`)
+            const saved = await publishStylePreview({ key: styleKey, version: STYLE_PREVIEW_ASSET_VERSION, directory: 'standard' }, await fs.readFile(tmpFile), 'image/png')
+            const localUrl = saved.original.url
 
-            console.log(`[preview] Success: ${styleKey} → ${ossUrl}`)
+            console.log(`[preview] Saved locally: ${styleKey} → ${localUrl}`)
             results.push({
                 style: styleKey,
                 status: 'success',
-                message: ossUrl,
+                message: localUrl,
                 presetVersion: STYLE_PREVIEW_PRESET_VERSION,
                 finalPreviewPrompt,
-                model:
-                    generation.actualProvider === 'banana'
-                        ? (process.env.NANO_BANANA_MODEL ?? NANO_BANANA_IMAGE_MODEL)
-                        : generation.actualProvider,
+                model: generation.actualProvider === 'banana' ? (process.env.NANO_BANANA_MODEL ?? NANO_BANANA_IMAGE_MODEL) : generation.actualProvider,
                 provider: generation.actualProvider
             })
 

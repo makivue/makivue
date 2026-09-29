@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
         visualStyleProfile,
         presetVersion: STYLE_PREVIEW_PRESET_VERSION,
         model: 'static-preview-manifest',
-        recommendedFilename: `${style.key}.png`,
-        recommendedOSSPath: `style-previews/${style.key}.png`
+        recommendedFilename: `${style.key}.webp`,
+        recommendedLocalPath: `public/style-previews/${style.key}.webp`
     })
 }

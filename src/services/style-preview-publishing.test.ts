@@ -1,60 +1,71 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import sharp from 'sharp'
-import { createHash } from 'node:crypto'
+import fs from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
 import { publishStylePreview } from './style-preview-publishing'
 
-const mocks = vi.hoisted(() => ({ put: vi.fn(), store: vi.fn() }))
-vi.mock('./local-media', async importOriginal => ({ ...(await importOriginal<typeof import('@/services/local-media')>()), createLocalStylePreviewStore: mocks.store }))
-const input = { key: 'new-undeployed-style', version: 'v-test', directory: 'regional-generated' as const }
-
-beforeEach(() => {
-    vi.clearAllMocks()
-    mocks.store.mockResolvedValue({ put: mocks.put })
-    mocks.put.mockImplementation(async (_input, bytes, _hash, width) => ({ url: `https://example.com/${width || 'original'}`, bytes: bytes.length }))
+const input = { key: 'new-local-style', version: 'v-test', directory: 'regional-generated' as const }
+let root: string
+beforeEach(async () => {
+    root = await fs.mkdtemp(path.join(os.tmpdir(), 'bundled-style-test-'))
+})
+afterEach(async () => {
+    await fs.rm(root, { recursive: true, force: true })
 })
 
-describe('style preview processing', () => {
-    it('publishes a new key and two decoded WebP thumbnail sizes', async () => {
-        const png = await sharp({ create: { width: 768, height: 1366, channels: 3, background: '#aaccee' } })
-            .png()
-            .toBuffer()
-        const result = await publishStylePreview(input, png, 'image/png')
+async function source() {
+    return sharp({ create: { width: 768, height: 1366, channels: 3, background: '#aaccee' } })
+        .png()
+        .toBuffer()
+}
+
+describe('bundled style preview processing', () => {
+    it('writes real WebP images and both thumbnail sizes under public, with local URLs', async () => {
+        const result = await publishStylePreview(input, await source(), 'image/png', root)
+        expect(result.original.url).toBe('/style-previews/new-local-style.webp')
         expect(result.thumbnails.map(item => item.width)).toEqual([256, 384])
-        expect(mocks.put).toHaveBeenCalledTimes(3)
-        for (const [index, width] of [768, 256, 384].entries()) {
-            const [publication, bytes, hash] = mocks.put.mock.calls[index]
+        for (const [index, item] of [result.original, ...result.thumbnails].entries()) {
+            const bytes = await fs.readFile(path.join(root, item.url))
             const metadata = await sharp(bytes).metadata()
-            expect(publication).toEqual(input)
             expect(metadata.format).toBe('webp')
-            expect(metadata.width).toBe(width)
-            expect(hash).toBe(createHash('sha256').update(png).digest('hex'))
+            expect(metadata.width).toBe([768, 256, 384][index])
+            expect(item.bytes).toBe(bytes.length)
         }
     })
 
-    it('preserves the bytes of existing WebP originals during migration', async () => {
-        const webp = await sharp({ create: { width: 400, height: 600, channels: 3, background: 'red' } })
+    it('preserves existing WebP bytes when migrating a real style image', async () => {
+        const webp = await sharp(await source())
             .webp()
             .toBuffer()
-        await publishStylePreview(input, webp, 'image/webp')
-        expect(mocks.put.mock.calls[0][1]).toEqual(webp)
+        const result = await publishStylePreview(input, webp, 'image/webp', root)
+        expect(await fs.readFile(path.join(root, result.original.url))).toEqual(webp)
     })
 
-    it('does not write derived objects after an original conflict', async () => {
-        const webp = await sharp({ create: { width: 400, height: 600, channels: 3, background: 'red' } })
+    it('allows a regenerated image to replace the local preview and its thumbnails', async () => {
+        await publishStylePreview(input, await source(), 'image/png', root)
+        const updated = await sharp({ create: { width: 600, height: 900, channels: 3, background: 'red' } })
             .webp()
             .toBuffer()
-        mocks.put.mockRejectedValueOnce(new Error('conflict'))
-        await expect(publishStylePreview(input, webp, 'image/webp')).rejects.toThrow('conflict')
-        expect(mocks.put).toHaveBeenCalledTimes(1)
+        const result = await publishStylePreview(input, updated, 'image/webp', root)
+        expect(await fs.readFile(path.join(root, result.original.url))).toEqual(updated)
+        expect((await fs.readdir(path.join(root, 'style-previews'))).some(name => name.endsWith('.tmp'))).toBe(false)
     })
 
-    it('rejects disguised or corrupted images before any OSS access', async () => {
-        const png = await sharp({ create: { width: 2, height: 2, channels: 3, background: 'red' } })
-            .png()
-            .toBuffer()
-        await expect(publishStylePreview(input, png, 'image/webp')).rejects.toMatchObject({ status: 422 })
-        await expect(publishStylePreview(input, Buffer.from('RIFFabcdWEBPfake'), 'image/webp')).rejects.toMatchObject({ status: 422 })
-        await expect(publishStylePreview(input, png, 'image/svg+xml')).rejects.toMatchObject({ status: 415 })
-        expect(mocks.store).not.toHaveBeenCalled()
+    it('rejects disguised or corrupt images before creating output files', async () => {
+        const png = await source()
+        await expect(publishStylePreview(input, png, 'image/webp', root)).rejects.toMatchObject({ status: 422 })
+        await expect(publishStylePreview(input, Buffer.from('RIFFabcdWEBPfake'), 'image/webp', root)).rejects.toMatchObject({ status: 422 })
+        await expect(publishStylePreview(input, png, 'image/svg+xml', root)).rejects.toMatchObject({ status: 415 })
+        expect(await fs.readdir(root)).toEqual([])
+    })
+
+    it('rejects traversal keys and symlink directories without modifying their target', async () => {
+        const png = await source()
+        await expect(publishStylePreview({ ...input, key: '../escape' }, png, 'image/png', root)).rejects.toMatchObject({ status: 400 })
+        await fs.mkdir(path.join(root, 'outside'))
+        await fs.symlink(path.join(root, 'outside'), path.join(root, 'style-previews'))
+        await expect(publishStylePreview(input, png, 'image/png', root)).rejects.toMatchObject({ status: 400 })
+        expect(await fs.readdir(path.join(root, 'outside'))).toEqual([])
     })
 })

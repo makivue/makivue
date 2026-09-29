@@ -7,13 +7,21 @@ import os from 'node:os'
 import { randomUUID } from 'node:crypto'
 import { GoogleAuth } from 'google-auth-library'
 import { require as requireTs } from 'tsx/cjs/api'
-import { assertExternalDirectory, createStylePreviewPublisher, option } from './style-preview-publish-client.mjs'
+const { publishBundledStylePreview } = requireTs('../src/lib/bundled-style-previews.ts', import.meta.url)
+
+function option(name) {
+    const args = process.argv.slice(2)
+    const inline = args.find(arg => arg.startsWith(`--${name}=`))
+    if (inline) return inline.slice(name.length + 3)
+    const index = args.indexOf(`--${name}`)
+    return index >= 0 ? args[index + 1] : undefined
+}
 const { localStylePreviewCatalog, STYLE_PREVIEW_ASSET_VERSION } = requireTs('./style-preview-catalog.ts', import.meta.url)
 const { validateStylePreviewPublication } = requireTs('../src/lib/style-preview-publishing.ts', import.meta.url)
 
 dotenv.config({ path: '.env', quiet: true })
 
-const OUT_DIR = assertExternalDirectory(option('out-dir') || path.join(os.tmpdir(), `style-previews-${randomUUID()}`))
+const OUT_DIR = path.resolve(option('out-dir') || path.join(os.tmpdir(), `style-previews-${randomUUID()}`))
 const VERSION = option('version') || STYLE_PREVIEW_ASSET_VERSION
 const DRY_RUN = process.argv.includes('--dry-run')
 const PROMPTS_FILE = option('prompts-file')
@@ -97,8 +105,7 @@ async function getAccessToken() {
 }
 
 async function loadStylePrompts() {
-    // Allows new, locally reviewed presets to be rendered before deployment;
-    // local development intentionally proxies every API to the test service.
+    // Read all preset prompts from the local source tree.
     if (PROMPTS_FILE) {
         const styles = JSON.parse(fs.readFileSync(path.resolve(PROMPTS_FILE), 'utf8'))
         if (!Array.isArray(styles) || !styles.length || styles.some(style => !/^[a-z0-9-]+$/.test(style.key) || typeof style.label !== 'string' || !style.previewPrompt?.trim())) {
@@ -215,19 +222,17 @@ const styles = (await loadStylePrompts()).filter(style => !ONLY_KEYS.size || ONL
 if (!styles.length) throw new Error('No style keys matched')
 for (const key of ONLY_KEYS) if (!styles.some(style => style.key === key)) throw new Error(`Unknown local style key: ${key}`)
 for (const style of styles) validateStylePreviewPublication({ ...style, version: VERSION })
-const publisher = DRY_RUN ? null : createStylePreviewPublisher()
-// Fail before paid generation when the production endpoint is not deployed or login expired.
-if (publisher) await publisher.preflight()
+// All preview outputs are bundled locally; the only network call is the user's model request.
 let auth
 
 for (const style of styles) {
     if (DRY_RUN) {
-        console.log(`${style.key} (${style.directory}): generate -> production API -> ${VERSION} original + 256px + 384px`)
+        console.log(`${style.key} (${style.directory}): generate -> public/style-previews/${style.key}.webp + local 256px / 384px thumbnails`)
         continue
     }
     const outPath = sourcePath(style)
     if (!FORCE && manifest[style.key]?.publication?.version === VERSION && !fs.existsSync(outPath)) {
-        console.log(`Already published ${style.key} in ${VERSION}`)
+        console.log(`Already saved ${style.key} in ${VERSION}`)
         continue
     }
     try {
@@ -236,11 +241,11 @@ for (const style of styles) {
             const metadata = await generateWithRetry(style, auth)
             if (metadata) manifest[style.key] = metadata
         }
-        // A failed upload can resume from its existing source without generating (or billing) again.
-        const result = await publisher.publish({ key: style.key, version: VERSION, directory: style.directory }, fs.readFileSync(outPath), 'image/png')
+        // A failed local write can resume from its source without generating (or billing) again.
+        const result = await publishBundledStylePreview({ key: style.key, version: VERSION, directory: style.directory }, fs.readFileSync(outPath), 'image/png')
         manifest[style.key] = { ...manifest[style.key], publication: result }
         fs.unlinkSync(outPath)
-        console.log(`Published and verified ${result.original.url}; removed temporary source`)
+        console.log(`Saved locally ${result.original.url}; removed temporary source`)
     } catch (error) {
         failed.push({ key: style.key, message: error.message })
         console.error(`Failed ${style.key}: ${error.message}`)
