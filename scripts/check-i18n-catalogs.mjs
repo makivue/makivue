@@ -40,7 +40,7 @@ if (catalogs.ar['选择语言'] === '选择语言') failures.push('Arabic catalo
 for (const key of ['AI 短剧生成器', '输入创意、小说或剧本，逐步完成角色设计、分镜与视频制作，创作你的短剧和漫剧。', '开始创作']) {
     if (!Object.hasOwn(catalogs.zh, key)) failures.push(`critical UI message is missing: ${key}`)
 }
-for (const key of ['Project not found', 'Please Confirm', 'frame preview', 'OpenAI API key not configured. Set GPT5_API_KEY or OPENAI_API_KEY in the server environment.']) {
+for (const key of ['Project not found', 'Please Confirm', 'frame preview', 'OpenAI API key not configured. Set your own OPENAI_API_KEY or AZURE_OPENAI_TEXT_API_KEY in .env.']) {
     if (!Object.hasOwn(catalogs.en, key)) failures.push(`visible English message is missing: ${key}`)
     for (const locale of locales.filter(item => item !== 'en')) {
         if (!catalogs[locale][key] || catalogs[locale][key] === key) failures.push(`${locale}: visible English message was not translated: ${key}`)

@@ -9,12 +9,12 @@ try {
     if (args.includes('--require-file') && !exists) {
         throw new Error('请复制 .env.example 为 .env，并填写自己需要使用的模型密钥。')
     }
-    const checks = inspectModelConfiguration(env, environment)
+    const checks = inspectModelConfiguration(env)
     for (const check of checks) {
         console.log(`[models] ${check.label}: ${check.configured ? '配置完整' : `${check.optional ? '未启用' : '缺少配置'} — ${check.setting}`}`)
     }
     if (checks.some(check => !check.configured && !check.optional)) {
-        throw new Error('模型配置不完整。请修改统一配置 .env 并同步部署平台的环境变量，再重新发布/重启服务。环境变量优先于文件；检查不会输出密钥或请求模型。')
+        throw new Error('模型配置不完整。请在 .env 填写对应供应商的个人密钥并重启本地服务。检查不会输出密钥或请求模型。')
     }
 } catch (error) {
     // Never echo parser/input errors, which may contain credentials.

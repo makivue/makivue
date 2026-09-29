@@ -8,8 +8,7 @@ export interface SeedanceConfig {
 }
 
 export async function getSeedanceConfig(variant: 'seedance' | 'seedance25' = 'seedance'): Promise<SeedanceConfig | null> {
-    const runtimeApiKey = process.env.VOLCENGINE_ARK_API_KEY?.trim() || process.env.ARK_API_KEY?.trim() || process.env.BYTEPLUS_ARK_API_KEY?.trim()
-    const apiKey = runtimeApiKey || process.env.SEEDANCE_API_KEY?.trim()
+    const apiKey = process.env.SEEDANCE_API_KEY?.trim()
     if (!apiKey) return null
 
     return {

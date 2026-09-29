@@ -10,9 +10,9 @@ describe('DashScope credentials', () => {
         expect(getDashScopeConfig().apiKey).toBe('current-key')
     })
 
-    it('keeps existing deployments working with only the legacy variable', () => {
+    it('rejects the legacy internal variable when the personal key is absent', () => {
         vi.stubEnv('DASHSCOPE_API_KEY', '')
         vi.stubEnv('HAPPY_HORSE_API_KEY', 'legacy-key')
-        expect(getDashScopeConfig().apiKey).toBe('legacy-key')
+        expect(getDashScopeConfig().apiKey).toBeNull()
     })
 })

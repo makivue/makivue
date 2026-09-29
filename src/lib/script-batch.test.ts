@@ -20,7 +20,7 @@ describe('remaining script generation', () => {
     })
 
     it('stops immediately on missing credentials and preserves the real reason', async () => {
-        const reason = 'Himodels API key 未配置，请设置 HIMODELS_SHARED_API_KEY'
+        const reason = 'Himodels API key 未配置，请在 .env 填写自己的 HIMODELS_API_KEY'
         const generate = vi.fn().mockRejectedValue(new Error(reason))
         const callbacks = handlers()
         const issue = await runScriptBatch({ episodes, generate, ...callbacks })

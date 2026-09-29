@@ -34,7 +34,7 @@ const IMAGE_PROVIDERS = [
 
 const OPENAI_MODEL_PRESETS = TEXT_MODEL_OPTIONS.map(option => ({
     ...option,
-    desc: option.source === 'direct' ? '复用 Nano Banana 服务账号' : '通过 Himodels 统一接口调用'
+    desc: option.source === 'himodels' ? '通过 Himodels 统一接口调用' : option.value.startsWith('gemini:') ? '复用 Nano Banana 服务账号' : '使用自己的 OpenAI API Key'
 }))
 
 export default function SettingsPage() {
@@ -174,6 +174,9 @@ export default function SettingsPage() {
 
             <main className="mx-auto w-full max-w-2xl flex-1 space-y-5 px-6 py-8">
                 <p className="text-gray-400 text-sm">{t('选择生成模型、图片清晰度和视频原声语言。')}</p>
+                <p className="rounded-xl border border-gray-700 bg-gray-800/40 p-4 text-sm leading-6 text-gray-300">
+                    {t('请在本机 .env 填写所选供应商的个人 Token / API Key，并重启应用。项目不提供共享密钥；未配置的供应商无法生成。')}
+                </p>
 
                 {/* 全局视频原声语言 */}
                 <div className="rounded-xl border border-blue-700/30 bg-gradient-to-br from-blue-900/20 to-cyan-900/10 p-5">

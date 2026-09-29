@@ -8,11 +8,13 @@ const targets = { en: 'en', zh: 'zh-CN', fr: 'fr', ar: 'ar', id: 'id', hi: 'hi',
 const targetNames = { en: 'English', fr: 'French', ar: 'Arabic', id: 'Indonesian', hi: 'Hindi', fil: 'Filipino', ja: 'Japanese', ko: 'Korean' }
 
 function readLocalTranslationModel() {
-    const apiKey = process.env.OPENAI_API_KEY ?? process.env.AZURE_OPENAI_TEXT_API_KEY ?? process.env.AZURE_API_KEY ?? process.env.GPT5_API_KEY
+    const openaiKey = process.env.OPENAI_API_KEY?.trim()
+    const apiKey = openaiKey || process.env.AZURE_OPENAI_TEXT_API_KEY?.trim()
     if (typeof apiKey !== 'string' || !apiKey.trim()) return null
-    const baseUrl = String(process.env.OPENAI_BASE_URL ?? process.env.AZURE_OPENAI_TEXT_ENDPOINT ?? 'https://fixture.openai.azure.com').replace(/\/$/, '')
-    const model = String(process.env.OPENAI_MODEL ?? 'gpt-5.4-shortdrama')
-    const url = baseUrl.includes('/responses') ? baseUrl : `${baseUrl}/openai/responses?api-version=2025-04-01-preview`
+    if (!openaiKey && !process.env.AZURE_OPENAI_TEXT_ENDPOINT?.trim()) throw new Error('Set your own AZURE_OPENAI_TEXT_ENDPOINT in .env')
+    const baseUrl = (openaiKey ? process.env.OPENAI_BASE_URL?.trim() || 'https://api.openai.com' : process.env.AZURE_OPENAI_TEXT_ENDPOINT.trim()).replace(/\/$/, '')
+    const model = process.env.OPENAI_MODEL?.trim() || 'gpt-4o'
+    const url = baseUrl.includes('/responses') ? baseUrl : openaiKey ? `${baseUrl.replace(/\/v1$/, '')}/v1/responses` : `${baseUrl}/openai/responses?api-version=2025-04-01-preview`
     return { apiKey: apiKey.trim(), model, url }
 }
 
@@ -117,7 +119,7 @@ async function translateMissing(values, locale, target, localModel) {
     if (values.length === 0) return []
     if (locale === 'zh') return values
     if (!localModel) {
-        throw new Error(`Cannot generate ${target} translations: configure GPT5_API_KEY, OPENAI_API_KEY, AZURE_OPENAI_TEXT_API_KEY, or AZURE_API_KEY`)
+        throw new Error(`Cannot generate ${target} translations: set your own OPENAI_API_KEY or AZURE_OPENAI_TEXT_API_KEY in .env`)
     }
 
     const batches = chunkMessages(values)

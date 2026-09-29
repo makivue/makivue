@@ -32,7 +32,7 @@ const request = () => new NextRequest('http://localhost/api/ai/script', { method
 
 describe('script configuration preflight', () => {
     it('returns model-not-configured before creating, scheduling or billing a task', async () => {
-        mocks.configured.mockRejectedValue(new Error('Himodels API key 未配置，请设置 HIMODELS_SHARED_API_KEY'))
+        mocks.configured.mockRejectedValue(new Error('Himodels API key 未配置，请在 .env 填写自己的 HIMODELS_API_KEY'))
         const response = await POST(request())
         expect(response.status).toBe(503)
         expect(await response.json()).toEqual({

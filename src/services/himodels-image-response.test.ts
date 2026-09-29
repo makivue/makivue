@@ -255,8 +255,7 @@ describe('HiModels empty-image retry policy', () => {
 
     beforeEach(() => {
         vi.restoreAllMocks()
-        vi.stubEnv('HIMODELS_DEV_API_KEY', 'test-env-key')
-        vi.stubEnv('HIMODELS_SHARED_API_KEY', 'test-env-key')
+        vi.stubEnv('HIMODELS_API_KEY', 'test-env-key')
         vi.stubEnv('HIMODELS_BASE_URL', 'https://himodels.test')
     })
 

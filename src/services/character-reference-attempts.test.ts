@@ -63,7 +63,7 @@ const rejected = { ...accepted, faceVisible: false, faceCloseupVisible: false, i
 beforeEach(() => {
     vi.clearAllMocks()
     mocks.inspect.mockReset()
-    vi.stubEnv('HAPPY_HORSE_API_KEY', 'test-dashscope-key')
+    vi.stubEnv('DASHSCOPE_API_KEY', 'test-dashscope-key')
     mocks.character.mockResolvedValue({ id: 1n, projectId: 2n, name: 'Mira', appearancePrompt: 'adult woman, brown hair, blue jacket', gender: '女' })
     mocks.project.mockResolvedValue({ id: 2n, title: 'Test story', novelSetup: null })
     mocks.banana.mockResolvedValue({ localPath: '/unused-mocked-reference.png' })

@@ -78,7 +78,7 @@ async function flushMicrotasksUntil(predicate: () => boolean) {
 describe('image generation automatic recovery', () => {
     beforeEach(() => {
         vi.clearAllMocks()
-        vi.stubEnv('HAPPY_HORSE_API_KEY', 'test-dashscope-key')
+        vi.stubEnv('DASHSCOPE_API_KEY', 'test-dashscope-key')
         mocks.findUnique.mockResolvedValue(null)
         mocks.rewriteImagePromptForSafety.mockImplementation(async ({ prompt, attempt }: { prompt: string; attempt: number }) => `${prompt}, safe rewrite ${attempt}`)
         mocks.generateHiModelsImage.mockResolvedValue({ referenceImagesApplied: true, usage: null })

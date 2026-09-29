@@ -91,7 +91,7 @@ function resolveLLMRoute(modelName: string | undefined | null): { provider: 'ope
 /** Provider credentials and endpoints come only from the server environment. */
 function getConfig() {
     const openaiKey = process.env.OPENAI_API_KEY?.trim()
-    const azureKey = process.env.AZURE_OPENAI_TEXT_API_KEY?.trim() || process.env.AZURE_API_KEY?.trim() || process.env.GPT5_API_KEY?.trim()
+    const azureKey = process.env.AZURE_OPENAI_TEXT_API_KEY?.trim()
     if (!openaiKey && azureKey && !process.env.AZURE_OPENAI_TEXT_ENDPOINT?.trim()) throw new Error('请配置 AZURE_OPENAI_TEXT_ENDPOINT')
     const baseUrl = openaiKey ? process.env.OPENAI_BASE_URL?.trim() || null : azureKey ? process.env.AZURE_OPENAI_TEXT_ENDPOINT!.trim() : process.env.OPENAI_BASE_URL?.trim() || null
     return {
@@ -115,7 +115,7 @@ export async function assertTextModelConfigured(modelName: string): Promise<void
     } else if (route.provider === 'gemini') {
         assertNanoBananaCredentialsConfigured()
     } else if (!getConfig().apiKey) {
-        throw new Error('OpenAI API key not configured')
+        throw new Error('OpenAI API key not configured. Set your own OPENAI_API_KEY or AZURE_OPENAI_TEXT_API_KEY in .env.')
     }
 }
 
@@ -254,7 +254,7 @@ export async function chat(
 
     // 以下走 OpenAI / Azure 路径，需要 apiKey
     if (!config?.apiKey) {
-        throw new Error('OpenAI API key not configured. Set GPT5_API_KEY or OPENAI_API_KEY in the server environment.')
+        throw new Error('OpenAI API key not configured. Set your own OPENAI_API_KEY or AZURE_OPENAI_TEXT_API_KEY in .env.')
     }
 
     const baseUrl = (config.baseUrl ?? 'https://api.openai.com').replace(/\/$/, '')
