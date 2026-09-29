@@ -65,6 +65,7 @@ const removedCredentialHashes = new Set(['a8bb2bb08de5802fdb53579a7e1c7945df4db3
 // Split identifiers, path components and display names so renamed wrappers cannot
 // accidentally reintroduce a removed service or identity.
 const removedReferenceHashes = new Set([
+    '10688a5b3f51925ae67b76734652a389d84ee26e57dad4c19d6cb56d2cf3cc0a',
     '6f621ffa99b53514a27944f8846404d01ff498ab59266ec75a5080e535633912',
     '5519666ff196d06a3b41e66a5807a7dea735cf7f45d62fcdd8a42c8ec10c3cc9',
     '8513a78b52fb8813ea875cafc80f1d8397f41383e17afbe318602508602670ca',
@@ -148,7 +149,13 @@ if (usingGit) {
     inspectGitObjects(staged, 'index')
     if (process.argv.includes('--history')) {
         const historicalPaths = execFileSync('git', ['log', '--all', '--format=', '--name-only', '-z'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
-        for (const file of new Set(historicalPaths.split('\0').map(value => value.trim()).filter(Boolean))) inspect(file, '', `history-path:${file}`)
+        for (const file of new Set(
+            historicalPaths
+                .split('\0')
+                .map(value => value.trim())
+                .filter(Boolean)
+        ))
+            inspect(file, '', `history-path:${file}`)
         const objects = execFileSync('git', ['rev-list', '--all', '--objects'], { encoding: 'utf8' })
             .trim()
             .split('\n')
