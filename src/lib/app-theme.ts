@@ -8,7 +8,7 @@ export const APP_THEMES = [
     { id: 'polar', name: '极地白', hint: '冷白底 · 电蓝对比', colors: ['#f4f7fa', '#123caa'], tone: 'light' },
     { id: 'juhuo', name: '剧火黑橙', hint: '炭黑底 · 白色按钮 · 橙红光晕', colors: ['#1d1d1d', '#ff9b48'], tone: 'dark' },
     { id: 'cobalt', name: '钴蓝纸', hint: '清晰逻辑', colors: ['#2851e3', '#0b5bd3'], tone: 'light' },
-    { id: 'classic', name: 'Local Drama Studio 紫', hint: '当前项目主题', colors: ['#c6a8ff', '#7546c8'], tone: 'dark' }
+    { id: 'classic', name: 'makivue 紫', hint: '当前项目主题', colors: ['#c6a8ff', '#7546c8'], tone: 'dark' }
 ] as const
 
 export type AppTheme = (typeof APP_THEMES)[number]['id']

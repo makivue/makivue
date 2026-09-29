@@ -80,7 +80,7 @@ export function buildHomeJsonLd(locale: Locale) {
                 inLanguage: copy.html,
                 isPartOf: { '@id': `${homeUrl}#website` },
                 about: { '@id': `${localizedUrl}#application` },
-                // These are third-party models mentioned on the page, not Local Drama Studio identities.
+                // These are third-party models mentioned on the page, not makivue identities.
                 mentions: CREATION_MODELS.flatMap(model => model.names.map(name => ({ '@type': 'Thing', name })))
             },
             {

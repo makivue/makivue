@@ -30,7 +30,7 @@ describe('compact FAQ introduction', () => {
         expect(intro?.match(/<p\b/g)).toHaveLength(1)
         expect(intro).not.toMatch(/<(?:a|button|nav|aside)\b/)
         expect(intro).not.toMatch(/rounded-|shadow-|border|grid-cols|text-6xl/)
-        expect(html).not.toContain('Local Drama Studio / FAQ')
+        expect(html).not.toContain('makivue / FAQ')
         expect(html.match(/\?create=story/g)).toHaveLength(1)
         expect(copy.categories).toHaveLength(6)
         expect(html.match(/<details\b/g)).toHaveLength(30)

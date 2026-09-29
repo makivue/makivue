@@ -23,6 +23,12 @@ beforeEach(() => {
 afterEach(() => fs.rmSync(root, { recursive: true, force: true }))
 
 describe('public repository secret gate', () => {
+    it('allows the public brand and the owner-provided website link', () => {
+        fs.writeFileSync(path.join(root, 'README.md'), '# makivue\n\n[官网](https://makivue.com?utm_source=github)\n')
+        git('add', 'README.md')
+        expect(check().status).toBe(0)
+    })
+
     it('finds a staged token even after the working file is cleaned, without printing the token', () => {
         fs.writeFileSync(path.join(root, 'sample.txt'), syntheticToken)
         git('add', 'sample.txt')

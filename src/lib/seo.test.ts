@@ -13,7 +13,7 @@ const SEO_IMAGE_URL = `${SITE_ORIGIN}/opengraph-image`
 beforeEach(() => vi.stubEnv('NEXT_PUBLIC_SITE_URL', SITE_ORIGIN))
 afterEach(() => vi.unstubAllEnvs())
 
-describe('Local Drama Studio site identity', () => {
+describe('makivue site identity', () => {
     it.each([undefined, '', 'not-a-url', 'ftp://example.com', 'https://user:password@example.com'])('uses the public origin for missing or unsafe site URL %s', value => {
         vi.stubEnv('NEXT_PUBLIC_SITE_URL', value)
         expect(getSiteUrl().toString()).toBe('http://localhost:3000/')
@@ -27,12 +27,12 @@ describe('Local Drama Studio site identity', () => {
     })
 
     it('adds the brand exactly once to a page title', () => {
-        expect(withSiteName('AI Video Generator')).toBe('AI Video Generator | Local Drama Studio')
-        expect(withSiteName('Local Drama Studio — AI Video Generator')).toBe('Local Drama Studio — AI Video Generator')
+        expect(withSiteName('AI Video Generator')).toBe('AI Video Generator | makivue')
+        expect(withSiteName('makivue — AI Video Generator')).toBe('makivue — AI Video Generator')
     })
 
     it.each(locales)('preserves the brand in %s', locale => {
-        expect(translateMessage(locale, SITE_NAME)).toBe('Local Drama Studio')
+        expect(translateMessage(locale, SITE_NAME)).toBe('makivue')
         expect(SEO_LOCALE[locale].title).toContain(SITE_NAME)
         expect(SEO_LOCALE[locale].description).toContain(SITE_NAME)
     })
@@ -93,7 +93,7 @@ describe('public SEO metadata', () => {
 })
 
 describe('structured data and discovery', () => {
-    it.each(locales)('describes model usage on Local Drama Studio without claiming model ownership in %s', locale => {
+    it.each(locales)('describes model usage on makivue without claiming model ownership in %s', locale => {
         const graph = buildHomeJsonLd(locale)['@graph']
         const page = graph.find(item => item['@type'] === 'WebPage')
         const application = graph.find(item => item['@type'] === 'SoftwareApplication')

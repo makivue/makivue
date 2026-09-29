@@ -4,7 +4,7 @@ import BrandLogo from '@/components/BrandLogo'
 import LegalLinks from '@/components/LegalLinks'
 import { useI18n } from '@/i18n/I18nProvider'
 import Link from '@/i18n/navigation'
-import { SITE_NAME } from '@/lib/seo'
+import { SITE_NAME, SITE_OFFICIAL_URL } from '@/lib/seo'
 
 export default function SiteFooter() {
     const { t } = useI18n()
@@ -71,11 +71,18 @@ export default function SiteFooter() {
                             className="home-footer-link w-fit text-slate-300 transition hover:text-violet-200">
                             {t('常见问题')}
                         </Link>
+                        <a
+                            href={SITE_OFFICIAL_URL}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="home-footer-link w-fit text-slate-300 transition hover:text-violet-200">
+                            makivue.com ↗
+                        </a>
                     </nav>
                 </div>
 
                 <div className="flex flex-col gap-4 pt-4 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between">
-                    <p className="home-footer-meta text-xs leading-5 text-slate-600">{t('© Local Drama Studio · AI 故事视频工作室')}</p>
+                    <p className="home-footer-meta text-xs leading-5 text-slate-600">{t('© makivue · AI 故事视频工作室')}</p>
                     <div className="min-w-0 lg:ms-auto">
                         <LegalLinks className="lg:flex-row lg:flex-wrap lg:justify-end lg:gap-x-6" />
                     </div>

@@ -111,7 +111,7 @@ export function getSeedanceAssetLibraryConfig(seedanceConfig: SeedanceConfig): S
         projectName,
         groupId: configuredGroupId ?? (projectName === BUILTIN_SEEDANCE_PROJECT_NAME ? BUILTIN_SEEDANCE_ASSET_GROUP_ID : undefined),
         aigcGroupId: firstNonEmpty(process.env.SEEDANCE_AIGC_ASSET_GROUP_ID, nested.aigcAssetGroupId),
-        groupName: firstNonEmpty(process.env.SEEDANCE_ASSET_GROUP_NAME, nested.assetGroupName, nested.groupName) ?? 'local-drama-studio-virtual-characters',
+        groupName: firstNonEmpty(process.env.SEEDANCE_ASSET_GROUP_NAME, nested.assetGroupName, nested.groupName) ?? 'makivue-virtual-characters',
         region,
         endpoint: firstNonEmpty(process.env.SEEDANCE_ASSET_API_BASE_URL, nested.endpoint) ?? `https://ark.${region}.volcengineapi.com`
     }

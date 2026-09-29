@@ -108,7 +108,7 @@ export default function HomeProductOverview() {
                         <h2 id="home-product-heading">{t('AI 短剧与漫剧，从故事到成片')}</h2>
                         <p>
                             {t(
-                                'Local Drama Studio 将剧本、角色、场景、分镜与视频创作汇集到一个项目中。输入故事想法，或从已有小说、剧本继续创作，逐步制作写实短剧与动画漫剧；也可以使用 AI 图片和 AI 视频工具，单独生成创作素材。'
+                                'makivue 将剧本、角色、场景、分镜与视频创作汇集到一个项目中。输入故事想法，或从已有小说、剧本继续创作，逐步制作写实短剧与动画漫剧；也可以使用 AI 图片和 AI 视频工具，单独生成创作素材。'
                             )}
                         </p>
                     </div>
@@ -160,12 +160,8 @@ export default function HomeProductOverview() {
                 aria-labelledby="home-models-heading">
                 <div className={styles.container}>
                     <div className={styles.intro}>
-                        <h2 id="home-models-heading">{t('在 Local Drama Studio 使用 AI 模型，创作短剧、视频与图片')}</h2>
-                        <p>
-                            {t(
-                                '在 Local Drama Studio，用 Seedance、Wan 或 MiniMax H3 生成视频，用 Nano Banana、Qwen-Image 或 Seedream 创作图片，再通过 Gemini 辅助剧本与分镜，把创意推进为可编辑的短剧作品。'
-                            )}
-                        </p>
+                        <h2 id="home-models-heading">{t('在 makivue 使用 AI 模型，创作短剧、视频与图片')}</h2>
+                        <p>{t('在 makivue，用 Seedance、Wan 或 MiniMax H3 生成视频，用 Nano Banana、Qwen-Image 或 Seedream 创作图片，再通过 Gemini 辅助剧本与分镜，把创意推进为可编辑的短剧作品。')}</p>
                     </div>
                     <div className={styles.threeColumns}>
                         {CREATION_MODELS.map(({ id, actionModel, category, names, description, product }) => (
@@ -188,7 +184,7 @@ export default function HomeProductOverview() {
                                 <Link
                                     href={product === 'drama' ? '/features/ai-storyboard-generator' : `/ai${product}`}
                                     className={styles.textLink}>
-                                    {t('在 Local Drama Studio 使用 {model}', { model: actionModel })}
+                                    {t('在 makivue 使用 {model}', { model: actionModel })}
                                     <ArrowRight
                                         size={16}
                                         aria-hidden="true"
@@ -276,8 +272,8 @@ export default function HomeProductOverview() {
                 aria-labelledby="home-benefits-heading">
                 <div className={styles.container}>
                     <div className={styles.intro}>
-                        <h2 id="home-benefits-heading">{t('为什么用 Local Drama Studio 制作 AI 短剧？')}</h2>
-                        <p>{t('短剧制作需要不断确认和修改。Local Drama Studio 将故事、素材与生成进度留在项目里，让你能够分阶段推进，在质量、时间和预算之间做出选择。')}</p>
+                        <h2 id="home-benefits-heading">{t('为什么用 makivue 制作 AI 短剧？')}</h2>
+                        <p>{t('短剧制作需要不断确认和修改。makivue 将故事、素材与生成进度留在项目里，让你能够分阶段推进，在质量、时间和预算之间做出选择。')}</p>
                     </div>
                     <div className={styles.threeColumns}>
                         {PROJECT_BENEFITS.map(({ title, description }) => (

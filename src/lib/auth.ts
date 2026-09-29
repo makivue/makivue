@@ -1,5 +1,5 @@
 const USER_KEY = 'local_studio_profile'
-const AUTH_CHANGE = 'local-drama-studio-profile-change'
+const AUTH_CHANGE = 'makivue-profile-change'
 export const HOME_AUTH_BOOTSTRAP_SCRIPT = "document.currentScript?.parentElement?.setAttribute('data-home-auth','member')"
 export type AuthUser = { userId: string; userType: number; reg: boolean; displayName?: string; email?: string; photoURL?: string; isAdmin?: boolean }
 const localUser: AuthUser = { userId: '1', userType: 1, reg: false, displayName: '本地工作区', isAdmin: true }

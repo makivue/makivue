@@ -1,8 +1,8 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
 export const ROOT_ADMIN_EMAIL = 'local@localhost'
-const ISSUER = 'local-drama-studio'
-const AUDIENCE = 'local-drama-studio-web'
+const ISSUER = 'makivue'
+const AUDIENCE = 'makivue-web'
 const DEFAULT_TTL_SECONDS = 7 * 24 * 60 * 60
 
 export type AppSession = {

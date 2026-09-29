@@ -28,8 +28,8 @@ const zh: FaqPageCopy = {
             title: '开始使用',
             items: [
                 {
-                    question: 'Local Drama Studio 是什么？',
-                    answer: 'Local Drama Studio 是一站式 AI 故事视频工作室，可以把一个想法或剧本逐步变成角色、场景、分镜、视频和字幕，适合制作 AI 短剧、短片、动画故事和系列剧集。'
+                    question: 'makivue 是什么？',
+                    answer: 'makivue 是一站式 AI 故事视频工作室，可以把一个想法或剧本逐步变成角色、场景、分镜、视频和字幕，适合制作 AI 短剧、短片、动画故事和系列剧集。'
                 },
                 { question: '没有完整剧本也能开始吗？', answer: '可以。你可以从一句话、一个人物设定或一段经历开始，AI 会帮助你整理故事方向、生成剧本和分集内容；已有小说或脚本也可以导入后继续制作。' },
                 {
@@ -130,8 +130,8 @@ const en: FaqPageCopy = {
             title: 'Getting started',
             items: [
                 {
-                    question: 'What is Local Drama Studio?',
-                    answer: 'Local Drama Studio is an AI story video studio that turns an idea or script into characters, scenes, storyboards, video shots, and subtitles. It is built for AI short dramas, short films, animated stories, and series.'
+                    question: 'What is makivue?',
+                    answer: 'makivue is an AI story video studio that turns an idea or script into characters, scenes, storyboards, video shots, and subtitles. It is built for AI short dramas, short films, animated stories, and series.'
                 },
                 {
                     question: 'Can I start without a complete script?',

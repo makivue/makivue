@@ -1,4 +1,5 @@
-export const SITE_NAME = 'Local Drama Studio'
+export const SITE_NAME = 'makivue'
+export const SITE_OFFICIAL_URL = 'https://makivue.com?utm_source=github'
 export const SITE_ORIGIN = 'http://localhost:3000'
 export const SITE_CONTACT_EMAIL = ''
 export const SITE_SOCIAL_IMAGE = {

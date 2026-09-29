@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { tryAcquireProviderQuota, renewProviderQuota, releaseProviderQuota } from '@/lib/provider-quota-store'
 import { ffmpegClusterLimitEnabled, ffmpegRuntimeConfig } from '@/lib/media-worker-config'
 
-export const FFMPEG_CLUSTER_SCOPE_KEY = createHash('sha256').update('local-drama-studio:workload:ffmpeg').digest('hex')
+export const FFMPEG_CLUSTER_SCOPE_KEY = createHash('sha256').update('makivue:workload:ffmpeg').digest('hex')
 
 function sleep(ms: number): Promise<void> {
     return new Promise(resolve => {

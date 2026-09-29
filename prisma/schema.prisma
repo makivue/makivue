@@ -1,4 +1,4 @@
-// Schema for the local-drama-studio Next.js service.
+// Schema for the makivue Next.js service.
 // DDL is authoritative on the Node side — use `prisma migrate` to evolve schema.
 
 generator client {
