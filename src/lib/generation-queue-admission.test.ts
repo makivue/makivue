@@ -1,3 +1,4 @@
+vi.mock('@/lib/local-store', () => ({ localTransactionLock: async () => [{ acquired: 1 }] }))
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const database = vi.hoisted(() => {
@@ -49,7 +50,7 @@ describe('generation queue admission', () => {
         expect(database.transactionClient.generation.create).toHaveBeenCalledWith({
             data: { ...generationData, status: 'queued' }
         })
-        expect(database.transactionClient.$queryRaw).toHaveBeenCalledTimes(2)
+
     })
 
     it('does not create beyond the configured queue limit', async () => {

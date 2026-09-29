@@ -21,8 +21,8 @@ export async function saveReviewedNarrative(params: {
     const issues = params.issues ?? []
     const saved = await prisma.$transaction(
         async tx => {
-            await tx.$queryRaw`SELECT id FROM projects WHERE id = ${params.episode.projectId} FOR UPDATE`
-            await tx.$queryRaw`SELECT id FROM episodes WHERE id = ${params.episode.id} FOR UPDATE`
+
+
             const current = await tx.episode.findUnique({ where: { id: params.episode.id } })
             if (!current || current.deletedAt || current.sourceVersion !== params.episode.sourceVersion || current.operationVersion !== params.episode.operationVersion) {
                 throw new Error('生成期间内容已修改，本次结果未覆盖新版本，请基于最新内容重试')

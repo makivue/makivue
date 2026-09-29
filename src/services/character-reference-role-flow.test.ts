@@ -3,7 +3,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 describe('REF-011 character reference roles', () => {
-    const page = fs.readFileSync(path.join(process.cwd(), 'src/app/projects/[id]/page.tsx'), 'utf8')
+    const page = fs.readFileSync(path.join(process.cwd(), 'src/app/projects/[id]/ProjectWorkspace.tsx'), 'utf8')
     const globalStyles = fs.readFileSync(path.join(process.cwd(), 'src/app/globals.css'), 'utf8')
     const projectRoute = fs.readFileSync(path.join(process.cwd(), 'src/app/api/projects/[id]/route.ts'), 'utf8')
     const referenceRoute = fs.readFileSync(path.join(process.cwd(), 'src/app/api/characters/[id]/reference/route.ts'), 'utf8')

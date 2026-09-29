@@ -10,11 +10,9 @@ export async function tryAcquireProviderQuota(budgets: ProviderQuotaBudget[]): P
         async tx => {
             const ordered = [...budgets].sort((a, b) => a.key.localeCompare(b.key))
             for (const budget of ordered) {
-                await tx.$executeRaw`INSERT INTO provider_quotas (\`key\`) VALUES (${budget.key}) ON DUPLICATE KEY UPDATE \`key\` = VALUES(\`key\`)`
-                await tx.$queryRaw`SELECT \`key\` FROM provider_quotas WHERE \`key\` = ${budget.key} FOR UPDATE`
+                await tx.providerQuota.upsert({ where: { key: budget.key }, create: { key: budget.key }, update: {} })
             }
-            const clocks = await tx.$queryRaw<Array<{ nowMs: bigint }>>`SELECT CAST(UNIX_TIMESTAMP(CURRENT_TIMESTAMP(3)) * 1000 AS UNSIGNED) AS nowMs`
-            const now = Number(clocks[0].nowMs)
+            const now = Date.now()
             const entries = []
             for (const budget of ordered) {
                 const row = await tx.providerQuota.findUniqueOrThrow({ where: { key: budget.key } })
@@ -51,8 +49,7 @@ export async function tryAcquireProviderQuota(budgets: ProviderQuotaBudget[]): P
 
 export async function renewProviderQuota(ids: bigint[]): Promise<boolean> {
     return prisma.$transaction(async tx => {
-        const clocks = await tx.$queryRaw<Array<{ nowMs: bigint }>>`SELECT CAST(UNIX_TIMESTAMP(CURRENT_TIMESTAMP(3)) * 1000 AS UNSIGNED) AS nowMs`
-        const now = clocks[0].nowMs
+        const now = BigInt(Date.now())
         const result = await tx.providerQuotaLease.updateMany({ where: { id: { in: ids }, expiresAtMs: { gt: now } }, data: { expiresAtMs: now + BigInt(PROVIDER_QUOTA_LEASE_MS) } })
         return result.count === ids.length
     })

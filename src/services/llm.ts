@@ -92,7 +92,8 @@ function resolveLLMRoute(modelName: string | undefined | null): { provider: 'ope
 function getConfig() {
     const openaiKey = process.env.OPENAI_API_KEY?.trim()
     const azureKey = process.env.AZURE_OPENAI_TEXT_API_KEY?.trim() || process.env.AZURE_API_KEY?.trim() || process.env.GPT5_API_KEY?.trim()
-    const baseUrl = process.env.OPENAI_BASE_URL?.trim() || process.env.AZURE_OPENAI_TEXT_ENDPOINT?.trim() || (!openaiKey && azureKey ? 'https://fixture.openai.azure.com' : null)
+    if (!openaiKey && azureKey && !process.env.AZURE_OPENAI_TEXT_ENDPOINT?.trim()) throw new Error('请配置 AZURE_OPENAI_TEXT_ENDPOINT')
+    const baseUrl = openaiKey ? process.env.OPENAI_BASE_URL?.trim() || null : azureKey ? process.env.AZURE_OPENAI_TEXT_ENDPOINT!.trim() : process.env.OPENAI_BASE_URL?.trim() || null
     return {
         apiKey: openaiKey || azureKey || null,
         baseUrl,
@@ -2076,7 +2077,7 @@ ${params.chapterContent}
 要求：
 1. 每个场景必须有独立 purpose、主角当场目标 protagonistGoal、具体 conflict、改变局面的 turn，以及把观众带入下一场的 exitHook。
 2. requiredEvents 必须引用本章正文实际事件，并逐字包含上方每一条“必须逐字覆盖的必保事件”，确保可机器核验；可以补充正文中的其他必要事件，但不得发明正文没有的结果、人物或秘密。
-3. estimatedSeconds 按自然对白语速和可见动作估算；所有场景合计必须落在 ${spec.minDurationSeconds}-${spec.maxDurationSeconds} 秒附近。
+3. estimatedSeconds 按自然对白语速和可见动作估算；所有场景合计以 ${spec.minDurationSeconds}-${spec.maxDurationSeconds} 秒为节奏参考，允许因完整呈现必要剧情而偏离，不得为了凑时长遗漏事件或填充无效动作。
 4. 相邻场景不能只是换地点重复同一冲突；每场结束后信息、权力关系、风险或人物决定至少改变一项。
 5. 不写景别、机位和运镜；只规划戏剧动作。
 
@@ -2092,7 +2093,7 @@ ${params.chapterContent}
             { temperature: attempt === 0 ? 0.45 : 0.2, model: params.model, maxTokens: resolveMaxTokens(4096, params.model) }
         )
         scenes = Array.isArray(result.scenes) ? result.scenes.map((scene, index) => ({ ...scene, sceneNumber: index + 1, estimatedSeconds: Number(scene.estimatedSeconds) })) : []
-        issues = validateEpisodeScenePlan(scenes, { min: spec.minDurationSeconds, max: spec.maxDurationSeconds }, statePlan?.requiredEvents ?? [])
+        issues = validateEpisodeScenePlan(scenes, statePlan?.requiredEvents ?? [])
         if (!issues.length) return scenes
     }
     throw new Error(`场景规划质量检查未通过：${issues.map(issue => issue.message).join('；')}`)
@@ -2160,7 +2161,7 @@ ${params.chapterContent}
 ${JSON.stringify(params.scenePlan ?? [], null, 2)}
 
 改编要求（严格遵守）：
-1. **以成片时长为唯一篇幅硬指标，不为凑字数增加对白或描写。** 按自然对白语速、停顿和可见动作估算，使成片落在 ${spec.minDurationSeconds}-${spec.maxDurationSeconds} 秒；删掉解释性重复，保留动作因果和必要停顿。浓缩思路：${spec.compressionHint}。输出 token 容量按约 ${spec.targetWords} 个内容单位预留，但这不是必须凑满的字数。
+1. **成片时长仅作节奏参考，以必要剧情完整、自然表演为准。** 按自然对白语速、停顿和可见动作估算，参考 ${spec.minDurationSeconds}-${spec.maxDurationSeconds} 秒；允许合理偏离，不为凑时长或字数删减必要事件、增加无效对白或描写。删掉解释性重复，保留动作因果和必要停顿。浓缩思路：${spec.compressionHint}。输出 token 容量按约 ${spec.targetWords} 个内容单位预留，但这不是必须凑满的字数。
 2. 所有声音内容**必须有明确的说话人和发声方式**，说话人必须属于上面的“本集角色作用域”。画面中人物实际开口使用 \`角色名：内容\`；全知叙述使用 \`旁白：内容\`；角色未开口的内心声音使用 \`角色名（内心）：内容\`。旁白和内心声音必须少量、必要，不能把可见动作都念出来。角色是否能出场只以本章标题、梗概、正文和本集状态为准，前文、下一集、全剧大纲或角色弧光不能扩大本集角色范围
 3. 开头要有强 hook，结尾要有悬念或反转
 4. 剧本格式：
@@ -2277,7 +2278,7 @@ export async function correctEpisodeScript(params: {
             },
             {
                 role: 'user',
-                content: `第${params.chapterNumber}集，规格：${spec.label}。\n${contentLanguagePrompt(params.setup?.contentLanguage)}\n章节标题：${params.chapterTitle ?? ''}\n章节梗概：${params.chapterSynopsis ?? ''}\n本集原始章节正文（角色与剧情事实的唯一依据）：\n${params.chapterContent}\n\n本集允许的说话人：${[...params.allowedCharacterNames, '旁白'].join('、')}\n仅可被提及、不得出场或说话的角色：${params.referenceOnlyCharacterNames?.join('、') || '无'}\n故事圣经与角色语言指纹：${params.setup ? formatStoryBibleContext(params.setup, { focusEpisodeNumber: params.chapterNumber }) : '无'}\n本集状态：${stateContext}\n已审核场景计划：${JSON.stringify(params.scenePlan ?? [])}\n校验问题：${JSON.stringify(params.issues)}\n\n当前结果：\n${JSON.stringify(params.current)}\n\n修复要求：逐场保留场景计划中的目标、冲突、转折和离场钩子；严格删除本章原文未出场的项目角色；只在原文消息、档案、照片或代号中出现的角色必须保持非出场引用，不能安排动作或台词；不得把原文小角色替换成其他项目角色；以 ${spec.minDurationSeconds}-${spec.maxDurationSeconds} 秒成片时长为篇幅硬指标，不得为凑字数添加解释性对白；保持各角色的语言指纹和潜台词；至少 ${spec.minSceneChanges} 个【场景：具体地点/日夜/内外】；每场至少有（场景描述：...）、开场人物状态（第一场可由 Opening state 承担；纯环境过渡场景写“人物状态：无人出场”）和（动作：...）；关键情绪变化用（表情：...）写明触发原因、眼神目标和至少两项可见表演；动作写清主体、起始状态、过程与结果；连续对白之间加入由上一句触发的可见反应，单次发言控制在自然表演约 12 秒以内；第一场含（Opening state: ...），末场含（Ending state: ...）；不得新增未登记说话人；不得在剧本阶段指定景别、机位、构图、运镜、镜头时长或剪辑转场。固定结构标签保持中文，标签后的内容遵循项目创作语言。`
+                content: `第${params.chapterNumber}集，规格：${spec.label}。\n${contentLanguagePrompt(params.setup?.contentLanguage)}\n章节标题：${params.chapterTitle ?? ''}\n章节梗概：${params.chapterSynopsis ?? ''}\n本集原始章节正文（角色与剧情事实的唯一依据）：\n${params.chapterContent}\n\n本集允许的说话人：${[...params.allowedCharacterNames, '旁白'].join('、')}\n仅可被提及、不得出场或说话的角色：${params.referenceOnlyCharacterNames?.join('、') || '无'}\n故事圣经与角色语言指纹：${params.setup ? formatStoryBibleContext(params.setup, { focusEpisodeNumber: params.chapterNumber }) : '无'}\n本集状态：${stateContext}\n已审核场景计划：${JSON.stringify(params.scenePlan ?? [])}\n校验问题：${JSON.stringify(params.issues)}\n\n当前结果：\n${JSON.stringify(params.current)}\n\n修复要求：逐场保留场景计划中的目标、冲突、转折和离场钩子；严格删除本章原文未出场的项目角色；只在原文消息、档案、照片或代号中出现的角色必须保持非出场引用，不能安排动作或台词；不得把原文小角色替换成其他项目角色；以 ${spec.minDurationSeconds}-${spec.maxDurationSeconds} 秒成片时长为节奏参考，允许合理偏离，不得为凑时长或字数删减必要事件或添加解释性对白；保持各角色的语言指纹和潜台词；至少 ${spec.minSceneChanges} 个【场景：具体地点/日夜/内外】；每场至少有（场景描述：...）、开场人物状态（第一场可由 Opening state 承担；纯环境过渡场景写“人物状态：无人出场”）和（动作：...）；关键情绪变化用（表情：...）写明触发原因、眼神目标和至少两项可见表演；动作写清主体、起始状态、过程与结果；连续对白之间加入由上一句触发的可见反应，单次发言控制在自然表演约 12 秒以内；第一场含（Opening state: ...），末场含（Ending state: ...）；不得新增未登记说话人；不得在剧本阶段指定景别、机位、构图、运镜、镜头时长或剪辑转场。固定结构标签保持中文，标签后的内容遵循项目创作语言。`
             }
         ],
         { temperature: 0.3, model: params.model, maxTokens: resolveMaxTokens(spec.scriptMaxTokens, params.model) }

@@ -1,7 +1,7 @@
 import 'server-only'
 import sharp from 'sharp'
 import { createHash } from 'node:crypto'
-import { createProductionStylePreviewStore } from './oss'
+import { createLocalStylePreviewStore } from './local-media'
 import { STYLE_PREVIEW_MAX_BYTES, STYLE_PREVIEW_THUMBNAIL_WIDTHS, StylePreviewPublishError, validateStylePreviewPublication, type StylePreviewPublication } from '@/lib/style-preview-publishing'
 
 export async function publishStylePreview(input: StylePreviewPublication, source: Buffer, contentType: string) {
@@ -24,7 +24,7 @@ export async function publishStylePreview(input: StylePreviewPublication, source
         throw new StylePreviewPublishError('Invalid image, animation, or image exceeds 40 megapixels', 422)
     }
 
-    const store = await createProductionStylePreviewStore()
+    const store = await createLocalStylePreviewStore()
     const sourceSha256 = createHash('sha256').update(source).digest('hex')
     // Original establishes the immutable source before any derived objects are written.
     const publishedOriginal = await store.put(input, original, sourceSha256)

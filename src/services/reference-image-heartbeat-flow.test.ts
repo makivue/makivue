@@ -6,7 +6,7 @@ describe('reference image heartbeat flow', () => {
     const characterRoute = fs.readFileSync(path.join(process.cwd(), 'src/app/api/characters/[id]/reference/route.ts'), 'utf8')
     const characterJob = fs.readFileSync(path.join(process.cwd(), 'src/services/character-reference-job.ts'), 'utf8')
     const sceneJob = fs.readFileSync(path.join(process.cwd(), 'src/services/scene-reference-job.ts'), 'utf8')
-    const projectPage = fs.readFileSync(path.join(process.cwd(), 'src/app/projects/[id]/page.tsx'), 'utf8')
+    const projectPage = fs.readFileSync(path.join(process.cwd(), 'src/app/projects/[id]/ProjectWorkspace.tsx'), 'utf8')
 
     it.each([
         ['character', characterJob],

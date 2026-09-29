@@ -3,7 +3,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const root = process.cwd()
-const projectPage = fs.readFileSync(path.join(root, 'src/app/projects/[id]/page.tsx'), 'utf8')
+const projectPage = fs.readFileSync(path.join(root, 'src/app/projects/[id]/ProjectWorkspace.tsx'), 'utf8')
 const projectLayout = fs.readFileSync(path.join(root, 'src/app/projects/[id]/layout.tsx'), 'utf8')
 const charactersPage = fs.readFileSync(path.join(root, 'src/app/projects/[id]/characters/page.tsx'), 'utf8')
 const scenesPage = fs.readFileSync(path.join(root, 'src/app/projects/[id]/scenes/page.tsx'), 'utf8')

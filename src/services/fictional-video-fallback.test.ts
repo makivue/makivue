@@ -6,7 +6,7 @@ const root = process.cwd()
 
 describe('AI video provider lock', () => {
     it('does not expose or invoke live-person authentication from the character page', () => {
-        const page = fs.readFileSync(path.join(root, 'src/app/projects/[id]/page.tsx'), 'utf8')
+        const page = fs.readFileSync(path.join(root, 'src/app/projects/[id]/ProjectWorkspace.tsx'), 'utf8')
         const referenceRoute = fs.readFileSync(path.join(root, 'src/app/api/characters/[id]/reference/route.ts'), 'utf8')
 
         expect(page).not.toContain('/seedance-portrait/session')

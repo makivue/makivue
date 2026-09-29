@@ -1,3 +1,4 @@
+import { inlineLocalMediaRequest } from '@/lib/local-fetch'
 import { providerQuotaBudgets } from '@/lib/provider-quota-policy'
 import { tryAcquireProviderQuota, renewProviderQuota, releaseProviderQuota } from '@/lib/provider-quota-store'
 import type { TokenUsageProvider } from '@/lib/himodels-token-usage'
@@ -48,6 +49,7 @@ function sleep(ms: number, signal?: AbortSignal | null) {
 
 /** Caps HTTP request concurrency (including body reads) and submission rate, not async video task lifetime. */
 export async function fetchWithProviderQuota(url: string, init: RequestInit, context: { provider: TokenUsageProvider; model: string; fetchImpl?: typeof fetch }): Promise<Response> {
+    init = await inlineLocalMediaRequest(init)
     const dispatch = context.fetchImpl ?? fetch
     if (process.env.PROVIDER_QUOTA_ENABLED === '0' || (process.env.VITEST && process.env.PROVIDER_QUOTA_ENABLED !== '1')) return dispatch(url, init)
     const budgets = providerQuotaBudgets(url, init, context.provider, context.model)

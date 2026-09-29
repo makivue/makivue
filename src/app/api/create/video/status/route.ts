@@ -1,3 +1,4 @@
+import { localFetch } from '@/lib/local-fetch'
 import { NextRequest } from 'next/server'
 import { withHiModelsUsageScope } from '@/lib/himodels-usage-context.server'
 import { fetchMeteredProvider } from '@/lib/provider-token-usage.server'
@@ -105,7 +106,7 @@ export async function GET(req: NextRequest) {
             if (videoResult.kind === 'inline') {
                 await fs.writeFile(localPath, decodeVeoInlineVideo(videoResult))
             } else {
-                const download = await fetch(videoResult.uri, { signal: AbortSignal.timeout(120_000) })
+                const download = await localFetch(videoResult.uri, { signal: AbortSignal.timeout(120_000) })
                 if (!download.ok) return apiError(`视频文件下载失败：${download.status}`, 502)
                 await fs.writeFile(localPath, Buffer.from(await download.arrayBuffer()))
             }

@@ -405,7 +405,7 @@ async function postGenerateAll(req: NextRequest, { params }: Params) {
         try {
             const prepared = await prisma.$transaction(
                 async tx => {
-                    await tx.$queryRaw`SELECT id FROM episodes WHERE id = ${episodeId} FOR UPDATE`
+
                     const current = await tx.episode.findUnique({ where: { id: episodeId }, select: { operationVersion: true, deletedAt: true } })
                     if (!current || current.deletedAt || current.operationVersion !== episode.operationVersion) throw new StaleStoryboardMutationError()
                     const rows = []

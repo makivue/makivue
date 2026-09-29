@@ -1,9 +1,10 @@
+import { localFetch } from '@/lib/local-fetch'
 import { createHmac } from 'node:crypto'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { prisma } from '@/lib/prisma'
 import { fetchTimeoutSignal } from '@/lib/fetch-timeout'
-import { uploadToOSS } from '@/services/oss'
+import { saveLocalMediaFile } from '@/services/local-media'
 import { probeDuration, withFfmpegSlot } from '@/services/ffmpeg'
 import { chargeModelUsage } from '@/services/billing'
 import { withHiModelsUsageScope } from '@/lib/himodels-usage-context.server'
@@ -144,13 +145,13 @@ async function generateKlingComparisonWithBilling(generationId: bigint, storyboa
 
         const filename = `kling_compare_${generationId}.mp4`
         const absPath = path.join(process.cwd(), 'public', 'storage', filename)
-        const downloadResponse = await fetch(videoUrl, { signal: fetchTimeoutSignal(120_000, signal) })
+        const downloadResponse = await localFetch(videoUrl, { signal: fetchTimeoutSignal(120_000, signal) })
         if (!downloadResponse.ok) throw new Error(`Kling 对照视频下载失败（${downloadResponse.status}）`)
         await fs.mkdir(path.dirname(absPath), { recursive: true })
         await fs.writeFile(absPath, Buffer.from(await downloadResponse.arrayBuffer()))
         const duration = await withFfmpegSlot(() => probeDuration(absPath))
         if (!Number.isFinite(duration) || duration <= 0.05) throw new Error('Kling 对照视频文件无效或时长为 0')
-        const resultUrl = await uploadToOSS(absPath, `storyboards/${storyboard.id}/comparisons`, filename)
+        const resultUrl = await saveLocalMediaFile(absPath, `storyboards/${storyboard.id}/comparisons`, filename)
         await prisma.$transaction(async tx => {
             await chargeModelUsage({
                 userId,

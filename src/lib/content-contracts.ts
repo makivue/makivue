@@ -2,7 +2,7 @@ import type { EpisodeFormatSpec, NovelEpisodeStatePlan } from './novel'
 import { findActingOrSpeakingCharacterNames, findMentionedCharacterNames } from './script-character-scope'
 import { analyzeScriptTiming } from './script-timing'
 
-export const CONTENT_CONTRACT_VERSION = 'content-contracts/v7@2026-09-28'
+export const CONTENT_CONTRACT_VERSION = 'content-contracts/v8@2026-09-29'
 
 export interface ContractIssue {
     path: string
@@ -193,19 +193,8 @@ export function validateScriptContract(params: {
         issues.push({ path: 'script.expression', code: 'expression_detail_missing', message: '剧本缺少可见的表情变化描述' })
     }
     const timing = analyzeScriptTiming(params.script)
-    if (timing.estimatedSeconds < params.spec.minDurationSeconds * 0.75) {
-        issues.push({
-            path: 'script.runtime',
-            code: 'runtime_too_short',
-            message: `按对白语速和可见动作估算仅 ${timing.estimatedSeconds} 秒，明显低于 ${params.spec.durationDescription}`
-        })
-    } else if (timing.estimatedSeconds > params.spec.maxDurationSeconds * 1.2) {
-        issues.push({
-            path: 'script.runtime',
-            code: 'runtime_too_long',
-            message: `按对白语速和可见动作估算约 ${timing.estimatedSeconds} 秒，明显超过 ${params.spec.durationDescription}`
-        })
-    }
+    // Whole-episode runtime is an editing guide, not a reason to discard a script.
+    // Keep performance checks independent from that rough estimate.
     if (timing.longDialogueTurns.length > 0) {
         issues.push({
             path: 'script.dialogue',

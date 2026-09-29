@@ -7,7 +7,7 @@ import { currentUserId } from '@/lib/current-user'
 import { getDashScopeConfig } from '@/services/dashscope-config'
 import { prepareWanVideoReferenceImage } from '@/services/wan-video-reference-image'
 import { apiError, apiResponse } from '@/lib/utils'
-import { isOSSObjectWithinSubdir, uploadToOSS } from '@/services/oss'
+import { localMediaMatchesSubdirectory, saveLocalMediaFile } from '@/services/local-media'
 import { updateJob } from '@/lib/projectAiJobStore'
 import { createCreatorGenerationJob, CreatorGenerationCapacityError } from '@/lib/creator-generation-concurrency'
 import { getSeedanceConfig } from '@/services/seedance-config'
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
     if (rawReferenceVideos.length > MAX_STORYBOARD_REFERENCE_VIDEOS) return apiError(`最多上传 ${MAX_STORYBOARD_REFERENCE_VIDEOS} 个参考视频`)
     let referenceVideos: CreatorReferenceVideo[] = parseStoryboardReferenceVideos(rawReferenceVideos)
     if (referenceVideos.length !== rawReferenceVideos.length) return apiError('参考视频参数无效')
-    if (referenceVideos.some(video => !isOSSObjectWithinSubdir(video.url, `creator/${userId}/reference-videos`))) return apiError('参考视频地址无效')
+    if (referenceVideos.some(video => !localMediaMatchesSubdirectory(video.url, `creator/${userId}/reference-videos`))) return apiError('参考视频地址无效')
     const duration = normalizeVideoDuration(provider, Number(form.get('duration') ?? 5))
     let references: Awaited<ReturnType<typeof readCreatorReferenceImages>>
     try {
@@ -136,7 +136,7 @@ async function runCreatorVideoJob(params: {
     try {
         await updateJob(params.jobId, { attempts: 1 })
         const uploadedUrls: string[] = []
-        for (const file of params.localPaths) uploadedUrls.push(await uploadToOSS(file, `creator/${params.userId}/references`, path.basename(file)))
+        for (const file of params.localPaths) uploadedUrls.push(await saveLocalMediaFile(file, `creator/${params.userId}/references`, path.basename(file)))
         const referenceUrls = [...params.savedReferenceUrls, ...uploadedUrls]
         const referenceUrl = referenceUrls[0]
 

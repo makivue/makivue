@@ -23,7 +23,7 @@ vi.mock('@/services/ai', () => ({
     isImageProvider: (value: string) => ['banana', 'seedream-5-0-lite', 'qwen-image-3.0-pro'].includes(value),
     resolveImageProviderForReferences: mocks.resolveProvider
 }))
-vi.mock('@/services/oss', () => ({ isOSSObjectWithinSubdir: mocks.owned, uploadToOSS: async () => 'https://cdn.test/image.png' }))
+vi.mock('@/services/local-media', async importOriginal => ({ ...(await importOriginal<typeof import('@/services/local-media')>()), localMediaMatchesSubdirectory: mocks.owned, saveLocalMediaFile: async () => 'https://cdn.test/image.png' }))
 vi.mock('@/lib/projectAiJobStore', () => ({ updateJob: vi.fn() }))
 vi.mock('@/lib/creator-generation-concurrency', () => ({ createCreatorGenerationJob: mocks.job, CreatorGenerationCapacityError: class extends Error {} }))
 vi.mock('@/services/creator-assets', () => ({ findCreatorAssetReference: vi.fn(), saveCreatorImageAsset: async () => ({ id: '55' }) }))

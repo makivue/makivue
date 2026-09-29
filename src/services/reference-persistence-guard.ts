@@ -10,9 +10,7 @@ export class StaleReferenceMutationError extends Error {
 }
 
 export async function lockCurrentReferenceInTransaction(tx: Prisma.TransactionClient, source: ReferenceSource) {
-    await tx.$queryRaw`SELECT id FROM projects WHERE id = ${source.projectId} FOR UPDATE`
-    if (source.type === 'character') await tx.$queryRaw`SELECT id FROM characters WHERE id = ${source.id} FOR UPDATE`
-    else await tx.$queryRaw`SELECT id FROM scenes WHERE id = ${source.id} FOR UPDATE`
+
     const project = await tx.project.findFirst({ where: { id: source.projectId, deletedAt: null }, select: { operationVersion: true } })
     const query = { where: { id: source.id }, select: { projectId: true, deletedAt: true, operationVersion: true } }
     const target = source.type === 'character' ? await tx.character.findUnique(query) : await tx.scene.findUnique(query)
@@ -24,7 +22,7 @@ export async function withActiveReferenceWrite<T>(source: ReferenceSource & { jo
     return prisma.$transaction(
         async tx => {
             const project = await lockCurrentReferenceInTransaction(tx, source)
-            await tx.$queryRaw`SELECT id FROM ref_image_jobs WHERE id = ${BigInt(source.jobId)} FOR UPDATE`
+
             const job = await tx.refImageJob.findFirst({
                 where: { id: BigInt(source.jobId), targetType: source.type, targetId: source.id, projectId: source.projectId, phase: { in: ['generating', 'running', 'writing_db'] } },
                 select: { id: true }

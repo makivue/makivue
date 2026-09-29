@@ -19,7 +19,7 @@ describe('workspace wallet balance visibility', () => {
     })
 
     it('shows the balance on character and scene pages', () => {
-        const projectWorkspace = source('src/app/projects/[id]/page.tsx')
+        const projectWorkspace = source('src/app/projects/[id]/ProjectWorkspace.tsx')
 
         expect(projectWorkspace.match(/<ReferenceLibraryHeader/g)).toHaveLength(2)
         expect(source('src/components/ReferenceLibraryHeader.tsx')).toMatch(/<WalletBalance\b[^>]*\bcompact\b[^>]*\/>/)

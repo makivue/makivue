@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic'
 import { usePathname } from 'next/navigation'
 import { stripLocale } from '@/i18n/config'
 
-const ProjectWorkspace = dynamic(() => import('./page').then(module => module.ProjectWorkspace))
+const ProjectWorkspace = dynamic(() => import('./ProjectWorkspace').then(module => module.ProjectWorkspace))
 
 type WorkspaceRouteTab = 'novel' | 'characters' | 'scenes'
 

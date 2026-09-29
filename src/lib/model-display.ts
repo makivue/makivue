@@ -8,7 +8,7 @@ export const GENERATION_MODEL_SOURCE_LABELS: Record<GenerationModelSource, strin
     himodels: 'Himodels'
 }
 
-const DIRECT_MODEL_IDS = new Set(['banana', 'qwen-image-3.0-pro', 'seedance', 'seedance25', 'wanx', 'wan3', 'wan3prime', 'gemini:gemini-3.7-flash', 'gpt-5.4-shortdrama', 'gpt-5.5-shortdrama'])
+const DIRECT_MODEL_IDS = new Set(['gpt-4o', 'banana', 'qwen-image-3.0-pro', 'seedance', 'seedance25', 'wanx', 'wan3', 'wan3prime', 'gemini:gemini-3.7-flash', 'gpt-5.4-shortdrama', 'gpt-5.5-shortdrama'])
 
 const DIRECT_PROVIDER_IDS = new Set(['google', 'gemini', 'openai', 'azure'])
 

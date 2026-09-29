@@ -13,7 +13,7 @@ export async function cancelProjectOperations(projectId: bigint, reason: string,
 }
 
 export async function cancelProjectOperationsInTransaction(tx: Prisma.TransactionClient, projectId: bigint, reason: string, options: { deleteProject?: boolean } = {}) {
-    await tx.$queryRaw`SELECT id FROM projects WHERE id = ${projectId} FOR UPDATE`
+
     const episodes = await tx.episode.findMany({ where: { projectId, deletedAt: null }, select: { id: true } })
     const episodeIds = episodes.map(item => item.id)
     const storyboards = episodeIds.length ? await tx.storyboard.findMany({ where: { episodeId: { in: episodeIds }, deletedAt: null }, select: { id: true } }) : []
@@ -64,7 +64,7 @@ export async function cancelStoryboardOperations(storyboardId: bigint, reason: s
                 await resetFollowingContinuousMediaInTransaction(tx, current.episodeId, current.order)
                 return result
             }
-            await tx.$queryRaw`SELECT id FROM storyboards WHERE id = ${storyboardId} FOR UPDATE`
+
             await tx.generation.updateMany({
                 where: { storyboardId, status: { in: ['queued', 'processing'] } },
                 data: { status: 'cancelled', activeKey: null, errorMsg: reason }

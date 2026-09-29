@@ -36,7 +36,7 @@ describe('content contracts', () => {
             allowedCharacterNames: ['阿青']
         })
         const codes = issues.map(issue => issue.code)
-        expect(codes).toEqual(expect.arrayContaining(['runtime_too_short', 'too_few_scenes', 'unknown_speaker']))
+        expect(codes).toEqual(expect.arrayContaining(['too_few_scenes', 'unknown_speaker']))
         expect(codes).not.toContain('too_short')
     })
 

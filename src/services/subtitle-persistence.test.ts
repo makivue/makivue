@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({ findFirst: vi.fn(), updateMany: vi.fn(), upload: vi.fn() }))
 vi.mock('@/lib/prisma', () => ({ prisma: { storyboard: { findFirst: mocks.findFirst, updateMany: mocks.updateMany } } }))
 vi.mock('./llm', () => ({ chatJSON: async () => ({ en: 'Hello' }) }))
-vi.mock('./oss', () => ({ uploadToOSS: mocks.upload }))
+vi.mock('./local-media', async importOriginal => ({ ...(await importOriginal<typeof import('@/services/local-media')>()), saveLocalMediaFile: mocks.upload }))
 vi.mock('./video-language', () => ({ getConfiguredVideoLanguage: async () => 'zh', localizeVideoSpeech: async (text: string) => text }))
 vi.mock('@/lib/himodels-usage-context.server', () => ({ withHiModelsUsageScope: async (_scope: unknown, work: () => unknown) => work() }))
 vi.mock('fs/promises', () => ({ default: { mkdir: vi.fn(), writeFile: vi.fn(), unlink: vi.fn().mockResolvedValue(undefined) } }))

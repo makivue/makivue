@@ -1,3 +1,4 @@
+vi.mock('@/lib/local-store', () => ({ localTransactionLock: async () => [{ acquired: 1 }] }))
 import fs from 'node:fs'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'

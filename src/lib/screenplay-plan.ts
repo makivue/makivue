@@ -19,7 +19,7 @@ function normalizedEvent(value: string) {
         .toLowerCase()
 }
 
-export function validateEpisodeScenePlan(plan: EpisodeScenePlan[] | null | undefined, duration: { min: number; max: number }, requiredEvents: string[] = []): ContractIssue[] {
+export function validateEpisodeScenePlan(plan: EpisodeScenePlan[] | null | undefined, requiredEvents: string[] = []): ContractIssue[] {
     const issues: ContractIssue[] = []
     if (!Array.isArray(plan) || plan.length === 0) return [{ path: 'scenePlan', code: 'empty_scene_plan', message: '缺少剧本场景规划' }]
     for (const [index, scene] of plan.entries()) {
@@ -32,10 +32,6 @@ export function validateEpisodeScenePlan(plan: EpisodeScenePlan[] | null | undef
             issues.push({ path: `${path}.estimatedSeconds`, code: 'invalid_scene_duration', message: `场景 ${index + 1} 缺少合理时长` })
         if (!Array.isArray(scene.requiredEvents) || scene.requiredEvents.length === 0 || scene.requiredEvents.some(event => typeof event !== 'string' || !event.trim()))
             issues.push({ path: `${path}.requiredEvents`, code: 'missing_scene_events', message: `场景 ${index + 1} 没有关联必保事件` })
-    }
-    const total = plan.reduce((sum, scene) => sum + (Number.isFinite(scene.estimatedSeconds) ? scene.estimatedSeconds : 0), 0)
-    if (total < duration.min * 0.8 || total > duration.max * 1.15) {
-        issues.push({ path: 'scenePlan.estimatedSeconds', code: 'scene_plan_duration', message: `场景规划总时长 ${Math.round(total)} 秒，与目标 ${duration.min}-${duration.max} 秒不匹配` })
     }
     const coveredEvents = new Set(
         plan

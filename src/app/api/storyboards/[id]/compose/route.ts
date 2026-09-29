@@ -50,7 +50,7 @@ export async function POST(req: NextRequest, { params }: Params) {
             return apiResponse({ id, status: 'completed', skipped: true, nativeAudio: true, resultUrl: storyboard.videoUrl })
         }
         const applied = await prisma.$transaction(async tx => {
-            await tx.$queryRaw`SELECT id FROM episodes WHERE id = ${storyboard.episodeId} FOR UPDATE`
+
             const updated = await tx.storyboard.updateMany({
                 where: { id: idNum, deletedAt: null, operationVersion: storyboard.operationVersion, videoUrl: storyboard.videoUrl },
                 data: {
@@ -134,7 +134,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         }
         if (!generation) throw lastError ?? new Error('合成任务创建失败')
         const applied = await prisma.$transaction(async tx => {
-            await tx.$queryRaw`SELECT id FROM episodes WHERE id = ${storyboard.episodeId} FOR UPDATE`
+
             const updated = await tx.storyboard.updateMany({
                 where: { id: idNum, deletedAt: null, operationVersion: storyboard.operationVersion },
                 data: { composedVideoUrl: null, compositionMode: null, composeStatus: 'processing' }

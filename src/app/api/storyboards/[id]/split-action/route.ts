@@ -102,9 +102,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     const segmentActionPlans = segments.map(segment => normalizeStoryboardActionPlan(undefined, segment.actionDesc))
     const firstAudioPlan = buildStoryboardAudioPlan({ duration: segments[0].duration, dialogue: storyboard.dialogue, narration: storyboard.narration })
     const applied = await prisma.$transaction(async tx => {
-        await tx.$queryRaw<Array<{ id: bigint }>>`
-            SELECT id FROM episodes WHERE id = ${storyboard.episodeId} FOR UPDATE
-        `
+
         const maxGroup = await tx.storyboard.aggregate({
             where: { episodeId: storyboard.episodeId, deletedAt: null },
             _max: { continuityGroup: true }

@@ -29,5 +29,5 @@ export function ffmpegRuntimeConfig(env: NodeJS.ProcessEnv = process.env) {
 export function ffmpegClusterLimitEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
     if (DISABLED_VALUES.has(env.FFMPEG_CLUSTER_LIMIT_ENABLED?.trim().toLowerCase() ?? '')) return false
     if (env.VITEST && env.FFMPEG_CLUSTER_LIMIT_ENABLED !== '1') return false
-    return Boolean(env.DATABASE_URL?.trim())
+    return true
 }

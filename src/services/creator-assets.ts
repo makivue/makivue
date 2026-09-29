@@ -1,8 +1,9 @@
+import { localFetch } from '@/lib/local-fetch'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { prisma } from '@/lib/prisma'
 import { genId } from '@/lib/id'
-import { deleteCreatorArtifactFromOSS, uploadToOSS } from './oss'
+import { deleteLocalCreatorArtifact, saveLocalMediaFile } from './local-media'
 import { extractVideoCover, optimizeVideoForStreaming, probeDuration, withFfmpegSlot } from './ffmpeg'
 import { chargeModelUsage } from './billing'
 import { BILLING_TRANSACTION_OPTIONS } from '@/lib/billing-transaction'
@@ -96,7 +97,7 @@ export async function saveCreatorImageAsset(params: { userId: bigint; sourceJobI
 }
 
 async function downloadVideo(url: string, outputPath: string) {
-    const response = await fetch(url, { signal: AbortSignal.timeout(120_000) })
+    const response = await localFetch(url, { signal: AbortSignal.timeout(120_000) })
     if (!response.ok) throw new Error(`视频转存下载失败：HTTP ${response.status}`)
     await fs.writeFile(/* turbopackIgnore: true */ outputPath, Buffer.from(await response.arrayBuffer()))
 }
@@ -137,9 +138,9 @@ export async function saveCreatorVideoAsset(params: {
         })
 
         const videoName = `creator_video_${token}.mp4`
-        const videoUrl = await uploadToOSS(videoPath, `creator/${params.userId}/videos`, videoName)
+        const videoUrl = await saveLocalMediaFile(videoPath, `creator/${params.userId}/videos`, videoName)
         const coverStat = await fs.stat(/* turbopackIgnore: true */ coverPath).catch(() => null)
-        const coverUrl = coverStat ? await uploadToOSS(coverPath, `creator/${params.userId}/covers`, `creator_cover_${token}.jpg`) : null
+        const coverUrl = coverStat ? await saveLocalMediaFile(coverPath, `creator/${params.userId}/covers`, `creator_cover_${token}.jpg`) : null
         const row = await prisma.$transaction(async tx => {
             await chargeModelUsage({
                 userId: params.userId,
@@ -184,7 +185,7 @@ export async function replaceCreatorAssetCover(userId: bigint, assetId: bigint, 
         data: { coverUrl }
     })
     if (current.coverUrl && current.coverUrl !== coverUrl) {
-        deleteCreatorArtifactFromOSS(current.coverUrl).catch(error => {
+        deleteLocalCreatorArtifact(current.coverUrl).catch(error => {
             console.warn('[creator-assets] old cover deletion failed:', error instanceof Error ? error.message : error)
         })
     }
@@ -203,7 +204,7 @@ export async function deleteCreatorAsset(userId: bigint, assetId: bigint) {
     const urls = [current.url, current.coverUrl].filter((url): url is string => !!url)
     await Promise.all(
         [...new Set(urls)].map(url =>
-            deleteCreatorArtifactFromOSS(url).catch(error => {
+            deleteLocalCreatorArtifact(url).catch(error => {
                 console.warn('[creator-assets] artifact deletion failed:', error instanceof Error ? error.message : error)
             })
         )

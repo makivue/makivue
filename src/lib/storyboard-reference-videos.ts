@@ -64,7 +64,7 @@ export function parseStoryboardReferenceVideos(value: unknown): StoryboardRefere
             !id ||
             seen.has(id) ||
             !url ||
-            !/^https?:\/\//i.test(url) ||
+            !(url.startsWith('/api/local-media/') || /^https?:\/\//i.test(url)) ||
             !name ||
             !(mimeType && mimeType in REFERENCE_VIDEO_MIME_EXTENSIONS) ||
             !Number.isFinite(sizeBytes) ||

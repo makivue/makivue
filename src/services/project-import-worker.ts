@@ -450,7 +450,7 @@ function scheduleProjectImportTick(state: NonNullable<typeof globalImportWorker.
 
 export function startProjectImportWorker() {
     if (!projectImportWorkerEnabled()) return
-    if (globalImportWorker.__projectImportWorker || !process.env.DATABASE_URL?.trim()) return
+    if (globalImportWorker.__projectImportWorker) return
     const state = { timer: null, running: false, wakeRequested: false }
     globalImportWorker.__projectImportWorker = state
     scheduleProjectImportTick(state, 0)

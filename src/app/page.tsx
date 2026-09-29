@@ -154,7 +154,7 @@ export default function LandingPage() {
                             data-home-auth-view="guest"
                             className={styles.offer}>
                             <Gift size={14} />
-                            {t('注册即送 3000 金币')}
+                            {t('素材本地保存 · 模型直连')}
                         </button>
                     </div>
                 </section>

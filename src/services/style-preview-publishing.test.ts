@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto'
 import { publishStylePreview } from './style-preview-publishing'
 
 const mocks = vi.hoisted(() => ({ put: vi.fn(), store: vi.fn() }))
-vi.mock('./oss', () => ({ createProductionStylePreviewStore: mocks.store }))
+vi.mock('./local-media', async importOriginal => ({ ...(await importOriginal<typeof import('@/services/local-media')>()), createLocalStylePreviewStore: mocks.store }))
 const input = { key: 'new-undeployed-style', version: 'v-test', directory: 'regional-generated' as const }
 
 beforeEach(() => {

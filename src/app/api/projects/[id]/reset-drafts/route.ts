@@ -33,7 +33,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     const result = await prisma.$transaction(
         async tx => {
-            await tx.$queryRaw`SELECT id FROM projects WHERE id = ${idNum} FOR UPDATE`
+
             const cancelled = await cancelProjectOperationsInTransaction(tx, idNum, '重新确认大纲，旧下游任务作废')
             const resettable = await tx.episode.findMany({
                 where: { projectId: idNum, deletedAt: null },
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest, { params }: Params) {
             })
             const completed = []
             for (const episode of resettable) {
-                await tx.$queryRaw`SELECT id FROM episodes WHERE id = ${episode.id} FOR UPDATE`
+
                 const current = await tx.episode.findUnique({ where: { id: episode.id } })
                 if (!current || current.deletedAt) continue
                 const reset = await resetEpisodeDownstreamInTransaction(tx, current, 'outline')

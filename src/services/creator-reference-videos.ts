@@ -2,7 +2,7 @@ import { parseApiId } from '@/lib/api-id'
 import type { CreatorReferenceVideo } from '@/lib/creator-reference-video'
 import { MAX_STORYBOARD_REFERENCE_VIDEOS } from '@/lib/storyboard-reference-videos'
 import { findCreatorAssetReference } from './creator-assets'
-import { isOSSObjectWithinSubdir } from './oss'
+import { localMediaMatchesSubdirectory } from './local-media'
 
 export class CreatorReferenceVideoError extends Error {
     constructor(
@@ -24,7 +24,7 @@ export async function readCreatorVideoAssetReferences(form: FormData, userId: bi
         if (!result) throw new CreatorReferenceVideoError('参考作品不存在', 404)
         const { asset } = result
         if (asset.type !== 'video') throw new CreatorReferenceVideoError('参考视频参数无效')
-        if (!isOSSObjectWithinSubdir(asset.url, `creator/${userId}/videos`)) throw new CreatorReferenceVideoError('参考视频地址无效')
+        if (!localMediaMatchesSubdirectory(asset.url, `creator/${userId}/videos`)) throw new CreatorReferenceVideoError('参考视频地址无效')
         if (!asset.duration || !Number.isFinite(asset.duration) || asset.duration <= 0) throw new CreatorReferenceVideoError('参考视频无效或时长为 0')
         videos.push({ id: asset.id, url: asset.url, name: `video-${asset.id}.mp4`, durationSeconds: asset.duration })
     }

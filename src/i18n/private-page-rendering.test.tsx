@@ -5,7 +5,6 @@ import { locales, localizePath, type Locale } from './config'
 import { translateMessage } from './catalog'
 import ProfilePage from '@/app/profile/page'
 import SettingsPage from '@/app/settings/page'
-import WalletPage from '@/app/wallet/page'
 import WalletTransactionsPage from '@/app/wallet/transactions/page'
 import CustomSelect from '@/components/CustomSelect'
 
@@ -21,7 +20,6 @@ vi.mock('@/components/SiteFooter', () => ({ default: () => null }))
 const pages = [
     { name: 'profile', component: ProfilePage, title: '个人中心' },
     { name: 'settings', component: SettingsPage, title: '生成设置' },
-    { name: 'wallet', component: WalletPage, title: '积分与充值' },
     { name: 'transactions', component: WalletTransactionsPage, title: '账户流水' }
 ]
 

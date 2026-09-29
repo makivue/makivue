@@ -1,3 +1,4 @@
+import { walletBillingEnabled } from './billing'
 import { prisma } from '@/lib/prisma'
 import { genId } from '@/lib/id'
 import { BillingError } from '@/lib/billing-error'
@@ -7,7 +8,7 @@ import { BILLING_TRANSACTION_OPTIONS } from '@/lib/billing-transaction'
 
 /** balancePoints is spendable balance; reservations are refundable, not revenue. */
 export async function reserveModelPoints(userId: bigint, scopeKey: string, key: string, points: number, transaction?: Prisma.TransactionClient) {
-    if (process.env.WALLET_BILLING_ENABLED === 'false') return
+    if (!walletBillingEnabled()) return
     if (!Number.isFinite(points) || points < 0) throw new BillingError('模型预留金币报价无效', 503)
     const amount = new Prisma.Decimal(points).ceil()
     const reserve = async (tx: Prisma.TransactionClient) => {
@@ -30,11 +31,10 @@ export async function reserveModelPoints(userId: bigint, scopeKey: string, key: 
 export async function releaseReservationsInTransaction(tx: Prisma.TransactionClient, userId: bigint, scopeKey: string, status = 'released', key?: string) {
     // Always lock wallet before reservation rows, including settlement/recovery.
     await tx.walletAccount.updateMany({ where: { userId }, data: { balancePoints: { increment: 0 } } })
-    const rows = await tx.$queryRaw<Array<{ id: bigint; amountPoints: Prisma.Decimal }>>(Prisma.sql`
-        SELECT id, amount_points AS amountPoints FROM wallet_reservations
-        WHERE user_id = ${userId} AND scope_key = ${scopeKey} AND status = 'reserved'
-        ${key ? Prisma.sql`AND \`key\` = ${key}` : Prisma.empty} FOR UPDATE
-    `)
+    const rows = await tx.walletReservation.findMany({
+        where: { userId, scopeKey, status: 'reserved', ...(key ? { key } : {}) },
+        select: { id: true, amountPoints: true }
+    })
     let refund = new Prisma.Decimal(0)
     for (const row of rows) {
         const changed = await tx.walletReservation.updateMany({ where: { id: row.id, status: 'reserved' }, data: { status } })

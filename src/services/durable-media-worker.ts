@@ -307,13 +307,6 @@ export function startDurableMediaWorker() {
         return
     }
     if (globalWorker.__durableMediaWorker) return
-    if (!process.env.DATABASE_URL?.trim()) {
-        if (!globalWorker.__durableMediaWorkerMissingDbWarned) {
-            console.error('[durable-worker] not started: DATABASE_URL is not set')
-            globalWorker.__durableMediaWorkerMissingDbWarned = true
-        }
-        return
-    }
     const state = { timer: null, running: false, idlePollMs: ACTIVE_POLL_MS, wakeRequested: false }
     globalWorker.__durableMediaWorker = state
     scheduleTick(state, 0)

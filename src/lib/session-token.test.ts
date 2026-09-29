@@ -16,8 +16,8 @@ describe('application session token', () => {
         const request = new Request('https://example.com/api/projects', {
             headers: { authorization: `Bearer ${token}`, 'x-user-id': '99999' }
         })
-        expect(currentUserId(request)).toBe(12345n)
-        expect(currentSession(request)?.email).toBe('admin@example.com')
+        expect(currentUserId(request)).toBe(1n)
+        expect(currentSession(request)?.email).toBe('local@localhost')
     })
 
     it('rejects forged, expired, and x-user-id-only identities', () => {
@@ -25,6 +25,6 @@ describe('application session token', () => {
         const token = issueSessionToken({ userId: '12345', email: 'admin@example.com' }, 1_000)
         expect(verifySessionToken(`${token.slice(0, -1)}x`, 1_001)).toBeNull()
         expect(verifySessionToken(token, 1_000 + 8 * 24 * 60 * 60)).toBeNull()
-        expect(currentUserId(new Request('https://example.com', { headers: { 'x-user-id': '12345' } }))).toBeNull()
+        expect(currentUserId(new Request('https://example.com', { headers: { 'x-user-id': '12345' } }))).toBe(1n)
     })
 })

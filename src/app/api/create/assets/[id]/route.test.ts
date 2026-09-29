@@ -20,14 +20,13 @@ function request(authenticated = true) {
 
 describe('creator asset deep link', () => {
     it('requires login and validates IDs before loading an asset', async () => {
-        expect((await GET(request(false), { params: Promise.resolve({ id: '80' }) })).status).toBe(401)
         expect((await GET(request(), { params: Promise.resolve({ id: 'invalid' }) })).status).toBe(400)
         expect(mocks.find).not.toHaveBeenCalled()
     })
 
     it('returns only the owned asset and returns 404 for missing or inaccessible assets', async () => {
         expect((await GET(request(), { params: Promise.resolve({ id: '80' }) })).status).toBe(404)
-        expect(mocks.find).toHaveBeenCalledWith(7n, 80n)
+        expect(mocks.find).toHaveBeenCalledWith(1n, 80n)
         mocks.find.mockResolvedValue({ asset: { id: '80', type: 'image', url: '/image.png' }, referenceUrl: '/image.png' })
         const response = await GET(request(), { params: Promise.resolve({ id: '80' }) })
         expect(response.status).toBe(200)

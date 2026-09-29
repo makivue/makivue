@@ -33,7 +33,7 @@ vi.mock('./qwen-image', () => ({
     generateImageWithQwenImage3Pro: mocks.qwen
 }))
 vi.mock('./llm', () => ({ improveFrameImagePrompt: vi.fn(), improveVideoMotionPrompt: vi.fn(), rewriteAnimalCharacterAppearance: vi.fn(), rewriteImagePromptForSafety: vi.fn() }))
-vi.mock('./oss', () => ({ uploadImmutableImageToOSS: mocks.upload, uploadToOSS: vi.fn(), toOSSOriginUrl: (url: string) => url }))
+vi.mock('./local-media', async importOriginal => ({ ...(await importOriginal<typeof import('@/services/local-media')>()), saveImmutableLocalImage: mocks.upload, saveLocalMediaFile: vi.fn(), toLocalMediaUrl: (url: string) => url }))
 
 import { generateCharacterReference } from './ai'
 

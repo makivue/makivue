@@ -19,7 +19,7 @@ describe('AI creator reference video integration', () => {
         const route = source('src/app/api/create/video/route.ts')
 
         expect(route).toContain('rawReferenceVideos.length > MAX_STORYBOARD_REFERENCE_VIDEOS')
-        expect(route).toContain('isOSSObjectWithinSubdir')
+        expect(route).toContain('localMediaMatchesSubdirectory')
         expect(route).toContain("type: 'reference_video'")
         expect(route).toContain("type: 'video_url'")
         expect(route).toContain('referenceVideos,')

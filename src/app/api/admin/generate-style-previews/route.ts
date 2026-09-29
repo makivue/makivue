@@ -3,7 +3,7 @@ import path from 'path'
 import fs from 'fs/promises'
 import fsSync from 'fs'
 import { generateImageUnified, IMAGE_GENERATION_MAX_CONCURRENCY } from '@/services/ai'
-import { uploadToOSS } from '@/services/oss'
+import { saveLocalMediaFile } from '@/services/local-media'
 import { apiResponse } from '@/lib/utils'
 import { VISUAL_STYLE_PRESETS } from '@/lib/novel'
 import { requireAdminPermission } from '@/lib/admin-permissions'
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
             })
 
             console.log(`[preview] Uploading ${styleKey} to OSS...`)
-            const ossUrl = await uploadToOSS(tmpFile, 'style-previews', `${styleKey}.png`)
+            const ossUrl = await saveLocalMediaFile(tmpFile, 'style-previews', `${styleKey}.png`)
 
             console.log(`[preview] Success: ${styleKey} → ${ossUrl}`)
             results.push({

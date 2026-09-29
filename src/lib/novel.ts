@@ -33,7 +33,7 @@ export interface EpisodeFormatSpec {
     minDurationSeconds: number
     maxDurationSeconds: number
     scriptStyle: string
-    /** 拆剧本输出容量参考；验收以估算成片时长和可拍节拍为准，不再以字数作为硬门槛。 */
+    /** 拆剧本输出容量参考；整集估算时长和字数均不作为验收硬门槛。 */
     minWords: number
     targetWords: number
     maxWords: number

@@ -7,7 +7,7 @@ if (!['development', 'test', 'production'].includes(environment)) throw new Erro
 try {
     const { env, exists } = loadModelEnvironment()
     if (args.includes('--require-file') && !exists) {
-        throw new Error('发布包缺少统一模型配置 .env。请将现有私有 .env 放入发布目录后再构建；文件不会随 Git 检出自动出现。')
+        throw new Error('请复制 .env.example 为 .env，并填写自己需要使用的模型密钥。')
     }
     const checks = inspectModelConfiguration(env, environment)
     for (const check of checks) {
@@ -18,6 +18,6 @@ try {
     }
 } catch (error) {
     // Never echo parser/input errors, which may contain credentials.
-    console.error(error instanceof Error && /^(发布包缺少|模型配置不完整)/.test(error.message) ? error.message : '无法读取统一模型配置 .env，请检查文件格式及读取权限。')
+    console.error(error instanceof Error && /^(请复制|模型配置不完整)/.test(error.message) ? error.message : '无法读取统一模型配置 .env，请检查文件格式及读取权限。')
     process.exitCode = args.includes('--warn-only') ? 0 : 1
 }

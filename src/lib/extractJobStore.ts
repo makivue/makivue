@@ -101,9 +101,7 @@ export async function createOrReuseActiveJob(projectId: string, resumeFromJobId?
     }
     return prisma.$transaction(async tx => {
         // 串行化同一项目的“检查 + 创建”，避免双击或两个浏览器标签同时创建重复提取任务。
-        await tx.$queryRaw<Array<{ id: bigint }>>`
-            SELECT id FROM projects WHERE id = ${projectIdBig} FOR UPDATE
-        `
+
         // 旧版本在状态轮询发现任务超时时，只把 phase 改成 error，未释放
         // active_key。相同剧本再次提取会因此永久撞唯一索引。创建前顺手修复
         // 这类遗留终态记录，让已有项目无需人工清库即可恢复。

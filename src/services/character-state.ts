@@ -40,7 +40,7 @@ export async function syncEpisodeCharacterStateEvents(episodeId: bigint) {
     // read the old graph, wait for reset, then reactivate its state events.
     await prisma.$transaction(
         async tx => {
-            await tx.$queryRaw`SELECT id FROM episodes WHERE id = ${episodeId} FOR UPDATE`
+
             const storyboards = await tx.storyboard.findMany({
                 where: { episodeId, deletedAt: null },
                 orderBy: { order: 'asc' },

@@ -143,7 +143,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     const created = await prisma
         .$transaction(
             async tx => {
-                await tx.$queryRaw`SELECT id FROM episodes WHERE id = ${idNum} FOR UPDATE`
+
                 const locked = await tx.episode.findUnique({ where: { id: idNum } })
                 if (!locked || locked.deletedAt || locked.operationVersion !== episode.operationVersion) throw new Error('STORYBOARD_SOURCE_CHANGED')
                 const existing = await tx.storyboard.findMany({ where: { episodeId: idNum, deletedAt: null }, select: { id: true, order: true } })

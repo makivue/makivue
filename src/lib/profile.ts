@@ -17,6 +17,7 @@ export function normalizeProfileDisplayName(value: unknown): string | null {
 export function normalizeProfileAvatarUrl(value: unknown): string | null {
     if (typeof value !== 'string' || !value.trim() || value.length > 1024) return null
     try {
+        if (value.trim().startsWith('/api/local-media/')) return value.trim()
         const url = new URL(value.trim())
         return url.protocol === 'https:' || url.protocol === 'http:' ? url.toString() : null
     } catch {

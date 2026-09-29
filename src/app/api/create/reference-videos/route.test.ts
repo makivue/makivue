@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@/lib/current-user', () => ({ currentUserId: mocks.user }))
-vi.mock('@/services/oss', () => ({ uploadToOSS: mocks.upload, deleteOSSObjectWithinSubdir: mocks.remove }))
+vi.mock('@/services/local-media', async importOriginal => ({ ...(await importOriginal<typeof import('@/services/local-media')>()), saveLocalMediaFile: mocks.upload, deleteLocalMediaWithinSubdirectory: mocks.remove }))
 vi.mock('@/services/ffmpeg', () => ({ probeMediaStreams: mocks.probe }))
 
 import { DELETE, POST } from './route'

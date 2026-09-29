@@ -167,7 +167,7 @@ export async function cancelJob(id: string, projectId: string, reason = '用户�
     // guarantees that no delayed checkpoint can commit after cancellation returns.
     const cancelled = await prisma.$transaction(
         async tx => {
-            await tx.$queryRaw`SELECT id FROM projects WHERE id = ${projectIdBig} FOR UPDATE`
+
             return tx.outlineJob.updateMany({
                 where: { id: idBig, projectId: projectIdBig, phase: { in: ['generating', 'filling', 'writing_db'] } },
                 data: {

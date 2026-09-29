@@ -1,15 +1,13 @@
-import type { NextRequest } from 'next/server'
-import { bearerToken, verifySessionToken, type AppSession } from './session-token'
+import type { AppSession } from './session-token'
 
-/**
- * Verify the application Bearer token and derive the identity from its signed
- * payload. x-user-id is deliberately ignored because clients can forge it.
- */
-export function currentUserId(req: NextRequest | Request): bigint | null {
-    return currentSession(req)?.userId ?? null
+/** One workspace belongs to the current machine; cloud identity is not used. */
+export function currentUserId(_request: Request): bigint {
+    void _request
+
+    return 1n
 }
+export function currentSession(_request: Request): AppSession {
+    void _request
 
-export function currentSession(req: NextRequest | Request): AppSession | null {
-    const token = bearerToken(req)
-    return token ? verifySessionToken(token) : null
+    return { userId: 1n, email: 'local@localhost', userType: 1, issuedAt: 0, expiresAt: Number.MAX_SAFE_INTEGER }
 }

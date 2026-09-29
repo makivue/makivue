@@ -25,7 +25,7 @@ describe('character state timeline', () => {
             },
             characterStateEvent: { upsert: vi.fn(), updateMany: vi.fn() }
         }
-        mocks.transaction.mockImplementation(callback => callback(tx))
+        mocks.transaction.mockImplementation(callback => { locked = true; return callback(tx) })
         await syncEpisodeCharacterStateEvents(2n)
         expect(tx.characterStateEvent.upsert).toHaveBeenCalledWith(expect.objectContaining({ create: expect.objectContaining({ storyboardId: 3n, status: 'active' }) }))
     })

@@ -1,6 +1,7 @@
+import { localMediaKey } from '@/services/local-media'
+import { localFetch } from '@/lib/local-fetch'
 import { NextRequest } from 'next/server'
 
-const ALLOWED_HOSTS = new Set(['assets.example.invalid', 'assets.example.invalid', 'h5-test-static.staticjs.org', 'h5-static.staticjs.org'])
 const MAX_SUBTITLE_BYTES = 2 * 1024 * 1024
 
 function srtToVtt(srt: string) {
@@ -44,17 +45,9 @@ export async function GET(request: NextRequest) {
     const rawUrl = new URL(request.url).searchParams.get('url')
     if (!rawUrl) return new Response('url required', { status: 400 })
 
-    let url: URL
-    try {
-        url = new URL(rawUrl)
-    } catch {
-        return new Response('invalid url', { status: 400 })
-    }
-    if (url.protocol !== 'https:' || (url.port && url.port !== '443') || !ALLOWED_HOSTS.has(url.hostname)) {
-        return new Response('subtitle host not allowed', { status: 403 })
-    }
+    if (!localMediaKey(rawUrl)) return new Response('local subtitle required', { status: 403 })
 
-    const upstream = await fetch(url, {
+    const upstream = await localFetch(rawUrl, {
         redirect: 'manual',
         signal: AbortSignal.timeout(30_000)
     })

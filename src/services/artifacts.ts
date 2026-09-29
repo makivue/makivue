@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
-import { deleteOSSObjectWithinSubdir } from './oss'
+import { deleteLocalMediaWithinSubdirectory } from './local-media'
 import type { Prisma } from '@/generated/prisma/client'
 
 export type StoryboardInvalidationScope = 'frame' | 'video' | 'audio' | 'compose'
@@ -55,8 +55,8 @@ export class StaleStoryboardMutationError extends Error {
 }
 
 export async function lockStoryboardMediaInTransaction(tx: Prisma.TransactionClient, target: { id: bigint; episodeId: bigint; operationVersion?: number }) {
-    await tx.$queryRaw`SELECT id FROM episodes WHERE id = ${target.episodeId} FOR UPDATE`
-    await tx.$queryRaw`SELECT id FROM storyboards WHERE id = ${target.id} FOR UPDATE`
+
+
     const current = await tx.storyboard.findUnique({ where: { id: target.id } })
     if (!current || current.deletedAt || current.episodeId !== target.episodeId || (target.operationVersion !== undefined && current.operationVersion !== target.operationVersion))
         throw new StaleStoryboardMutationError()
@@ -115,8 +115,8 @@ export async function resetFollowingContinuousMediaInTransaction(tx: Prisma.Tran
 export type EpisodeArtifact = { url: string; subdir: string }
 
 async function deleteEpisodeArtifact({ url, subdir }: EpisodeArtifact) {
-    if (/^https?:\/\//i.test(url)) {
-        await deleteOSSObjectWithinSubdir(url, subdir)
+    if (url.startsWith('/api/local-media/') || /^https?:\/\//i.test(url)) {
+        await deleteLocalMediaWithinSubdirectory(url, subdir)
         return
     }
     const relative = url.startsWith('/storage/') ? url.slice(1) : url.startsWith('storage/') ? url : null
@@ -147,7 +147,7 @@ export async function deleteEpisodeArtifacts(artifacts: EpisodeArtifact[]) {
 export async function resetEpisodeGeneratedMedia(episodeId: bigint, expectedOperationVersion?: number) {
     const { storyboardIds, artifacts } = await prisma.$transaction(
         async tx => {
-            await tx.$queryRaw`SELECT id FROM episodes WHERE id = ${episodeId} FOR UPDATE`
+
             const episode = await tx.episode.findFirst({
                 where: { id: episodeId, deletedAt: null },
                 select: {

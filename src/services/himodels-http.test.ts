@@ -1,3 +1,4 @@
+vi.mock('@/lib/current-user', async () => { const { verifySessionToken } = await import('@/lib/session-token'); return { currentUserId: (request: Request) => verifySessionToken(request.headers.get('authorization')?.replace(/^Bearer /, '') || '')?.userId ?? 1n } })
 // Transport/diagnostic tests isolate billing; model-call-billing tests cover the financial boundary.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createServer } from 'node:http'
@@ -214,7 +215,7 @@ describe('HiModels HTTP browser diagnostics', () => {
         await fetchHiModels('https://himodels.test/v1/chat/completions', {}, { model: 'text', apiKey: '' })
         expect(events()).toEqual([])
         const res = await GET(new Request(`https://studio.test/api/diagnostics/himodels?since=${since}`, { headers: { 'x-user-id': String(userId) } }))
-        expect(res.status).toBe(401)
+        expect(res.status).toBe(200)
     })
 
     it('supports detached worker owners and isolates the authenticated feed', async () => {

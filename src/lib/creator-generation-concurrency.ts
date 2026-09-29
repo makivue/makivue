@@ -1,3 +1,4 @@
+import { localTransactionLock } from '@/lib/local-store'
 import { prisma } from '@/lib/prisma'
 import { genId } from '@/lib/id'
 import { newTextJobLease } from '@/lib/text-job-lease'
@@ -47,9 +48,7 @@ export async function createCreatorGenerationJob(userId: bigint, category: Creat
     const now = new Date()
 
     const reservation = await prisma.$transaction(async tx => {
-        const rows = await tx.$queryRaw<Array<{ acquired: number | bigint | null }>>`
-            SELECT GET_LOCK(${lockName}, 2) AS acquired
-        `
+        const rows = await localTransactionLock(lockName)
         if (Number(rows[0]?.acquired ?? 0) !== 1) {
             throw new CreatorGenerationCapacityError(
                 `AI 创作台${categoryLabel(category)}任务正在检查可用名额，请稍后重试。`,
@@ -107,7 +106,7 @@ export async function createCreatorGenerationJob(userId: bigint, category: Creat
             })
             return { admitted: true as const, id: id.toString(), active: active + 1 }
         } finally {
-            await tx.$queryRaw`SELECT RELEASE_LOCK(${lockName})`
+            // The enclosing local-file transaction releases its exclusive workspace lock.
         }
     })
 

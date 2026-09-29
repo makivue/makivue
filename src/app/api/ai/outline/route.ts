@@ -534,7 +534,7 @@ async function persistOutlineChapters(
             const intensity = typeof data.intensity === 'number' && Number.isFinite(data.intensity) ? Math.max(1, Math.min(10, Math.round(data.intensity))) : 5
             const existing = project.episodes.find(e => e.episodeNumber === n)
             if (existing) {
-                await tx.$queryRaw`SELECT id FROM episodes WHERE id = ${existing.id} FOR UPDATE`
+
                 const current = await tx.episode.findUnique({ where: { id: existing.id } })
                 if (!current || current.deletedAt) throw new Error('章节已重置，请重新生成大纲')
                 const reset = await resetEpisodeDownstreamInTransaction(tx, current, 'outline')

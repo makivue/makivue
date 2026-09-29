@@ -1,3 +1,4 @@
+import { localFetch } from '@/lib/local-fetch'
 import { promises as fs } from 'node:fs'
 import fsSync from 'node:fs'
 import path from 'node:path'
@@ -159,7 +160,7 @@ async function downloadImage(source: string, outputPath: string, signal?: AbortS
         await fs.writeFile(outputPath, Buffer.from(source.slice(comma + 1), 'base64'))
         return
     }
-    const response = await fetch(source, { signal: fetchTimeoutSignal(120_000, signal) })
+    const response = await localFetch(source, { signal: fetchTimeoutSignal(120_000, signal) })
     if (!response.ok) throw new Error(`Qwen-Image 图片下载失败（${response.status}）：${await response.text()}`)
     await fs.writeFile(outputPath, Buffer.from(await response.arrayBuffer()))
 }

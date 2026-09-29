@@ -29,7 +29,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         if (!storyboard) return apiError('Storyboard not found', 404)
         const { updated, cancelled } = await prisma.$transaction(
             async tx => {
-                await tx.$queryRaw`SELECT id FROM episodes WHERE id = ${storyboard.episodeId} FOR UPDATE`
+
                 const cancelled = await tx.generation.count({ where: { storyboardId: idNum, status: { in: ['queued', 'processing'] } } })
                 if (cancelled === 0) return { updated: storyboard, cancelled }
                 const updated = await resetStoryboardMediaInTransaction(tx, storyboard, [], '用户手动停止，旧任务已取消')

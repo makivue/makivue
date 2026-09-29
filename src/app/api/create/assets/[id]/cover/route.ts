@@ -4,7 +4,7 @@ import { NextRequest } from 'next/server'
 import { currentUserId } from '@/lib/current-user'
 import { prisma } from '@/lib/prisma'
 import { apiError, apiResponse } from '@/lib/utils'
-import { uploadToOSS } from '@/services/oss'
+import { saveLocalMediaFile } from '@/services/local-media'
 import { replaceCreatorAssetCover } from '@/services/creator-assets'
 import { parseApiId } from '@/lib/api-id'
 
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     await fs.mkdir(storageDir, { recursive: true })
     try {
         await fs.writeFile(localPath, Buffer.from(await cover.arrayBuffer()))
-        const coverUrl = await uploadToOSS(localPath, `creator/${userId}/covers`, filename)
+        const coverUrl = await saveLocalMediaFile(localPath, `creator/${userId}/covers`, filename)
         const updated = await replaceCreatorAssetCover(userId, assetId, coverUrl)
         if (!updated) return apiError('视频作品不存在', 404)
         return apiResponse(updated)

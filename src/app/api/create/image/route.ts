@@ -5,7 +5,7 @@ import { withHiModelsUsageScope } from '@/lib/himodels-usage-context.server'
 import { currentUserId } from '@/lib/current-user'
 import { apiError, apiResponse } from '@/lib/utils'
 import { generateImageUnified, getImageProvider, isImageProvider, resolveImageProviderForReferences, type ImageProvider } from '@/services/ai'
-import { isOSSObjectWithinSubdir, uploadToOSS } from '@/services/oss'
+import { localMediaMatchesSubdirectory, saveLocalMediaFile } from '@/services/local-media'
 import { updateJob } from '@/lib/projectAiJobStore'
 import { createCreatorGenerationJob, CreatorGenerationCapacityError } from '@/lib/creator-generation-concurrency'
 import { saveCreatorImageAsset } from '@/services/creator-assets'
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     if (rawReferenceVideos.length > MAX_IMAGE_REFERENCE_VIDEOS) return apiError(`最多上传 ${MAX_IMAGE_REFERENCE_VIDEOS} 个参考视频`)
     const referenceVideos = parseStoryboardReferenceVideos(rawReferenceVideos)
     if (referenceVideos.length !== rawReferenceVideos.length) return apiError('参考视频参数无效')
-    if (referenceVideos.some(video => !isOSSObjectWithinSubdir(video.url, `creator/${userId}/reference-videos`))) return apiError('参考视频地址无效')
+    if (referenceVideos.some(video => !localMediaMatchesSubdirectory(video.url, `creator/${userId}/reference-videos`))) return apiError('参考视频地址无效')
 
     let references: Awaited<ReturnType<typeof readCreatorReferenceImages>>
     try {
@@ -127,7 +127,7 @@ async function runCreatorImageJob(params: {
                 }
             })
         )
-        const url = await uploadToOSS(params.outputPath, `creator/${params.userId}/images`, params.outputName)
+        const url = await saveLocalMediaFile(params.outputPath, `creator/${params.userId}/images`, params.outputName)
         const asset = await saveCreatorImageAsset({
             userId: params.userId,
             sourceJobId: BigInt(params.jobId),

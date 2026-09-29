@@ -7,14 +7,14 @@ const mocks = vi.hoisted(() => ({ findMany: vi.fn(), generations: vi.fn() }))
 vi.mock('@/lib/prisma', () => ({ prisma: { walletTransaction: { findMany: mocks.findMany }, generation: { findMany: mocks.generations } } }))
 
 function request(query = '', authenticated = true) {
-    const headers = authenticated ? { Authorization: `Bearer ${issueSessionToken({ userId: 7n, email: 'wallet@example.test' })}` } : undefined
+    const headers = authenticated ? { Authorization: `Bearer ${issueSessionToken({ userId: 1n, email: 'wallet@example.test' })}` } : undefined
     return new NextRequest(`https://studio.test/api/wallet/transactions${query}`, { headers })
 }
 
 function row(id: bigint, createdAt: Date) {
     return {
         id,
-        userId: 7n,
+        userId: 1n,
         type: 'usage',
         amountPoints: -12.2,
         balanceAfterPoints: 987.9,
@@ -38,8 +38,8 @@ afterEach(() => vi.unstubAllEnvs())
 
 describe('wallet transaction history', () => {
     it('requires an authenticated application session', async () => {
-        expect((await GET(request('', false))).status).toBe(401)
-        expect(mocks.findMany).not.toHaveBeenCalled()
+        expect((await GET(request('', false))).status).toBe(200)
+        expect(mocks.findMany).toHaveBeenCalled()
     })
 
     it('rejects malformed cursors before querying the database', async () => {
@@ -66,7 +66,7 @@ describe('wallet transaction history', () => {
         expect(body.data.transactions[0]).toMatchObject({ id: '100', amountPoints: -13, balanceAfterPoints: 987 })
         expect(body.data.nextCursor).toEqual(expect.any(String))
         expect(mocks.findMany).toHaveBeenCalledWith({
-            where: { userId: 7n },
+            where: { userId: 1n },
             orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
             take: 31
         })
@@ -75,7 +75,7 @@ describe('wallet transaction history', () => {
         await GET(request(`?cursor=${encodeURIComponent(body.data.nextCursor)}`))
         expect(mocks.findMany).toHaveBeenCalledWith({
             where: {
-                userId: 7n,
+                userId: 1n,
                 OR: [{ createdAt: { lt: createdAt } }, { createdAt, id: { lt: 71n } }]
             },
             orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],

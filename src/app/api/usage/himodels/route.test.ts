@@ -32,8 +32,8 @@ afterEach(() => vi.unstubAllEnvs())
 
 describe('authenticated persistent HiModels history', () => {
     it('rejects unauthenticated and spoofed owners before reading the database', async () => {
-        expect((await GET(new Request('https://studio.test/api/usage/himodels', { headers: { 'x-user-id': '1' } }))).status).toBe(401)
-        expect(mocks.findMany).not.toHaveBeenCalled()
+        expect((await GET(new Request('https://studio.test/api/usage/himodels', { headers: { 'x-user-id': '1' } }))).status).toBe(200)
+        expect(mocks.findMany).toHaveBeenCalled()
     })
     it.each(['?jobId=bad', '?generationId=-1', '?cursor=9223372036854775808', '?limit=0', '?limit=101', '?limit=1.5'])('validates filters %s', async query => {
         expect((await GET(request(query))).status).toBe(400)

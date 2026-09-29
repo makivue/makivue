@@ -37,7 +37,7 @@
 }
 .works-search:focus-within {
     outline: 2px solid var(--app-accent);
-    outline-offset: 2px;
+    outline-offset: -2px;
 }
 .works-create {
     display: inline-flex;

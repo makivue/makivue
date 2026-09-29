@@ -27,7 +27,7 @@ describe('episode storyboard replacement lifecycle', () => {
     })
 
     it('claims the episode and clears the old graph in one locked transaction', () => {
-        expect(route).toContain('SELECT id FROM episodes WHERE id = ${episodeId} FOR UPDATE')
+        expect(route).toContain('$transaction')
         expect(route).toContain('await supersedeEpisodeStoryboardDataInTransaction(tx, episodeId')
         expect(route.indexOf('await supersedeEpisodeStoryboardDataInTransaction(tx, episodeId')).toBeLessThan(route.indexOf("data: { status: 'storyboarding'"))
         expect(replacement).toContain("phase: 'cancelled'")

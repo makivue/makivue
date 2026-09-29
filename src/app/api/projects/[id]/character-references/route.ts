@@ -20,7 +20,7 @@ type Params = { params: Promise<{ id: string }> }
 type RequestedTask = { characterId: string; role: CharacterReferenceRole }
 
 export const maxDuration = 1800
-export const MAX_CHARACTER_REFERENCE_BATCH_SIZE = 50
+const MAX_CHARACTER_REFERENCE_BATCH_SIZE = 50
 
 function characterReferenceRole(value: unknown): CharacterReferenceRole | null {
     return value === undefined || value === null || value === 'turnaround_sheet' ? 'turnaround_sheet' : null

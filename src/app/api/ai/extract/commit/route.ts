@@ -107,8 +107,8 @@ export async function POST(req: NextRequest) {
     const commitPromise = prisma.$transaction(async tx => {
         // Match reset/generation lock ordering. Recheck the scripts under the
         // project lock so a completed old extraction cannot reappear after reset.
-        await tx.$queryRaw`SELECT id FROM projects WHERE id = ${projectId} FOR UPDATE`
-        await tx.$queryRaw`SELECT id FROM extract_jobs WHERE id = ${jobId} FOR UPDATE`
+
+
         const lockedJob = await tx.extractJob.findUnique({ where: { id: jobId } })
         if (!lockedJob || lockedJob.phase !== 'done' || lockedJob.committedAt) throw new Error('EXTRACT_JOB_ALREADY_COMMITTED')
         const lockedScripts = await tx.episode.findMany({

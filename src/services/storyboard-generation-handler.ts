@@ -698,7 +698,7 @@ async function generateStoryboard(req: NextRequest, { params }: Params) {
         })
         const complete = !!done?.firstFrameUrl && (!needsLastFrame || !!done?.plannedLastFrameUrl) && generatedExtraCount === middleFrameCount
         await prisma.$transaction(async tx => {
-            await tx.$queryRaw`SELECT id FROM episodes WHERE id = ${baseStoryboard.episodeId} FOR UPDATE`
+
             const target = await tx.storyboard.updateMany({
                 where: { id: storyboardId, deletedAt: null, operationVersion: baseStoryboard.operationVersion },
                 data: { frameStatus: complete ? 'completed' : 'failed' }

@@ -1,3 +1,4 @@
+vi.mock('@/lib/local-store', () => ({ localTransactionLock: async () => [{ acquired: 1 }] }))
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { POST } from '@/app/api/episodes/[id]/generate-all/route'
 

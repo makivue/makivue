@@ -17,9 +17,29 @@ describe('episode scene plan', () => {
                     requiredEvents: ['   ']
                 }
             ],
-            { min: 60, max: 120 },
             ['主角拿到账本']
         )
-        expect(issues.map(issue => issue.code)).toEqual(expect.arrayContaining(['weak_scene_plan', 'missing_scene_events', 'scene_plan_duration', 'uncovered_required_events']))
+        expect(issues.map(issue => issue.code)).toEqual(expect.arrayContaining(['weak_scene_plan', 'missing_scene_events', 'uncovered_required_events']))
+    })
+
+    it.each([20, 194.5, 2000])('accepts a complete scene plan regardless of whole-episode duration (%s seconds)', estimatedSeconds => {
+        expect(
+            validateEpisodeScenePlan(
+                [
+                    {
+                        sceneNumber: 1,
+                        slugline: '办公室/日/内',
+                        purpose: '交代危机',
+                        protagonistGoal: '找到账本',
+                        conflict: '门外有人逼近',
+                        turn: '主角拿到账本',
+                        exitHook: '门被推开',
+                        estimatedSeconds,
+                        requiredEvents: ['主角拿到账本']
+                    }
+                ],
+                ['主角拿到账本']
+            )
+        ).toEqual([])
     })
 })

@@ -8,7 +8,7 @@ describe('re-extract replaces the old character and scene library', () => {
     const route = fs.readFileSync(path.join(root, 'src/app/api/ai/extract/commit/route.ts'), 'utf8')
     const clearRoute = fs.readFileSync(path.join(root, 'src/app/api/projects/[id]/extracted-entities/route.ts'), 'utf8')
     const clearService = fs.readFileSync(path.join(root, 'src/services/extracted-entities.ts'), 'utf8')
-    const page = fs.readFileSync(path.join(root, 'src/app/projects/[id]/page.tsx'), 'utf8')
+    const page = fs.readFileSync(path.join(root, 'src/app/projects/[id]/ProjectWorkspace.tsx'), 'utf8')
 
     it('uses the in-app confirmation and clears existing data before extraction starts', () => {
         expect(modal).toContain('setReplaceAllOnCommit(true)')

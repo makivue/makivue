@@ -62,25 +62,11 @@ describe('regional story presets', () => {
         expect(selectRegionalStoryStyle(form, 'watercolor').genre).toBe('剧情')
     })
 
-    it('serves all covers from the configured CDN, including regional styles', () => {
-        vi.stubEnv('NEXT_PUBLIC_STYLE_PREVIEW_BASE_URL', 'https://cdn.example.com/style-previews')
-        vi.stubEnv('NEXT_PUBLIC_ASSET_PREFIX', 'https://assets.example.com')
-        for (const preset of REGIONAL_STORY_PRESETS)
-            expect(getStylePreviewSrc(preset.key)).toBe(`https://cdn.example.com/style-previews/${STYLE_PREVIEW_ASSET_VERSION}/regional-generated/${preset.key}.webp`)
-        expect(getStylePreviewSrc('cinematic')).toBe(`https://cdn.example.com/style-previews/${STYLE_PREVIEW_ASSET_VERSION}/cinematic.webp`)
-    })
-
-    it.each([256, 384] as const)('requests %dpx WebP thumbnails directly from OSS', width => {
-        vi.stubEnv('NEXT_PUBLIC_STYLE_PREVIEW_BASE_URL', 'https://assets.example.invalid/aigc-assets/style-previews')
-        const url = new URL(getStylePreviewSrc('cinematic', width))
-        expect(url.pathname).toBe(`/aigc-assets/style-previews/${STYLE_PREVIEW_ASSET_VERSION}/thumbs/${width}/cinematic.webp`)
-        expect(url.search).toBe('')
-    })
-
-    it('uses the independent OSS release when no preview base is configured, regardless of the app asset prefix', () => {
-        vi.stubEnv('NEXT_PUBLIC_STYLE_PREVIEW_BASE_URL', '')
-        vi.stubEnv('NEXT_PUBLIC_ASSET_PREFIX', 'https://assets.example.com/')
-        expect(getStylePreviewSrc('cinematic')).toBe(`https://assets.example.invalid/aigc-assets/style-previews/${STYLE_PREVIEW_ASSET_VERSION}/cinematic.webp`)
+    it('serves every preset from bundled local artwork regardless of cloud settings', () => {
+        vi.stubEnv('NEXT_PUBLIC_STYLE_PREVIEW_BASE_URL', 'https://cdn.example.com')
+        expect(getStylePreviewSrc('na-urban-revenge')).toBe('/style-previews/na-urban-revenge.svg')
+        expect(getStylePreviewSrc('cinematic', 256)).toBe('/style-previews/cinematic.svg')
+        expect(STYLE_PREVIEW_ASSET_VERSION).toBe('local-v1')
     })
 
     it('does not add regional narrative constraints to existing styles', () => {

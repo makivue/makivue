@@ -4,6 +4,7 @@ type EpisodeProgress = { status?: string | null; videoUrl?: string | null }
 export function hasMergedEpisodeVideo(videoUrl: string | null | undefined): boolean {
     if (!videoUrl?.trim()) return false
     try {
+        if (videoUrl.trim().startsWith('/api/local-media/')) return true
         const url = new URL(videoUrl.trim())
         return url.protocol === 'https:' || url.protocol === 'http:'
     } catch {

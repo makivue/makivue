@@ -10,7 +10,7 @@ describe('Qwen-Image 3.0 Pro provider coverage', () => {
     it.each([
         'src/app/create/CreatorWorkspace.tsx',
         'src/app/settings/page.tsx',
-        'src/app/projects/[id]/page.tsx',
+        'src/app/projects/[id]/ProjectWorkspace.tsx',
         'src/app/projects/[id]/episodes/[episodeId]/page.tsx'
     ])('is selectable in %s', file => {
         expect(source(file)).toContain('qwen-image-3.0-pro')

@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
     // in one transaction so no old batch can keep writing between those steps.
     const previousStatus = overwriteExisting ? 'scripted' : (episode.status ?? 'draft')
     const claim = await prisma.$transaction(async tx => {
-        await tx.$queryRaw`SELECT id FROM episodes WHERE id = ${episodeId} FOR UPDATE`
+
         const locked = await tx.episode.findUnique({
             where: { id: episodeId },
             select: { status: true, operationVersion: true, deletedAt: true }
@@ -385,7 +385,7 @@ async function runStoryboardJob(
 
         const committed = await prisma.$transaction(
             async tx => {
-                await tx.$queryRaw`SELECT id FROM episodes WHERE id = ${episodeId} FOR UPDATE`
+
                 const lockedEpisode = await tx.episode.findUnique({ where: { id: episodeId }, select: { status: true, operationVersion: true, deletedAt: true } })
                 if (!lockedEpisode || lockedEpisode.deletedAt || lockedEpisode.status !== 'storyboarding' || lockedEpisode.operationVersion !== operationVersion) {
                     throw new Error('STORYBOARD_OPERATION_CANCELLED')

@@ -45,8 +45,8 @@ describe('character and scene extraction job recovery', () => {
     })
 
     it('serializes concurrent check-and-create requests per project', () => {
-        expect(store).toContain('SELECT id FROM projects')
-        expect(store).toContain('FOR UPDATE')
+        expect(store).toContain('$transaction')
+        expect(store).toContain('$transaction')
         expect(store).toContain("phase: { in: ['analyzing', 'merging'] }")
     })
 

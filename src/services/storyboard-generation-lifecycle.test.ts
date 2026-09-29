@@ -28,8 +28,8 @@ describe('storyboard generation request lifecycle', () => {
     })
 
     it('claims a slot atomically across application instances', () => {
-        expect(concurrency).toContain('GET_LOCK')
-        expect(concurrency).toContain('RELEASE_LOCK')
+        expect(concurrency).toContain('localTransactionLock')
+        expect(concurrency).toContain('$transaction')
         expect(concurrency).toContain('projectActive >= limits.project')
         expect(concurrency).toContain('userActive >= limits.user')
         expect(concurrency).toContain("distinct: ['storyboardId']")

@@ -157,7 +157,7 @@ ${params.content}
 
 逐项核对：核心冲突、人物动机、必要事件及顺序、角色何时知道秘密、道具归属与交接、伤势与衣着、人物空间移动、开场与上一集结尾的承接。剧本还要核对多阶段动作是否分开、情绪变化是否可表演。
 再按 0-100 严格评分：causality（事件因果）、characterAgency（主角通过选择推动剧情）、escalation（阻力逐步升级且旧办法失效）、emotionalProgression（情绪因触发而变化）、dialogueSubtext（人物有不同说话方式且不是说明书式对白）、hookStrength（冷开场与结尾钩子改变行动问题）、visualDramatization（心理和信息通过动作、道具、空间关系呈现）。任何维度低于 60 分时，notes 必须给出可定位的改法。
-只报告有原文证据的实质矛盾或关键遗漏。允许忠实的压缩、措辞变化、合理的转场和时间省略；不要因字数、场次数、审美偏好制造问题。不得强行把当前文本中的偏差当作正确事实。若有冲突，在 issues 中定位并说明修复方向。
+只报告有原文证据的实质矛盾或关键遗漏。允许忠实的压缩、措辞变化、合理的转场和时间省略；不要因字数、场次数、审美偏好制造问题。整集估算时长仅作节奏参考，不得因偏离目标时长报告问题或降低质量评分。不得强行把当前文本中的偏差当作正确事实。若有冲突，在 issues 中定位并说明修复方向。
 facts 只提取待审全文实际发生的事实，不能抄写尚未发生的计划。保留人物知情边界、关键道具和未解伏笔；每个事件 evidence 必须逐字摘自待审全文。字段内容使用待审文本的语言。
 输出：{"issues":[{"path":"具体场次或段落","message":"引用具体问题并说明应如何修复"}],"quality":{"causality":0,"characterAgency":0,"escalation":0,"emotionalProgression":0,"dialogueSubtext":0,"hookStrength":0,"visualDramatization":0,"notes":["具体问题与改法"]},"facts":{"summary":"完整事件摘要","openingState":"实际开场状态","endingState":"实际结尾状态","characterStateChanges":"实际知情、关系、道具和身体状态变化；无变化也说明","continuityBridge":"实际承接方式；首集说明建立开场","events":[{"description":"实际事件与结果","evidence":"待审全文中的连续原句"}]}}`
         }

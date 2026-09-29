@@ -10,7 +10,7 @@ function source(relativePath: string) {
 describe('default generation providers', () => {
     it('uses Nano Banana by default across image generation entry points', () => {
         const episodePage = source('src/app/projects/[id]/episodes/[episodeId]/page.tsx')
-        const projectPage = source('src/app/projects/[id]/page.tsx')
+        const projectPage = source('src/app/projects/[id]/ProjectWorkspace.tsx')
         const singleRoute = source('src/services/storyboard-generation-handler.ts')
         const batchRoute = source('src/app/api/episodes/[id]/generate-all/route.ts')
         const imageService = source('src/services/ai.ts')

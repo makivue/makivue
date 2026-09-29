@@ -28,7 +28,7 @@ describe('AI Creator API isolation', () => {
 
     it('checks funds and charges successful generations', () => {
         expect(billing).toContain('export function walletBillingEnabled(): boolean')
-        expect(billing).toContain("process.env.WALLET_BILLING_ENABLED !== 'false'")
+        expect(billing).toContain('if (!walletBillingEnabled()) return')
         expect(billing).toContain('balancePoints: { gte: amountPoints }')
         expect(billing).toContain('积分不足，生成费用未能扣除')
     })

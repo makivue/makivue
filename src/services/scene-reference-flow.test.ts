@@ -3,7 +3,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 describe('scene reference generation flow', () => {
-    const page = fs.readFileSync(path.join(process.cwd(), 'src/app/projects/[id]/page.tsx'), 'utf8')
+    const page = fs.readFileSync(path.join(process.cwd(), 'src/app/projects/[id]/ProjectWorkspace.tsx'), 'utf8')
     const ai = fs.readFileSync(path.join(process.cwd(), 'src/services/ai.ts'), 'utf8')
     const route = fs.readFileSync(path.join(process.cwd(), 'src/app/api/scenes/[id]/reference/route.ts'), 'utf8')
     const job = fs.readFileSync(path.join(process.cwd(), 'src/services/scene-reference-job.ts'), 'utf8')

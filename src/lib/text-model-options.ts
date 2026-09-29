@@ -13,6 +13,7 @@ export type TextModelOption = {
 export const TEXT_MODEL_SOURCE_LABELS: Record<TextModelSource, string> = GENERATION_MODEL_SOURCE_LABELS
 
 export const TEXT_MODEL_OPTIONS: readonly TextModelOption[] = [
+    { value: 'gpt-4o', label: 'GPT-4o', source: 'direct' },
     { value: GEMINI_FLASH_TEXT_MODEL_ID, label: 'Gemini 3.7 Flash', source: 'direct' },
     { value: 'gemini-3.7-flash', label: 'Gemini 3.7 Flash', source: 'himodels' }
 ]

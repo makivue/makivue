@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/lib/current-user', () => ({ currentUserId: () => 7n }))
 vi.mock('@/lib/ownership', () => ({ assertStoryboardOwner: async () => null }))
 vi.mock('@/lib/prisma', () => ({ prisma: { storyboard: { findFirst: mocks.findFirst }, $transaction: mocks.transaction } }))
-vi.mock('@/services/oss', () => ({ uploadToOSS: mocks.upload, deleteOSSObjectWithinSubdir: mocks.remove }))
+vi.mock('@/services/local-media', async importOriginal => ({ ...(await importOriginal<typeof import('@/services/local-media')>()), saveLocalMediaFile: mocks.upload, deleteLocalMediaWithinSubdirectory: mocks.remove }))
 vi.mock('@/services/ffmpeg', () => ({ probeMediaStreams: mocks.probe }))
 vi.mock('@/services/artifacts', () => ({ resetStoryboardMediaInTransaction: mocks.reset, resetFollowingContinuousMediaInTransaction: mocks.following }))
 

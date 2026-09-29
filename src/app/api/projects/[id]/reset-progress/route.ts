@@ -71,7 +71,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
     const result = await prisma.$transaction(
         async tx => {
-            await tx.$queryRaw`SELECT id FROM projects WHERE id = ${idNum} FOR UPDATE`
+
             const locked = await tx.project.findUnique({ where: { id: idNum }, select: { operationVersion: true, deletedAt: true, novelSetup: true } })
             if (!locked || locked.deletedAt || locked.operationVersion !== project.operationVersion) return null
             const { epJobIds } = await cancelProjectOperationsInTransaction(tx, idNum, '项目进度已重置，旧任务作废')
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest, { params }: Params) {
             const episodeIds = (await tx.episode.findMany({ where: { projectId: idNum }, select: { id: true } })).map(episode => episode.id)
             const artifacts: EpisodeArtifact[] = []
             for (const episodeId of episodeIds) {
-                await tx.$queryRaw`SELECT id FROM episodes WHERE id = ${episodeId} FOR UPDATE`
+
                 const reset = await supersedeEpisodeStoryboardDataInTransaction(tx, episodeId, '重新生成大纲，旧分集内容已重置')
                 artifacts.push(...reset.artifacts)
                 epJobIds.push(...reset.epJobIds)

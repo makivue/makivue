@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const workspace = fs.readFileSync(path.join(process.cwd(), 'src/app/projects/[id]/page.tsx'), 'utf8')
+const workspace = fs.readFileSync(path.join(process.cwd(), 'src/app/projects/[id]/ProjectWorkspace.tsx'), 'utf8')
 const characterRoute = fs.readFileSync(path.join(process.cwd(), 'src/app/api/characters/[id]/route.ts'), 'utf8')
 const sceneRoute = fs.readFileSync(path.join(process.cwd(), 'src/app/api/scenes/[id]/route.ts'), 'utf8')
 const expandRoute = fs.readFileSync(path.join(process.cwd(), 'src/app/api/ai/expand-prompt/route.ts'), 'utf8')

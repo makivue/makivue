@@ -11,10 +11,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/lib/current-user', () => ({ currentUserId: mocks.currentUserId }))
 vi.mock('@/lib/ownership', () => ({ assertProjectOwner: mocks.assertProjectOwner }))
 vi.mock('@/lib/prisma', () => ({ prisma: { project: { findFirst: mocks.projectFindFirst, update: mocks.projectUpdate } } }))
-vi.mock('@/services/oss', () => ({
-    isOSSObjectWithinSubdir: vi.fn(() => false),
-    deleteOSSObjectWithinSubdir: vi.fn(),
-    uploadToOSS: vi.fn()
+vi.mock('@/services/local-media', async importOriginal => ({ ...(await importOriginal<typeof import('@/services/local-media')>()),
+    localMediaMatchesSubdirectory: vi.fn(() => false),
+    deleteLocalMediaWithinSubdirectory: vi.fn(),
+    saveLocalMediaFile: vi.fn()
 }))
 vi.mock('@/services/ffmpeg', () => ({ probeMediaStreams: vi.fn() }))
 

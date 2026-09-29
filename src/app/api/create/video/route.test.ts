@@ -20,7 +20,7 @@ vi.mock('@/lib/himodels-usage-context.server', () => ({ withHiModelsUsageScope: 
 vi.mock('@/lib/provider-token-usage.server', () => ({ fetchMeteredProvider: mocks.fetch }))
 vi.mock('@/lib/projectAiJobStore', () => ({ updateJob: vi.fn() }))
 vi.mock('@/lib/creator-generation-concurrency', () => ({ createCreatorGenerationJob: mocks.job, CreatorGenerationCapacityError: class extends Error {} }))
-vi.mock('@/services/oss', () => ({ uploadToOSS: mocks.upload, isOSSObjectWithinSubdir: (url: string, subdir: string) => new URL(url).pathname.startsWith(`/${subdir}/`) }))
+vi.mock('@/services/local-media', async importOriginal => ({ ...(await importOriginal<typeof import('@/services/local-media')>()), saveLocalMediaFile: mocks.upload, localMediaMatchesSubdirectory: (url: string, subdir: string) => new URL(url).pathname.startsWith(`/${subdir}/`) }))
 vi.mock('@/services/wan-video-reference-image', () => ({ prepareWanVideoReferenceImage: mocks.prepare }))
 vi.mock('@/services/dashscope-config', () => ({ getDashScopeConfig: () => ({ apiKey: 'mock', baseUrl: 'https://provider.test' }) }))
 vi.mock('@/services/seedance-config', () => ({ getSeedanceConfig: async () => ({ apiKey: 'mock', baseUrl: 'https://provider.test' }) }))

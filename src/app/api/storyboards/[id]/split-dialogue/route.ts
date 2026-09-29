@@ -75,9 +75,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     const applied = await prisma.$transaction(async tx => {
         // 锁定本集的顺序表。不同长台词镜头同时拆分时也会串行计算最新 order，
         // 防止一个请求移动了另一个请求的原镜头后，新段落插到错误位置。
-        await tx.$queryRaw<Array<{ id: bigint }>>`
-            SELECT id FROM episodes WHERE id = ${storyboard.episodeId} FOR UPDATE
-        `
+
         const maxGroup = await tx.storyboard.aggregate({
             where: { episodeId: storyboard.episodeId, deletedAt: null },
             _max: { continuityGroup: true }

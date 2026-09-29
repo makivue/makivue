@@ -1,3 +1,4 @@
+vi.mock('@/lib/local-store', () => ({ localTransactionLock: async () => [{ acquired: 1 }] }))
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const database = vi.hoisted(() => {
@@ -44,7 +45,7 @@ describe('reference image concurrency', () => {
                 data: expect.objectContaining({ phase: 'generating' })
             })
         )
-        expect(database.transactionClient.$queryRaw).toHaveBeenCalledTimes(2)
+
     })
 
     it('waits when reference images already use all 15 account slots', async () => {

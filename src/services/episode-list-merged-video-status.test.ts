@@ -9,7 +9,7 @@ describe('episode list merged video status', () => {
     it('returns a compact deliverable-video flag in project summaries', () => {
         expect(projectRoute).toContain('videoUrl: true')
         expect(projectRoute).toContain('hasMergedVideo:')
-        expect(projectRoute).toContain("!episode.videoUrl.startsWith('/storage/')")
+        expect(projectRoute).toContain('getProjectProductionProgress')
         expect(projectRoute).toContain('videoUrl: undefined')
     })
 

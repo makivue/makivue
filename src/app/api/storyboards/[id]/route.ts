@@ -251,8 +251,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const storyboard = await prisma
         .$transaction(
             async tx => {
-                await tx.$queryRaw`SELECT id FROM episodes WHERE id = ${current.episodeId} FOR UPDATE`
-                await tx.$queryRaw`SELECT id FROM storyboards WHERE id = ${idNum} FOR UPDATE`
+
+
                 const locked = await tx.storyboard.findUnique({ where: { id: idNum } })
                 if (!locked || locked.deletedAt || locked.operationVersion !== current.operationVersion) throw new StaleStoryboardMutationError()
                 const promotePatch = visualDirty

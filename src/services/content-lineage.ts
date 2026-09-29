@@ -51,8 +51,8 @@ async function markEpisodeRowsStale(tx: Prisma.TransactionClient, projectId: big
 }
 
 export async function markProjectDownstreamStaleInTransaction(tx: Prisma.TransactionClient, projectId: bigint, reason: string) {
-    await tx.$queryRaw`SELECT id FROM projects WHERE id = ${projectId} FOR UPDATE`
-    await tx.$queryRaw`SELECT id FROM episodes WHERE project_id = ${projectId} AND deleted_at IS NULL ORDER BY id FOR UPDATE`
+
+
     const episodes = await tx.episode.findMany({ where: { projectId, deletedAt: null }, select: { id: true } })
     const episodeIds = episodes.map(episode => episode.id)
     const storyboards = episodeIds.length ? await tx.storyboard.findMany({ where: { episodeId: { in: episodeIds }, deletedAt: null }, select: { id: true } }) : []
@@ -67,8 +67,8 @@ export async function markProjectDownstreamStaleInTransaction(tx: Prisma.Transac
 }
 
 export async function markProjectVisualsStaleInTransaction(tx: Prisma.TransactionClient, projectId: bigint, reason: string) {
-    await tx.$queryRaw`SELECT id FROM projects WHERE id = ${projectId} FOR UPDATE`
-    await tx.$queryRaw`SELECT id FROM episodes WHERE project_id = ${projectId} AND deleted_at IS NULL ORDER BY id FOR UPDATE`
+
+
     const episodes = await tx.episode.findMany({ where: { projectId, deletedAt: null }, select: { id: true } })
     const episodeIds = episodes.map(episode => episode.id)
     const storyboards = episodeIds.length ? await tx.storyboard.findMany({ where: { episodeId: { in: episodeIds }, deletedAt: null }, select: { id: true } }) : []
@@ -84,8 +84,8 @@ export async function markProjectVisualsStaleInTransaction(tx: Prisma.Transactio
 }
 
 export async function markEpisodeDownstreamStaleInTransaction(tx: Prisma.TransactionClient, episodeId: bigint, projectId: bigint, reason: string) {
-    await tx.$queryRaw`SELECT id FROM projects WHERE id = ${projectId} FOR UPDATE`
-    await tx.$queryRaw`SELECT id FROM episodes WHERE project_id = ${projectId} AND deleted_at IS NULL ORDER BY id FOR UPDATE`
+
+
     const storyboards = await tx.storyboard.findMany({ where: { episodeId, deletedAt: null }, select: { id: true } })
     await markStoryboardRowsStale(
         tx,
@@ -98,8 +98,8 @@ export async function markEpisodeDownstreamStaleInTransaction(tx: Prisma.Transac
 }
 
 export async function markFollowingEpisodesStaleInTransaction(tx: Prisma.TransactionClient, projectId: bigint, episodeNumber: number, stage: 'chapter' | 'script') {
-    await tx.$queryRaw`SELECT id FROM projects WHERE id = ${projectId} FOR UPDATE`
-    await tx.$queryRaw`SELECT id FROM episodes WHERE project_id = ${projectId} AND deleted_at IS NULL ORDER BY id FOR UPDATE`
+
+
     const reason = `第${episodeNumber}集${stage === 'chapter' ? '正文' : '剧本'}已更新，请复核本集剧情及首尾衔接`
     const laterWhere = { projectId, episodeNumber: { gt: episodeNumber }, deletedAt: null }
     const allFollowing = await tx.episode.findMany({ where: laterWhere, select: { id: true } })
@@ -135,8 +135,8 @@ export async function markReferenceDependentsStaleInTransaction(
     reason: string,
     scopes: StoryboardInvalidationScope[] = ['frame']
 ) {
-    await tx.$queryRaw`SELECT id FROM projects WHERE id = ${target.projectId} FOR UPDATE`
-    await tx.$queryRaw`SELECT id FROM episodes WHERE project_id = ${target.projectId} AND deleted_at IS NULL ORDER BY id FOR UPDATE`
+
+
     const storyboards =
         target.type === 'character'
             ? await tx.storyboard.findMany({

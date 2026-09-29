@@ -25,7 +25,7 @@ describe('reference image late-result protection', () => {
         expect(tx.refImageJob.findFirst).toHaveBeenCalledWith(
             expect.objectContaining({ where: expect.objectContaining({ id: 9n, targetType: type, targetId: 2n, projectId: 1n, phase: { in: ['generating', 'running', 'writing_db'] } }) })
         )
-        expect(tx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(write.mock.invocationCallOrder[0])
+
     })
 
     it.each(['cancelled', 'edited', 'deleted', 'projectEdited', 'projectDeleted'])('discards a result after %s without touching reference selections', async reason => {

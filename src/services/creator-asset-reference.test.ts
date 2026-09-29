@@ -13,9 +13,9 @@ vi.mock('@/lib/prisma', () => ({
 }))
 
 vi.mock('@/lib/id', () => ({ genId: vi.fn(() => 1n) }))
-vi.mock('./oss', () => ({
-    deleteCreatorArtifactFromOSS: vi.fn(),
-    uploadToOSS: vi.fn()
+vi.mock('./local-media', async importOriginal => ({ ...(await importOriginal<typeof import('@/services/local-media')>()),
+    deleteLocalCreatorArtifact: vi.fn(),
+    saveLocalMediaFile: vi.fn()
 }))
 vi.mock('./ffmpeg', () => ({
     extractVideoCover: vi.fn(),

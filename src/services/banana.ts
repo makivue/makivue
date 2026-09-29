@@ -1,3 +1,5 @@
+import { localMediaKey } from './local-media'
+import { localFetch } from '@/lib/local-fetch'
 import { GoogleAuth } from 'google-auth-library'
 import fs from 'fs'
 import path from 'path'
@@ -213,8 +215,8 @@ export function resolveBananaLocalImagePath(src: string, projectRoot = process.c
 
 // 把 URL 或本地路径加载为 base64 供 Nano Banana inline 使用
 async function loadImageAsBase64(src: string, signal?: AbortSignal): Promise<{ data: string; mimeType: string }> {
-    if (src.startsWith('http://') || src.startsWith('https://')) {
-        const res = await fetch(src, { signal: fetchTimeoutSignal(20_000, signal) })
+    if (localMediaKey(src) || src.startsWith('http://') || src.startsWith('https://')) {
+        const res = await localFetch(src, { signal: fetchTimeoutSignal(20_000, signal) })
         if (!res.ok) throw new Error(`Failed to load reference image: ${src} (${res.status})`)
         const mimeType = res.headers.get('content-type') ?? 'image/jpeg'
         const buf = Buffer.from(await res.arrayBuffer())

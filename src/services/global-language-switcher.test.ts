@@ -14,7 +14,7 @@ describe('global language and appearance settings', () => {
         'src/app/projects/page.tsx',
         'src/app/replica/page.tsx',
         'src/app/wallet/page.tsx',
-        'src/app/projects/[id]/page.tsx',
+        'src/app/projects/[id]/ProjectWorkspace.tsx',
         'src/app/projects/[id]/episodes/[episodeId]/page.tsx'
     ]
 

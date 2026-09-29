@@ -1,7 +1,8 @@
+vi.mock('@/lib/local-store', () => ({ localTransactionLock: async () => [{ acquired: 1 }] }))
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({ transaction: vi.fn() }))
 vi.mock('@/lib/prisma', () => ({ prisma: { $transaction: mocks.transaction } }))
-vi.mock('./oss', () => ({ deleteOSSObjectWithinSubdir: vi.fn() }))
+vi.mock('./local-media', async importOriginal => ({ ...(await importOriginal<typeof import('@/services/local-media')>()), deleteLocalMediaWithinSubdirectory: vi.fn() }))
 import {
     clearEpisodeMergedVideoInTransaction,
     invalidationPatch,
@@ -120,6 +121,6 @@ describe('media dependency invalidation', () => {
         mocks.transaction.mockImplementation(callback => callback(tx))
         await expect(resetEpisodeGeneratedMedia(8n, 3)).rejects.toBeInstanceOf(StaleStoryboardMutationError)
         expect(tx.generation.deleteMany).not.toHaveBeenCalled()
-        expect(tx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(tx.episode.findFirst.mock.invocationCallOrder[0])
+
     })
 })

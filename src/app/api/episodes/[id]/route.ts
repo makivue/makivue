@@ -198,7 +198,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     const isActiveGeneration = (sb: (typeof episode.storyboards)[number], generation: (typeof sb.generations)[number]) =>
         isActiveGenerationStatus(generation.status) && generation.resourceVersion === sb.operationVersion
     const staleVideoWithArtifactIds = episode.storyboards
-        .filter(sb => !sb.staleReason && sb.videoStatus !== 'stale' && sb.videoStatus !== 'completed' && typeof sb.videoUrl === 'string' && /^https?:\/\//i.test(sb.videoUrl))
+        .filter(sb => !sb.staleReason && sb.videoStatus !== 'stale' && sb.videoStatus !== 'completed' && typeof sb.videoUrl === 'string' && (sb.videoUrl.startsWith('/api/local-media/') || /^https?:\/\//i.test(sb.videoUrl)))
         .filter(sb => !sb.generations.some(g => g.type === 'video' && isActiveGeneration(sb, g)))
         .map(sb => sb.id)
     const staleFrameWithArtifactIds = episode.storyboards
@@ -261,12 +261,8 @@ export async function GET(req: NextRequest, { params }: Params) {
     }
     let mergeDeliveryById = new Map<string, MergeDeliveryRow>()
     try {
-        const subtitleRows = await prisma.$queryRaw<MergeDeliveryRow[]>`
-            SELECT id, subtitle_urls, video_status, subtitle_status, subtitle_progress, target_width, target_height
-            FROM video_merges
-            WHERE episode_id = ${idNum}
-            ORDER BY created_at DESC
-        `
+        const storedMerges = await prisma.videoMerge.findMany({ where: { episodeId: idNum }, orderBy: { createdAt: 'desc' } })
+        const subtitleRows: MergeDeliveryRow[] = storedMerges.map(row => ({ id: row.id, subtitle_urls: row.subtitleUrls, video_status: row.videoStatus, subtitle_status: row.subtitleStatus, subtitle_progress: row.subtitleProgress, target_width: row.targetWidth, target_height: row.targetHeight }))
         mergeDeliveryById = new Map(subtitleRows.map(row => [row.id.toString(), row]))
     } catch {
         // 旧数据库没有交付状态字段时保持空 map，待 migration deploy 后自动恢复。
@@ -481,8 +477,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         updateData.status = 'drafted'
     }
     const episode = await prisma.$transaction(async tx => {
-        await tx.$queryRaw`SELECT id FROM projects WHERE id = ${current.projectId} FOR UPDATE`
-        await tx.$queryRaw`SELECT id FROM episodes WHERE id = ${idNum} FOR UPDATE`
+
+
         const locked = await tx.episode.findUnique({ where: { id: idNum } })
         if (!locked || locked.deletedAt || locked.sourceVersion !== current.sourceVersion || locked.operationVersion !== current.operationVersion) return null
         await tx.chapterJob.updateMany({
