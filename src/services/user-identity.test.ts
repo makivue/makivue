@@ -19,7 +19,7 @@ describe('recordGoogleUserIdentity', () => {
     it('creates or refreshes the verified Google identity snapshot', async () => {
         await recordGoogleUserIdentity(42n, {
             subject: 'google-user-123',
-            email: ' Alice@Example.COM ',
+            email: ' ALICE@EXAMPLE.COM ',
             displayName: ' Alice ',
             avatarUrl: 'https://example.com/avatar.png'
         })

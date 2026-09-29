@@ -1,6 +1,7 @@
 import { SITE_CONTACT_EMAIL } from '@/lib/seo'
 
 export default function ContactEmail({ className }: { className?: string }) {
+    if (!SITE_CONTACT_EMAIL) return null
     return (
         <a
             href={`mailto:${SITE_CONTACT_EMAIL}`}

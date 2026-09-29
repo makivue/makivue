@@ -12,7 +12,7 @@ afterEach(() => {
 describe('application session token', () => {
     it('derives user identity only from a valid signed bearer token', () => {
         process.env.APP_SESSION_SECRET = 'test-secret-with-enough-randomness'
-        const token = issueSessionToken({ userId: '12345', email: 'Admin@Example.com', userType: 2 })
+        const token = issueSessionToken({ userId: '12345', email: 'user@example.com', userType: 2 })
         const request = new Request('https://example.com/api/projects', {
             headers: { authorization: `Bearer ${token}`, 'x-user-id': '99999' }
         })
