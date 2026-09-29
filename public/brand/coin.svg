@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none">
+    <defs>
+        <linearGradient id="edge" x1="8" y1="4" x2="19" y2="23" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#FFD900"/>
+            <stop offset=".6" stop-color="#FFB800"/>
+            <stop offset="1" stop-color="#F58700"/>
+        </linearGradient>
+        <linearGradient id="rim" x1="6" y1="2" x2="17" y2="21" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#FFFFC2"/>
+            <stop offset=".32" stop-color="#FFF348"/>
+            <stop offset=".7" stop-color="#FFD000"/>
+            <stop offset="1" stop-color="#FFED55"/>
+        </linearGradient>
+        <linearGradient id="face" x1="7" y1="5" x2="16" y2="19" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#FFE600"/>
+            <stop offset=".55" stop-color="#FFD000"/>
+            <stop offset="1" stop-color="#FFEA26"/>
+        </linearGradient>
+        <linearGradient id="shine" x1="10" y1="6" x2="13" y2="16" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#FFFFE0"/>
+            <stop offset="1" stop-color="#FFF36A"/>
+        </linearGradient>
+    </defs>
+    <circle cx="12.8" cy="13" r="10.5" fill="url(#edge)"/>
+    <circle cx="11.5" cy="11.2" r="10.5" fill="url(#rim)"/>
+    <circle cx="11.5" cy="11.2" r="7.8" fill="url(#face)" stroke="#F5AA00" stroke-width="1.25"/>
+    <path d="M2.8 8.3A9.2 9.2 0 0 1 13.7 2.3" stroke="#FFFFDA" stroke-width="1.5" stroke-linecap="round"/>
+    <rect x="10.1" y="6.9" width="3.8" height="9.6" rx="1.9" fill="#F3A300"/>
+    <rect x="9.4" y="6" width="3.8" height="9.6" rx="1.9" fill="url(#shine)"/>
+    <path d="M7 18A8.2 8.2 0 0 0 17.1 17.2" stroke="#FFFF90" stroke-width=".9" stroke-linecap="round"/>
+</svg>

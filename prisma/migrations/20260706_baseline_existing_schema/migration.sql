@@ -1,0 +1,3 @@
+-- Baseline marker for databases that predate Prisma Migrate.
+-- The original core schema already exists in deployed environments; this
+-- migration intentionally performs no DDL.

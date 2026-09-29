@@ -1,0 +1,59 @@
+# Version-control and editor metadata
+.git
+.gitignore
+.gitattributes
+.vscode
+.claude
+.DS_Store
+
+# Dependencies and caches
+node_modules
+# Docker builds its own output.
+.next
+.next-*
+out
+build
+coverage
+test-results
+playwright-report
+.playwright-cli
+logs
+*.log
+*.tsbuildinfo
+
+# Local tooling and generated inspection artifacts
+.codex-ppt-inspect.*
+.codex-trash
+output
+tmp
+.tmp
+
+# Runtime-generated data and media
+public/storage
+prisma/*.db
+prisma/*.db-journal
+prisma/*.db-shm
+prisma/*.db-wal
+
+# Model credentials are supplied at runtime (environment variables or /app/.env).
+# Keep local credentials out of image layers and build contexts.
+.env
+.env.local
+.env.*.local
+.secrets
+gpt5.json
+happy_horse.json
+hi-models.json
+nano_banana*.json
+seedance.json
+*key*.json
+*payment*.json
+
+# No deployment environment is part of the public image context.
+.env*
+!.env.example
+!.env.local.example
+
+# Local user records, media, and file-lock artifacts
+/data/
+/data.lock/

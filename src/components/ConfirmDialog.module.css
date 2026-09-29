@@ -1,0 +1,75 @@
+.backdrop {
+    background: var(--home-backdrop);
+}
+
+.dialog {
+    --dialog-accent: var(--app-accent);
+    --dialog-action: var(--app-action);
+    --dialog-action-hover: var(--app-action-2);
+    --dialog-on-action: var(--app-on-action);
+    max-height: calc(100dvh - 3rem);
+    color: var(--app-text);
+    background: var(--app-surface);
+    border-color: var(--app-border);
+    box-shadow: 0 24px 80px var(--app-shadow);
+}
+
+.dialog[data-tone='danger'] {
+    --dialog-accent: var(--home-error);
+    --dialog-action: var(--app-action-danger);
+    --dialog-action-hover: color-mix(in srgb, var(--app-action-danger) 90%, black);
+    --dialog-on-action: var(--app-on-semantic-action);
+}
+
+.dialog[data-tone='warning'] {
+    --dialog-accent: var(--home-warning);
+    --dialog-action: var(--app-action-warning);
+    --dialog-action-hover: color-mix(in srgb, var(--app-action-warning) 90%, black);
+    --dialog-on-action: var(--app-on-semantic-action);
+}
+
+.icon {
+    color: var(--dialog-accent);
+    background: color-mix(in srgb, var(--dialog-accent) 10%, var(--app-surface));
+}
+
+.eyebrow,
+.close {
+    color: var(--app-text-muted);
+}
+
+.message {
+    color: var(--app-text-muted);
+    overflow-wrap: anywhere;
+}
+
+.close:hover {
+    color: var(--app-text);
+    background: var(--app-surface-muted);
+}
+
+.cancel {
+    color: var(--app-text);
+    background: var(--app-surface-muted);
+    border-color: var(--app-border);
+}
+
+.cancel:hover {
+    background: var(--app-card-hover);
+    border-color: var(--app-border-strong);
+}
+
+.confirm {
+    color: var(--dialog-on-action);
+    background: var(--dialog-action);
+    border-color: color-mix(in srgb, var(--dialog-action) 82%, var(--dialog-on-action));
+}
+
+.confirm:hover {
+    background: var(--dialog-action-hover);
+}
+
+.dialog button:focus-visible {
+    outline: 2px solid var(--app-accent);
+    outline-offset: -2px;
+}

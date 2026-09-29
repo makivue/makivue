@@ -1,0 +1,305 @@
+.section {
+    position: relative;
+    padding: 5rem 1.5rem 5.5rem;
+    background: radial-gradient(ellipse at 50% 0, color-mix(in srgb, var(--home-glow-primary) 35%, transparent), transparent 70%);
+}
+.container {
+    max-width: 70rem;
+    margin-inline: auto;
+}
+.intro {
+    max-width: 54rem;
+    margin: 0 auto 2.5rem;
+    text-align: center;
+}
+.intro h2 {
+    color: var(--app-text);
+    font-size: clamp(1.5rem, 2.5vw, 2.125rem);
+    font-weight: 650;
+    line-height: 1.4;
+    letter-spacing: -0.035em;
+    text-wrap: balance;
+}
+.intro p {
+    margin-top: 1.25rem;
+    color: var(--app-text-muted);
+    font-size: 0.9375rem;
+    line-height: 1.9;
+}
+.grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+}
+.card {
+    min-width: 0;
+    padding: 1.75rem;
+    border: 1px solid var(--app-border);
+    border-radius: 1.125rem;
+    background: var(--app-panel);
+}
+.cardTop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+}
+.icon {
+    display: grid;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 0.75rem;
+    color: var(--app-accent);
+    background: var(--app-accent-soft);
+}
+.step {
+    color: var(--app-text-subtle);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.1em;
+}
+.card h3 {
+    color: var(--app-text);
+    font-size: 1.125rem;
+    font-weight: 600;
+    line-height: 1.5;
+}
+.card p {
+    margin-top: 0.75rem;
+    color: var(--app-text-muted);
+    font-size: 0.875rem;
+    line-height: 1.9;
+}
+.sectionAlt {
+    border-block: 1px solid var(--app-border);
+    background: color-mix(in srgb, var(--home-bg-alt) 42%, transparent);
+}
+.workflow {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.workflowNumber {
+    display: block;
+    padding-bottom: 1.125rem;
+    margin-bottom: 1.25rem;
+    border-bottom: 1px solid var(--app-border-strong);
+    color: var(--app-accent);
+    font-size: 1.625rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+.workflow h3,
+.benefit h3 {
+    color: var(--app-text);
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.6;
+}
+.workflow p,
+.benefit p {
+    margin-top: 0.75rem;
+    color: var(--app-text-muted);
+    font-size: 0.875rem;
+    line-height: 1.9;
+}
+.threeColumns {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.25rem;
+}
+.productCard {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+.productCard h3 {
+    margin-top: 1.25rem;
+}
+.productDetails {
+    display: grid;
+    gap: 1rem;
+    width: 100%;
+    margin: 1.5rem 0;
+    padding-block: 1.25rem;
+    border-block: 1px solid var(--app-border);
+    font-size: 0.8125rem;
+    line-height: 1.7;
+}
+.productDetails dt {
+    margin-bottom: 0.25rem;
+    color: var(--app-text-subtle);
+}
+.productDetails dd {
+    color: var(--app-text);
+}
+.textLink {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    color: var(--app-accent);
+    font-size: 0.875rem;
+    font-weight: 550;
+}
+.textLink:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.25rem;
+}
+.productCard .textLink {
+    margin-top: auto;
+}
+.modelCard {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    scroll-margin-top: 6rem;
+}
+.modelCategory {
+    margin-bottom: 1rem;
+    color: var(--app-accent);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.modelCard h3 {
+    overflow-wrap: anywhere;
+}
+.modelCard h3 span {
+    display: block;
+}
+.modelCard p {
+    margin-bottom: 1rem;
+}
+.modelCard .textLink {
+    margin-top: auto;
+    max-width: 100%;
+}
+.modelCard .textLink svg {
+    flex-shrink: 0;
+}
+.modelGuide {
+    margin-top: 1.5rem;
+    padding: 1.25rem 1.5rem;
+    border-inline-start: 2px solid var(--app-accent);
+    border-radius: 0 0.75rem 0.75rem 0;
+    background: var(--app-accent-soft);
+}
+.modelGuide:dir(rtl) {
+    border-radius: 0.75rem 0 0 0.75rem;
+}
+.modelGuide h3 {
+    color: var(--app-text);
+    font-size: 0.9375rem;
+    font-weight: 600;
+}
+.modelGuide p {
+    margin-top: 0.625rem;
+    color: var(--app-text-muted);
+    font-size: 0.875rem;
+    line-height: 1.9;
+}
+.benefit {
+    padding-inline-start: 1.25rem;
+    border-inline-start: 2px solid var(--app-border-strong);
+}
+.faqList {
+    max-width: 54rem;
+    margin-inline: auto;
+}
+.faqItem {
+    border-bottom: 1px solid var(--app-border);
+}
+.faqItem:first-child {
+    border-top: 1px solid var(--app-border);
+}
+.faqItem summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 3.75rem;
+    padding-block: 1.125rem;
+    color: var(--app-text);
+    font-size: 0.9375rem;
+    font-weight: 550;
+    line-height: 1.7;
+    list-style: none;
+    cursor: pointer;
+}
+.faqItem summary::-webkit-details-marker {
+    display: none;
+}
+.faqItem summary svg {
+    flex-shrink: 0;
+    color: var(--app-accent);
+}
+.faqItem[open] summary svg {
+    transform: rotate(180deg);
+}
+.faqItem p {
+    padding: 0 2rem 1.25rem 0;
+    padding-inline: 0 2rem;
+    color: var(--app-text-muted);
+    font-size: 0.875rem;
+    line-height: 1.9;
+}
+.faqList > .textLink {
+    margin-top: 1.25rem;
+}
+.cta .intro {
+    margin-bottom: 0;
+}
+.primaryLink {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 3rem;
+    margin-top: 1.75rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.75rem;
+    color: var(--app-on-action);
+    background: var(--app-action);
+    font-size: 0.9375rem;
+    font-weight: 600;
+}
+.primaryLink:hover {
+    background: var(--app-action-2);
+}
+.textLink:focus-visible,
+.primaryLink:focus-visible,
+.faqItem summary:focus-visible {
+    outline: 2px solid var(--app-accent);
+    outline-offset: 4px;
+}
+.textLink:dir(rtl) svg,
+.primaryLink:dir(rtl) svg {
+    transform: scaleX(-1);
+}
+@media (max-width: 900px) {
+    .workflow,
+    .threeColumns {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+@media (max-width: 640px) {
+    .section {
+        padding: 3.25rem 1rem 3.5rem;
+    }
+    .intro {
+        margin-bottom: 1.75rem;
+    }
+    .grid,
+    .workflow,
+    .threeColumns {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 1rem;
+    }
+    .card {
+        padding: 1.25rem;
+    }
+}

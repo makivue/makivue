@@ -1,0 +1,90 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+/test-results/
+/playwright-report/
+/.playwright-cli/
+
+# next.js
+/.next/
+/.next-*/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+.vscode/
+/logs/
+*.log
+
+# local tooling and generated inspection artifacts
+/.codex-ppt-inspect.*/
+/.codex-trash/
+/output/
+/tmp/
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files and local credentials
+.env
+.env.*
+!.env.example
+!.env.local.example
+.secrets/
+happy_horse.json
+nano_banana*.json
+gpt5.json
+hi-models.json
+seedance.json
+*key*.json
+*payment*.json
+*service-account*.json
+*credentials*.json
+*credential*.json
+*secret*.json
+ossupload-prod.local.js
+
+# local sqlite databases and generated media
+prisma/*.db
+prisma/*.db-journal
+prisma/*.db-shm
+prisma/*.db-wal
+public/storage/
+/.tmp/
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+.claude/
+dev.db
+
+# Generated Prisma client is recreated with prisma generate.
+/src/generated/prisma/
+__pycache__/
+*.pyc
+
+# Local user records, media, and file-lock artifacts
+/data/
+/data.lock/

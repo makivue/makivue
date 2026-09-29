@@ -1,0 +1,25 @@
+CREATE TABLE `himodels_calls` (
+    `id` BIGINT NOT NULL,
+    `call_id` VARCHAR(36) NOT NULL,
+    `user_id` BIGINT NOT NULL,
+    `job_id` BIGINT NULL,
+    `parent_job_id` BIGINT NULL,
+    `generation_id` BIGINT NULL,
+    `model` VARCHAR(100) NOT NULL,
+    `endpoint` VARCHAR(100) NOT NULL,
+    `operation_key` VARCHAR(191) NOT NULL,
+    `http_status` INTEGER NULL,
+    `capture_state` VARCHAR(30) NOT NULL DEFAULT 'pending',
+    `request_id` VARCHAR(255) NULL,
+    `usage` JSON NULL,
+    `raw_usage` JSON NULL,
+    `sent_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `received_at` DATETIME(3) NULL,
+
+    UNIQUE INDEX `uk_himodels_call_id`(`call_id`),
+    INDEX `idx_himodels_user_call`(`user_id`, `id`),
+    INDEX `idx_himodels_user_job`(`user_id`, `job_id`),
+    INDEX `idx_himodels_user_parent_job`(`user_id`, `parent_job_id`),
+    INDEX `idx_himodels_user_generation`(`user_id`, `generation_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

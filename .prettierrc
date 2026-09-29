@@ -1,0 +1,35 @@
+{
+    "tabWidth": 4,
+    "useTabs": false,
+    "semi": false,
+    "singleQuote": true,
+    "quoteProps": "as-needed",
+    "trailingComma": "none",
+    "bracketSpacing": true,
+    "bracketSameLine": true,
+    "arrowParens": "avoid",
+    "endOfLine": "lf",
+    "printWidth": 200,
+    "experimentalTernaries": false,
+    "htmlWhitespaceSensitivity": "css",
+    "singleAttributePerLine": true,
+    "vueIndentScriptAndStyle": false,
+    "overrides": [
+        {
+            "files": "*.{json,yml,yaml}",
+            "options": {
+                "tabWidth": 4
+            }
+        },
+        {
+            "files": "*.vue",
+            "options": {
+                "printWidth": 200,
+                "singleAttributePerLine": true,
+                "htmlWhitespaceSensitivity": "css",
+                "bracketSameLine": false,
+                "vueIndentScriptAndStyle": false
+            }
+        }
+    ]
+}

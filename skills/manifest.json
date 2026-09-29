@@ -1,0 +1,95 @@
+{
+    "version": 1,
+    "updated": "2026-05-04",
+    "purpose": "Project-local skills for AI Drama Studio production workflow. These skills are reviewed instructions, not third-party executable packages.",
+    "externalReferences": [
+        {
+            "name": "ClawHub open-novel-writing",
+            "url": "https://clawhub.ai/softmeng/open-novel-writing",
+            "usedFor": "Story bible, outline, chapter spec, state transition workflow"
+        },
+        {
+            "name": "ClawHub novel-continuation-ai",
+            "url": "https://clawhub.ai/fenfenling/novel-continuation-ai",
+            "usedFor": "Full-context continuation principle"
+        },
+        {
+            "name": "ClawHub docs",
+            "url": "https://docs.coderclaw.ai/tools/clawhub/",
+            "usedFor": "Skill bundle organization and safety boundary"
+        },
+        {
+            "name": "Fooocus style preset workflow",
+            "url": "https://github.com/lllyasviel/Fooocus",
+            "usedFor": "Visual style preset grouping: user-friendly style cards mapped to prompt prefixes"
+        }
+    ],
+    "skills": [
+        {
+            "id": "pipeline-orchestrator",
+            "label": "Pipeline Orchestrator",
+            "stageKeys": ["settings", "setup", "outline", "chapter", "script", "extract", "reference", "storyboard", "frame", "video", "merge"],
+            "path": "skills/pipeline-orchestrator/SKILL.md"
+        },
+        {
+            "id": "novel-outline-architect",
+            "label": "Novel Outline Architect",
+            "stageKeys": ["setup", "outline"],
+            "path": "skills/novel-outline-architect/SKILL.md"
+        },
+        {
+            "id": "continuous-chapter-writer",
+            "label": "Continuous Chapter Writer",
+            "stageKeys": ["chapter"],
+            "path": "skills/continuous-chapter-writer/SKILL.md"
+        },
+        {
+            "id": "screenplay-adapter",
+            "label": "Screenplay Adapter",
+            "stageKeys": ["script"],
+            "path": "skills/screenplay-adapter/SKILL.md"
+        },
+        {
+            "id": "entity-bible-extractor",
+            "label": "Entity Bible Extractor",
+            "stageKeys": ["extract"],
+            "path": "skills/entity-bible-extractor/SKILL.md"
+        },
+        {
+            "id": "reference-image-director",
+            "label": "Reference Image Director",
+            "stageKeys": ["reference"],
+            "path": "skills/reference-image-director/SKILL.md"
+        },
+        {
+            "id": "storyboard-orchestrator",
+            "label": "Storyboard Orchestrator",
+            "stageKeys": ["storyboard"],
+            "path": "skills/storyboard-orchestrator/SKILL.md"
+        },
+        {
+            "id": "visual-continuity-director",
+            "label": "Visual Continuity Director",
+            "stageKeys": ["storyboard", "frame", "video"],
+            "path": "skills/visual-continuity-director/SKILL.md"
+        },
+        {
+            "id": "visual-state-locker",
+            "label": "Visual State Locker",
+            "stageKeys": ["storyboard", "frame", "video"],
+            "path": "skills/visual-state-locker/SKILL.md"
+        },
+        {
+            "id": "frame-video-generator",
+            "label": "Frame And Video Generator",
+            "stageKeys": ["frame", "video"],
+            "path": "skills/frame-video-generator/SKILL.md"
+        },
+        {
+            "id": "video-postproduction",
+            "label": "Video Postproduction",
+            "stageKeys": ["merge"],
+            "path": "skills/video-postproduction/SKILL.md"
+        }
+    ]
+}

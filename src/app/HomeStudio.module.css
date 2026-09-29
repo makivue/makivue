@@ -1,0 +1,339 @@
+.page {
+    min-height: 100vh;
+    overflow-x: clip;
+    color: var(--app-text);
+    background: var(--app-page-background, var(--app-bg));
+}
+.header {
+    z-index: 40;
+    background: var(--app-header-background, color-mix(in srgb, var(--app-bg) 90%, transparent));
+}
+.header :global(.site-header-shell) {
+    min-height: 56px;
+    padding-block: 8px;
+}
+.headerContent {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 1rem;
+}
+.headerContent > nav {
+    order: 0;
+    grid-column: auto;
+    margin: 0;
+}
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    width: fit-content;
+    color: var(--app-text);
+    font-size: 1rem;
+    font-weight: 650;
+    letter-spacing: -0.03em;
+}
+.account {
+    display: flex;
+    align-items: center;
+    justify-self: end;
+    gap: 0.5rem;
+}
+.projectLink,
+.faqLink {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.5rem;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    color: var(--app-text-muted);
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+.account a:hover {
+    color: var(--app-text);
+    background: var(--app-accent-soft);
+}
+.hero {
+    position: relative;
+    padding: 1.5rem 1.5rem 2.5rem;
+    isolation: isolate;
+}
+.hero::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    inset: 6rem 0 -3rem;
+    pointer-events: none;
+    background: radial-gradient(ellipse 380px 250px at 50% 50%, color-mix(in srgb, var(--app-accent) 19%, transparent), transparent 95%);
+}
+:global(
+        html:is(
+            [data-app-theme='aurora'],
+            [data-app-theme='graphite'],
+            [data-app-theme='amber'],
+            [data-app-theme='plasma'],
+            [data-app-theme='ion'],
+            [data-app-theme='glacier'],
+            [data-app-theme='polar']
+        )
+    )
+    .hero::before {
+    inset: 0;
+    background: radial-gradient(ellipse 55% 65% at 50% 45%, var(--home-glow-primary), transparent 85%), radial-gradient(ellipse 38% 45% at 65% 62%, var(--home-glow-secondary), transparent 85%);
+}
+:global(html[data-app-theme='juhuo']) .hero::before {
+    inset: 0;
+    background:
+        radial-gradient(ellipse 24% 48% at 50% 62%, var(--home-glow-tertiary), transparent 80%), radial-gradient(ellipse 42% 62% at 50% 65%, var(--home-glow-primary), transparent 80%),
+        radial-gradient(ellipse 52% 70% at 50% 70%, var(--home-glow-secondary), transparent 85%);
+}
+.sceneStrip {
+    --scene-count: 5;
+    --scene-gap: 1rem;
+    --scene-duration: 900ms;
+    --scene-easing: cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    max-width: 840px;
+    margin: 0 auto;
+}
+.sceneViewport {
+    overflow: hidden;
+    border-radius: 1rem;
+}
+.sceneTrack {
+    display: flex;
+    gap: var(--scene-gap);
+    transform: translate3d(calc((100% + var(--scene-gap)) / var(--scene-count) * -1), 0, 0);
+    will-change: transform;
+}
+.sceneTrack[data-direction='1'],
+.sceneTrack[data-direction='-1'] {
+    transition: transform var(--scene-duration) var(--scene-easing);
+}
+.sceneTrack[data-direction='1'] .scene,
+.sceneTrack[data-direction='-1'] .scene {
+    transition:
+        transform var(--scene-duration) var(--scene-easing),
+        opacity var(--scene-duration) var(--scene-easing);
+}
+.sceneTrack[data-direction='1'] {
+    transform: translate3d(calc((100% + var(--scene-gap)) / var(--scene-count) * -2), 0, 0);
+}
+.sceneTrack[data-direction='-1'] {
+    transform: translate3d(0, 0, 0);
+}
+.scene {
+    position: relative;
+    flex: 0 0 calc((100% - (var(--scene-count) - 1) * var(--scene-gap)) / var(--scene-count));
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--app-border);
+    border-radius: 1rem;
+    background: var(--app-surface-muted);
+    transform: scale(0.74);
+    opacity: 0.65;
+    will-change: transform, opacity;
+}
+.scene[data-desktop-distance='1'] {
+    transform: scale(0.86);
+    opacity: 0.86;
+}
+.scene[data-desktop-distance='0'] {
+    transform: scale(1);
+    opacity: 1;
+}
+.scene img {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 7;
+    object-fit: contain;
+}
+.scene span {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    display: block;
+    padding: 1.75rem 0.625rem 0.75rem;
+    overflow: hidden;
+    color: #fff;
+    background: linear-gradient(transparent, rgb(0 0 0 / 76%));
+    text-shadow: 0 1px 3px rgb(0 0 0 / 40%);
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.sceneArrow {
+    position: absolute;
+    top: 45%;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 1px solid var(--app-border-strong);
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--app-surface) 92%, transparent);
+    color: var(--app-text);
+    box-shadow: 0 4px 16px var(--app-shadow);
+    cursor: pointer;
+    transform: translateY(-50%);
+}
+.sceneArrow:hover {
+    background: var(--app-action);
+    color: var(--app-on-action);
+}
+.sceneArrow:focus-visible {
+    outline: 2px solid var(--app-accent);
+    outline-offset: 3px;
+}
+.sceneArrow:disabled {
+    cursor: default;
+}
+.scenePrevious {
+    left: -1.125rem;
+}
+.sceneNext {
+    right: -1.125rem;
+}
+.heroContent {
+    position: relative;
+    margin: 2rem auto 0;
+    text-align: center;
+    max-width: 1020px;
+}
+.heroContent h1 {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    column-gap: 0.4em;
+    color: var(--app-text);
+    font-size: clamp(1.75rem, 3vw, 2.625rem);
+    font-weight: 650;
+    letter-spacing: -0.055em;
+    line-height: 1.3;
+}
+.heroContent h1 span {
+    color: var(--app-accent);
+}
+.subtitle {
+    max-width: 680px;
+    margin: 0.875rem auto 1.75rem;
+    color: var(--app-text-muted);
+    font-size: 0.875rem;
+    line-height: 1.8;
+}
+.offer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 1.5rem;
+    margin: 1rem auto 0;
+    padding: 4px 10px;
+    border-radius: 8px;
+    color: var(--app-text-muted);
+    font-size: 0.6875rem;
+    cursor: pointer;
+}
+.offer:hover {
+    color: var(--app-accent);
+    background: var(--app-accent-soft);
+}
+.offer:focus-visible {
+    outline: 2px solid var(--app-accent);
+    outline-offset: -2px;
+}
+.offer svg {
+    color: var(--app-accent);
+}
+@media (max-width: 1100px) {
+    .projectLink span {
+        display: none;
+    }
+    .faqLink {
+        display: none;
+    }
+    .headerContent {
+        gap: 0.5rem;
+    }
+}
+@media (max-width: 900px) {
+    .headerContent {
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.25rem 0.75rem;
+    }
+    .headerContent > nav {
+        grid-column: 1/-1;
+        order: 3;
+        margin-top: 0.25rem;
+    }
+    .account {
+        grid-column: 2;
+    }
+}
+@media (max-width: 600px) {
+    .headerContent > nav a {
+        gap: 0;
+        padding-inline: 0.5rem;
+        font-size: 0.75rem;
+        white-space: nowrap;
+    }
+    .headerContent > nav svg {
+        display: none;
+    }
+    .hero {
+        padding: 1rem 1rem 2rem;
+    }
+    .sceneStrip {
+        --scene-count: 3;
+        --scene-gap: 0.5rem;
+    }
+    .sceneViewport,
+    .scene {
+        border-radius: 0.75rem;
+    }
+    .scene[data-desktop-distance] {
+        transform: scale(0.78);
+        opacity: 0.75;
+    }
+    .scene[data-mobile-distance='0'] {
+        transform: scale(1);
+        opacity: 1;
+    }
+    .scene span {
+        font-size: 0.625rem;
+        padding: 1.25rem 0.375rem 0.5rem;
+    }
+    .sceneArrow {
+        width: 1.75rem;
+        height: 1.75rem;
+    }
+    .scenePrevious {
+        left: -0.625rem;
+    }
+    .sceneNext {
+        right: -0.625rem;
+    }
+    .heroContent {
+        margin-top: 1.75rem;
+    }
+    .heroContent h1 {
+        flex-direction: column;
+        gap: 0.25rem;
+        font-size: 1.75rem;
+    }
+    .subtitle {
+        font-size: 0.75rem;
+        margin: 0.75rem auto 1.25rem;
+    }
+    .brand {
+        gap: 0.375rem;
+        font-size: 0.875rem;
+    }
+}

@@ -1,0 +1,39 @@
+# Dependencies, caches, and build output
+node_modules
+.next
+out
+build
+coverage
+test-results
+playwright-report
+.playwright-cli
+logs
+
+# Local tooling and generated inspection artifacts
+.codex-ppt-inspect.*
+.codex-trash
+output
+tmp
+.tmp
+
+# Runtime-generated data, media, and local credentials
+public/storage
+prisma/*.db
+prisma/*.db-journal
+prisma/*.db-shm
+prisma/*.db-wal
+.env
+.env.*
+.secrets
+*.pem
+happy_horse.json
+nano_banana*.json
+gpt5.json
+hi-models.json
+seedance.json
+*key*.json
+*service-account*.json
+*credentials*.json
+*credential*.json
+*secret*.json
+ossupload-prod.local.js

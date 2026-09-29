@@ -1,0 +1,324 @@
+.wall {
+    position: relative;
+    z-index: 10;
+    overflow: hidden;
+    padding: 56px 0 28px;
+    border-block: 1px solid var(--home-border, #ffffff0d);
+    background: radial-gradient(ellipse at 50% 0, color-mix(in srgb, var(--home-glow-primary, #37224436) 82%, transparent), transparent 58%), var(--home-bg-alt, #0b0b11);
+}
+
+.heading {
+    text-align: center;
+    padding-inline: 24px;
+    margin-bottom: 34px;
+}
+.eyebrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    color: var(--home-accent, #bda3db);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+}
+.eyebrow > span {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--home-accent, #b292dc);
+    box-shadow: 0 0 12px var(--home-shadow-accent, #cba6ff40);
+}
+.heading h2 {
+    color: var(--home-text, #f6f1fa);
+    font-size: clamp(26px, 2.4vw, 36px);
+    font-weight: 620;
+    letter-spacing: -0.03em;
+    line-height: 1.5;
+    margin-top: 13px;
+}
+.tracks {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.tracks::after {
+    pointer-events: none;
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    background: linear-gradient(90deg, var(--home-bg-alt, #0b0b11), transparent 8%, transparent 92%, var(--home-bg-alt, #0b0b11));
+}
+.viewport {
+    overflow: hidden;
+    padding-block: 5px;
+    margin-block: -5px;
+}
+.track {
+    display: flex;
+    width: max-content;
+    animation: poster-drift linear infinite;
+    will-change: transform;
+}
+.reverse {
+    animation-direction: reverse;
+    margin-left: -94px;
+}
+.cycle {
+    display: flex;
+    gap: 14px;
+    padding-right: 14px;
+    flex-shrink: 0;
+}
+.poster {
+    position: relative;
+    width: 188px;
+    height: 228px;
+    overflow: hidden;
+    border-radius: 16px;
+    background: var(--home-panel-muted, #19141f);
+    text-align: start;
+    isolation: isolate;
+    box-shadow: 0 16px 36px color-mix(in srgb, var(--home-shadow, #0008) 58%, transparent);
+}
+.poster::after {
+    content: '';
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    border: 1px solid var(--home-border, #ffffff12);
+    border-radius: inherit;
+}
+.poster:nth-child(even) {
+    margin-top: 8px;
+    height: 220px;
+}
+.imageFrame {
+    display: block;
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(150deg, var(--home-panel-muted, #292034), var(--home-panel-solid, #14121d));
+}
+.imageFrame img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 35%;
+    opacity: 0;
+    filter: saturate(0.82) contrast(1.03) brightness(0.9);
+    transition:
+        opacity 0.45s,
+        transform 0.65s cubic-bezier(0.2, 0.65, 0.3, 1),
+        filter 0.5s;
+}
+.imageFrame .imageLoaded {
+    opacity: 1;
+}
+.imageFallback {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    font-size: 12px;
+    color: var(--home-text-muted, #ac9abb);
+}
+.poster:hover img,
+.poster:focus-visible img {
+    filter: saturate(1.08) brightness(1.03);
+    transform: scale(1.045);
+}
+.poster:focus-visible {
+    outline: 2px solid var(--home-accent, #c7b3e4);
+    outline-offset: -2px;
+}
+.shade {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 35%, #03030815 50%, #030308cc 100%);
+}
+.caption {
+    position: absolute;
+    bottom: 17px;
+    inset-inline: 17px 12px;
+}
+.caption small {
+    display: block;
+    margin-bottom: 5px;
+    color: #e5dbeaa6;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+}
+.caption strong {
+    display: block;
+    color: #f7f2fb;
+    font-size: 13px;
+    font-weight: 580;
+    line-height: 1.5;
+}
+.tracks:focus-within .track,
+.tracks[data-paused='true'] .track {
+    animation-play-state: paused;
+}
+/* Keyboard navigation uses the original, untransformed row so every poster is reachable. */
+.tracks:has(.poster:focus-visible) .track {
+    animation: none;
+}
+.tracks:has(.poster:focus-visible) .reverse {
+    margin-left: 0;
+}
+.tracks:has(.poster:focus-visible) .cycle[aria-hidden='true'] {
+    display: none;
+}
+.closeButton:focus-visible {
+    outline: 2px solid var(--home-accent, #c7b3e4);
+    outline-offset: -2px;
+    border-radius: 4px;
+}
+@keyframes poster-drift {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(-50%);
+    }
+}
+
+.dialog {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    padding: 0;
+    border: 1px solid var(--home-border-strong, #ffffff20);
+    border-radius: 16px;
+    max-width: 440px;
+    width: calc(100% - 40px);
+    max-height: calc(100dvh - 40px);
+    color: var(--home-text, #f7f0fa);
+    background: var(--home-panel-solid, #15101c);
+    box-shadow: 0 25px 100px var(--home-shadow, #0008);
+}
+.dialog::backdrop {
+    background: var(--home-backdrop, #07060cda);
+    backdrop-filter: blur(12px);
+}
+.dialogInner {
+    position: relative;
+}
+.dialog .fullImage {
+    height: min(67dvh, 660px);
+    background: var(--home-bg, #0c0a10);
+}
+.fullImage img {
+    object-fit: contain;
+    filter: none;
+}
+.closeButton {
+    position: absolute;
+    inset-inline-end: 13px;
+    top: 13px;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 35px;
+    height: 35px;
+    color: var(--home-text, #f3e7fc);
+    border: 1px solid var(--home-border-strong, #ffffff25);
+    border-radius: 50%;
+    background: var(--home-panel, #24192ce6);
+}
+.dialogCaption {
+    padding: 18px 24px 22px;
+}
+.dialogCaption p {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--home-accent, #b194c7);
+}
+.dialogCaption h3 {
+    font-size: 22px;
+    margin-top: 7px;
+    font-weight: 500;
+}
+
+@media (hover: hover) {
+    .tracks:hover .track {
+        animation-play-state: paused;
+    }
+}
+
+@media (max-width: 639px) {
+    .wall {
+        padding: 38px 0 20px;
+    }
+    .heading {
+        margin-bottom: 27px;
+    }
+    .eyebrow {
+        font-size: 10px;
+    }
+    .heading h2 {
+        max-width: 310px;
+        margin: 13px auto 0;
+        font-size: 27px;
+        line-height: 1.6;
+        text-wrap: balance;
+    }
+    .tracks {
+        gap: 11px;
+    }
+    .tracks::after {
+        background: linear-gradient(90deg, var(--home-bg-alt, #0b0b1190), transparent 6%, transparent 94%, var(--home-bg-alt, #0b0b1190));
+    }
+    .cycle {
+        gap: 10px;
+        padding-right: 10px;
+    }
+    .poster {
+        width: 138px;
+        height: 185px;
+        border-radius: 13px;
+    }
+    .poster:nth-child(even) {
+        height: 177px;
+    }
+    .caption {
+        bottom: 13px;
+        inset-inline: 13px 10px;
+    }
+    .caption strong {
+        font-size: 11px;
+    }
+    .caption small {
+        font-size: 8px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .track {
+        animation: none;
+        will-change: auto;
+    }
+    .reverse {
+        margin-left: 0;
+    }
+    .viewport {
+        overflow-x: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--home-text-subtle, #625873) var(--home-bg-alt, #0b0b11);
+    }
+    .cycle[aria-hidden='true'],
+    .tracks::after {
+        display: none;
+    }
+    .imageFrame img {
+        transition: none;
+    }
+    .poster:hover img,
+    .poster:focus-visible img {
+        transform: none;
+    }
+}

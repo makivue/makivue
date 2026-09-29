@@ -1,0 +1,345 @@
+.page {
+    min-height: 100vh;
+    background: var(--app-page-background, var(--app-bg));
+    color: var(--app-text);
+    color-scheme: inherit;
+    font-family: 'Times New Roman', Times, 'Noto Serif', serif;
+    font-size: 17px;
+    line-height: 1.75;
+    overflow-wrap: anywhere;
+}
+
+.pageContent {
+    width: 100%;
+    padding: 28px 24px 100px;
+}
+
+.page a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+}
+
+.page a:hover {
+    color: var(--app-accent);
+}
+
+.page :is(a, button):focus-visible {
+    outline: 2px solid var(--app-accent);
+    outline-offset: -2px;
+}
+
+.printButton {
+    min-height: 40px;
+    padding: 8px 14px;
+    border: 1px solid var(--app-border-strong);
+    border-radius: 3px;
+    background: var(--app-surface);
+    color: var(--app-text);
+    font: inherit;
+}
+
+.printButton:hover {
+    background: var(--app-card-hover);
+}
+
+.document {
+    max-width: 210mm;
+    margin: 0 auto;
+    padding: 64px 68px 56px;
+    border: 1px solid var(--app-border);
+    background: var(--app-surface);
+    box-shadow: 0 12px 48px var(--app-shadow);
+}
+
+.header {
+    padding-bottom: 22px;
+    border-bottom: 1px solid var(--app-border-strong);
+    text-align: center;
+}
+
+.siteName {
+    margin-bottom: 18px;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: var(--app-text-muted);
+}
+
+.header h1 {
+    margin: 0 0 16px;
+    font-size: 34px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.metadata {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    line-height: 1.9;
+    color: var(--app-text-muted);
+}
+
+.documentNav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px 24px;
+    margin-top: 20px;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12px;
+}
+
+.documentNav [aria-current='page'] {
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.draftNote {
+    margin-top: 24px;
+    padding: 10px 14px;
+    border-left: 2px solid var(--app-accent);
+    background: var(--app-accent-soft);
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--app-text-muted);
+}
+
+.languageNotice {
+    margin-top: 24px;
+    padding: 10px 14px;
+    border-inline-start: 2px solid var(--app-accent);
+    background: var(--app-accent-soft);
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--app-text-muted);
+}
+
+.intro {
+    margin-top: 26px;
+}
+
+.keyTerms {
+    margin-top: 16px;
+}
+
+.contents {
+    margin: 30px 0 34px;
+    padding: 20px 0;
+    border-top: 1px solid var(--app-border);
+    border-bottom: 1px solid var(--app-border);
+    font-size: 15px;
+    line-height: 1.9;
+}
+
+.contentsTitle {
+    margin-bottom: 6px;
+    font-weight: 700;
+}
+
+.contents ol {
+    padding-left: 23px;
+    list-style: decimal;
+}
+
+.contents a {
+    text-decoration: none;
+}
+
+.contents a:hover {
+    text-decoration: underline;
+}
+
+.section {
+    margin-top: 34px;
+    scroll-margin-top: 24px;
+}
+
+.section h2 {
+    margin-bottom: 14px;
+    font-size: 21px;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.section p + p {
+    margin-top: 12px;
+}
+
+.section ul {
+    margin: 14px 0;
+    padding-left: 24px;
+    list-style: disc;
+}
+
+.section li + li {
+    margin-top: 9px;
+}
+
+.subsection {
+    margin-top: 24px;
+    scroll-margin-top: 24px;
+}
+
+.subsection h3 {
+    margin-bottom: 10px;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.5;
+}
+
+.copyrightNotice,
+.notice {
+    margin: 18px 0;
+    padding: 18px 20px;
+    border: 1px solid var(--app-border);
+    background: var(--app-card);
+    font-size: 15px;
+    line-height: 1.7;
+}
+
+.copyrightNotice {
+    border-color: var(--app-border-strong);
+    border-left: 4px solid var(--app-accent);
+    background: var(--app-accent-soft);
+    color: var(--app-text);
+}
+
+.noticeTitle {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.5;
+}
+
+.documentFooter {
+    margin-top: 44px;
+    padding-top: 18px;
+    border-top: 1px solid var(--app-border-strong);
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    color: var(--app-text-muted);
+}
+
+.footerLinks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    margin-top: 12px;
+}
+
+.externalLink {
+    margin-top: 24px;
+}
+
+@media (max-width: 640px) {
+    .pageContent {
+        padding: 16px 12px 96px;
+    }
+
+    .page {
+        font-size: 16px;
+        line-height: 1.7;
+    }
+
+    .document {
+        padding: 32px 22px;
+    }
+
+    .header h1 {
+        font-size: 30px;
+    }
+
+    .documentNav {
+        gap: 8px 16px;
+    }
+
+    .section h2 {
+        font-size: 20px;
+    }
+
+    .copyrightNotice,
+    .notice {
+        padding: 15px;
+    }
+}
+
+@media print {
+    @page {
+        size: A4;
+        margin: 18mm 20mm;
+    }
+
+    :global(body):has(.page) {
+        background: #fff;
+        color: #000;
+    }
+
+    .page {
+        min-height: 0;
+        padding: 0;
+        background: #fff;
+        color: #000;
+        font-size: 11pt;
+        line-height: 1.5;
+    }
+
+    .pageContent {
+        padding: 0;
+    }
+
+    .document {
+        max-width: none;
+        padding: 0;
+        border: 0;
+        box-shadow: none;
+    }
+
+    .documentNav,
+    .footerLinks {
+        display: none;
+    }
+
+    .header h1 {
+        font-size: 24pt;
+    }
+
+    .section h2 {
+        font-size: 14pt;
+    }
+
+    .subsection h3 {
+        font-size: 11pt;
+    }
+
+    .section h2,
+    .subsection h3,
+    .contentsTitle,
+    .noticeTitle {
+        break-after: avoid;
+    }
+
+    .contents,
+    .copyrightNotice,
+    .notice {
+        break-inside: avoid;
+    }
+
+    .copyrightNotice {
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+    }
+
+    .section p,
+    .section li {
+        orphans: 3;
+        widows: 3;
+    }
+
+    .page a {
+        color: #000;
+    }
+}

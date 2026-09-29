@@ -1,0 +1,927 @@
+// Schema for the local-drama-studio Next.js service.
+// DDL is authoritative on the Node side — use `prisma migrate` to evolve schema.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider     = "mysql"
+  // Production SQL policy forbids physical foreign keys. Keep relations in Prisma.
+  relationMode = "prisma"
+}
+
+model Project {
+  id                  BigInt    @id
+  userId              BigInt    @default(0) @map("user_id")
+  title               String    @db.VarChar(255)
+  description         String?   @db.Text
+  genre               String?   @db.VarChar(50)
+  genreCode           String?   @map("genre_code") @db.VarChar(50)
+  genreLabel          String?   @map("genre_label") @db.VarChar(100)
+  sourceAnswers       Json?     @map("source_answers")
+  directionCandidates Json?     @map("direction_candidates")
+  selectedDirectionId String?   @map("selected_direction_id") @db.VarChar(100)
+  contentFacts        Json?     @map("content_facts")
+  staleScopes         Json?     @map("stale_scopes")
+  sourceVersion       Int       @default(1) @map("source_version")
+  totalEpisodes       Int?      @default(1) @map("total_episodes")
+  seoTitle            String?   @map("seo_title") @db.VarChar(120)
+  seoDescription      String?   @map("seo_description") @db.VarChar(500)
+  seoKeywords         Json?     @map("seo_keywords")
+  coverUrl            String?   @map("cover_url") @db.VarChar(1024)
+  coverAlt            String?   @map("cover_alt") @db.VarChar(255)
+  publicationCoverCandidates Json? @map("publication_cover_candidates")
+  trailerUrl          String?   @map("trailer_url") @db.VarChar(1024)
+  trailerDuration     Decimal?  @map("trailer_duration") @db.Decimal(18, 6)
+  publicationTrailerCandidates Json? @map("publication_trailer_candidates")
+  videoAspectRatio    String?   @map("video_aspect_ratio") @db.VarChar(10)
+  visualStyle         String?   @map("visual_style") @db.VarChar(100)
+  contentLanguage     String?   @map("content_language") @db.VarChar(10)
+  subtitleLanguages   Json?     @map("subtitle_languages")
+  episodeFormat       String?   @map("episode_format") @db.VarChar(20)
+  visibility          String    @default("private") @db.VarChar(16)
+  publishedAt         DateTime? @map("published_at") @db.DateTime(3)
+  novel               String?   @db.LongText
+  novelSetup          String?   @map("novel_setup") @db.LongText
+  novelStage          String?   @default("setup") @map("novel_stage") @db.VarChar(20)
+  status              String?   @default("draft") @db.VarChar(20)
+  createdAt           DateTime? @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt           DateTime? @default(now()) @map("updated_at") @db.DateTime(0)
+  deletedAt           DateTime? @map("deleted_at") @db.DateTime(0)
+  operationVersion    Int       @default(0) @map("operation_version")
+
+  characters           Character[]
+  episodes             Episode[]
+  scenes               Scene[]
+  batchJobs            BatchJob[]
+  extractJobs          ExtractJob[]
+  outlineJobs          OutlineJob[]
+  productionEvents     ProductionEvent[]
+  qualityReviews       QualityReview[]
+  characterStateEvents CharacterStateEvent[]
+
+  @@index([userId], map: "idx_user_id")
+  @@index([status], map: "idx_status")
+  @@index([visibility, publishedAt, id], map: "idx_project_publication")
+  @@index([userId, visibility, id], map: "idx_project_owner_visibility")
+  @@index([novelStage], map: "idx_novel_stage")
+  @@index([deletedAt], map: "idx_deleted_at")
+  @@map("projects")
+}
+
+model Episode {
+  id               BigInt    @id
+  projectId        BigInt    @map("project_id")
+  episodeNumber    Int       @map("episode_number")
+  title            String?   @db.VarChar(255)
+  synopsis         String?   @db.Text
+  script           String?   @db.LongText
+  chapterContent   String?   @map("chapter_content") @db.LongText
+  videoUrl         String?   @map("video_url") @db.VarChar(512)
+  status           String?   @default("draft") @db.VarChar(20)
+  intensity        Int?
+  finalizedAt      DateTime? @map("finalized_at") @db.DateTime(0)
+  createdAt        DateTime? @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt        DateTime? @default(now()) @map("updated_at") @db.DateTime(0)
+  deletedAt        DateTime? @map("deleted_at") @db.DateTime(0)
+  operationVersion Int       @default(0) @map("operation_version")
+  sourceVersion    Int       @default(1) @map("source_version")
+  contentFacts     Json?     @map("content_facts")
+  stateSnapshot    Json?     @map("state_snapshot")
+  staleReason      String?   @map("stale_reason") @db.VarChar(255)
+
+  project          Project           @relation(fields: [projectId], references: [id])
+  storyboards      Storyboard[]
+  merges           VideoMerge[]
+  batchJobs        BatchJob[]
+  chapterJobs      ChapterJob[]
+  scriptJobs       ScriptJob[]
+  storyboardJobs   StoryboardJob[]
+  productionEvents ProductionEvent[]
+  qualityReviews   QualityReview[]
+
+  @@unique([projectId, episodeNumber], map: "uk_project_episode")
+  @@index([projectId], map: "idx_project_id")
+  @@index([status], map: "idx_status")
+  @@index([deletedAt], map: "idx_deleted_at")
+  @@map("episodes")
+}
+
+model Character {
+  id                     BigInt    @id
+  projectId              BigInt    @map("project_id")
+  name                   String    @db.VarChar(100)
+  role                   String?   @db.VarChar(100)
+  age                    String?   @db.VarChar(20)
+  gender                 String?   @db.VarChar(20)
+  appearancePrompt       String?   @map("appearance_prompt") @db.Text
+  canonicalName          String?   @map("canonical_name") @db.VarChar(100)
+  aliases                Json?
+  sourceType             String?   @map("source_type") @db.VarChar(30)
+  sourceVersion          Int       @default(1) @map("source_version")
+  confirmationStatus     String    @default("confirmed") @map("confirmation_status") @db.VarChar(20)
+  referenceImageUrl      String?   @map("reference_image_url") @db.VarChar(512)
+  referenceCandidates    String?   @map("reference_candidates") @db.Text
+  referenceAssets        Json?     @map("reference_assets")
+  stateTimeline          Json?     @map("state_timeline")
+  seedanceAssetId        String?   @map("seedance_asset_id") @db.VarChar(100)
+  seedanceAssetGroupId   String?   @map("seedance_asset_group_id") @db.VarChar(100)
+  seedancePortraitStatus String    @default("unverified") @map("seedance_portrait_status") @db.VarChar(20)
+  personality            String?   @db.Text
+  createdAt              DateTime? @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt              DateTime? @default(now()) @map("updated_at") @db.DateTime(0)
+  deletedAt              DateTime? @map("deleted_at") @db.DateTime(0)
+  operationVersion       Int       @default(0) @map("operation_version")
+
+  project                Project                   @relation(fields: [projectId], references: [id])
+  storyboardCharacters   StoryboardCharacter[]
+  referenceAssetRows     CharacterReferenceAsset[]
+  stateEvents            CharacterStateEvent[]
+  seedanceAuthSessions   SeedancePortraitSession[]
+  seedancePortraitAssets SeedancePortraitAsset[]
+
+  @@unique([projectId, canonicalName], map: "uk_character_project_canonical")
+  @@index([projectId], map: "idx_project_id")
+  @@index([deletedAt], map: "idx_deleted_at")
+  @@map("characters")
+}
+
+model SeedancePortraitSession {
+  id          BigInt    @id
+  characterId BigInt    @map("character_id")
+  state       String    @unique(map: "uk_seedance_portrait_session_state") @db.VarChar(80)
+  bytedToken  String?   @map("byted_token") @db.VarChar(512)
+  projectName String    @map("project_name") @db.VarChar(100)
+  status      String    @default("pending") @db.VarChar(20)
+  resultCode  String?   @map("result_code") @db.VarChar(50)
+  errorMsg    String?   @map("error_msg") @db.Text
+  expiresAt   DateTime  @map("expires_at") @db.DateTime(3)
+  completedAt DateTime? @map("completed_at") @db.DateTime(3)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.DateTime(3)
+
+  character Character @relation(fields: [characterId], references: [id])
+
+  @@index([characterId, status], map: "idx_seedance_portrait_session_character")
+  @@index([expiresAt], map: "idx_seedance_portrait_session_expires")
+  @@map("seedance_portrait_sessions")
+}
+
+model SeedancePortraitAsset {
+  id          BigInt   @id
+  characterId BigInt   @map("character_id")
+  assetId     String?  @unique(map: "uk_seedance_portrait_asset_id") @map("asset_id") @db.VarChar(100)
+  groupId     String   @map("group_id") @db.VarChar(100)
+  projectName String   @map("project_name") @db.VarChar(100)
+  role        String?  @db.VarChar(30)
+  sourceUrl   String   @map("source_url") @db.VarChar(512)
+  name        String   @db.VarChar(255)
+  status      String   @default("uploading") @db.VarChar(20)
+  errorMsg    String?  @map("error_msg") @db.Text
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(3)
+
+  character Character @relation(fields: [characterId], references: [id])
+
+  @@unique([characterId, groupId, sourceUrl], map: "uk_seedance_portrait_source")
+  @@index([characterId, status], map: "idx_seedance_portrait_asset_character")
+  @@map("seedance_portrait_assets")
+}
+
+model Scene {
+  id                  BigInt    @id
+  projectId           BigInt    @map("project_id")
+  name                String    @db.VarChar(100)
+  description         String?   @db.Text
+  locationPrompt      String?   @map("location_prompt") @db.Text
+  canonicalName       String?   @map("canonical_name") @db.VarChar(100)
+  aliases             Json?
+  sourceType          String?   @map("source_type") @db.VarChar(30)
+  sourceVersion       Int       @default(1) @map("source_version")
+  confirmationStatus  String    @default("confirmed") @map("confirmation_status") @db.VarChar(20)
+  referenceImageUrl   String?   @map("reference_image_url") @db.VarChar(512)
+  referenceCandidates String?   @map("reference_candidates") @db.Text
+  referenceAssets     Json?     @map("reference_assets")
+  timeOfDay           String?   @map("time_of_day") @db.VarChar(50)
+  createdAt           DateTime? @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt           DateTime? @default(now()) @map("updated_at") @db.DateTime(0)
+  deletedAt           DateTime? @map("deleted_at") @db.DateTime(0)
+  operationVersion    Int       @default(0) @map("operation_version")
+
+  project     Project      @relation(fields: [projectId], references: [id])
+  storyboards Storyboard[]
+
+  @@unique([projectId, canonicalName], map: "uk_scene_project_canonical")
+  @@index([projectId], map: "idx_project_id")
+  @@index([deletedAt], map: "idx_deleted_at")
+  @@map("scenes")
+}
+
+model Storyboard {
+  id                     BigInt    @id
+  episodeId              BigInt    @map("episode_id")
+  sceneId                BigInt?   @map("scene_id")
+  order                  Int
+  shotType               String?   @map("shot_type") @db.VarChar(50)
+  duration               Int?      @default(10)
+  dialogue               String?   @db.Text
+  narration              String?   @db.Text
+  actionDesc             String?   @map("action_desc") @db.Text
+  actionPlan             Json?     @map("action_plan")
+  audioPlan              Json?     @map("audio_plan")
+  imagePrompt            String?   @map("image_prompt") @db.Text
+  negativePrompt         String?   @map("negative_prompt") @db.Text
+  videoPrompt            String?   @map("video_prompt") @db.Text
+  motionOverride         String?   @map("motion_override") @db.Text
+  fullPromptOverride     String?   @map("full_prompt_override") @db.Text
+  continuityMode         String    @default("independent") @map("continuity_mode") @db.VarChar(20)
+  continuityGroup        Int?      @map("continuity_group")
+  continuityReason       String?   @map("continuity_reason") @db.VarChar(255)
+  continuityState        Json?     @map("continuity_state")
+  continuityStateVersion Int       @default(1) @map("continuity_state_version")
+  firstFrameUrl          String?   @map("first_frame_url") @db.VarChar(512)
+  lastFrameUrl           String?   @map("last_frame_url") @db.VarChar(512)
+  plannedLastFrameUrl    String?   @map("planned_last_frame_url") @db.VarChar(512)
+  actualVideoEndFrameUrl String?   @map("actual_video_end_frame_url") @db.VarChar(512)
+  referenceVideoAssets   Json?     @map("reference_video_assets")
+  videoUrl               String?   @map("video_url") @db.VarChar(512)
+  audioUrl               String?   @map("audio_url") @db.VarChar(512)
+  composedVideoUrl       String?   @map("composed_video_url") @db.VarChar(512)
+  subtitles              String?   @db.Text
+  frameStatus            String?   @default("pending") @map("frame_status") @db.VarChar(20)
+  videoStatus            String?   @default("pending") @map("video_status") @db.VarChar(20)
+  audioStatus            String?   @default("pending") @map("audio_status") @db.VarChar(20)
+  composeStatus          String?   @default("pending") @map("compose_status") @db.VarChar(20)
+  expectedAudioMode      String?   @map("expected_audio_mode") @db.VarChar(30)
+  compositionMode        String?   @map("composition_mode") @db.VarChar(30)
+  generationStage        String?   @map("generation_stage") @db.VarChar(30)
+  polishStatus           String?   @map("polish_status") @db.VarChar(20)
+  promptVersion          String?   @map("prompt_version") @db.VarChar(100)
+  generationModel        String?   @map("generation_model") @db.VarChar(100)
+  originalShotType       String?   @map("original_shot_type") @db.VarChar(50)
+  normalizationMetadata  Json?     @map("normalization_metadata")
+  sourceVersion          Int       @default(1) @map("source_version")
+  staleReason            String?   @map("stale_reason") @db.VarChar(255)
+  createdAt              DateTime? @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt              DateTime? @default(now()) @map("updated_at") @db.DateTime(0)
+  deletedAt              DateTime? @map("deleted_at") @db.DateTime(0)
+  operationVersion       Int       @default(0) @map("operation_version")
+
+  episode          Episode               @relation(fields: [episodeId], references: [id])
+  scene            Scene?                @relation(fields: [sceneId], references: [id])
+  characters       StoryboardCharacter[]
+  generations      Generation[]
+  productionEvents ProductionEvent[]
+  qualityReviews   QualityReview[]
+
+  @@index([episodeId], map: "idx_episode_id")
+  @@index([sceneId], map: "idx_scene_id")
+  @@index([episodeId, order], map: "idx_order")
+  @@index([frameStatus], map: "idx_frame_status")
+  @@index([videoStatus], map: "idx_video_status")
+  @@index([episodeId, continuityGroup], map: "idx_continuity_group")
+  @@index([deletedAt], map: "idx_deleted_at")
+  @@map("storyboards")
+}
+
+model StoryboardCharacter {
+  id           BigInt @id
+  storyboardId BigInt @map("storyboard_id")
+  characterId  BigInt @map("character_id")
+
+  storyboard Storyboard @relation(fields: [storyboardId], references: [id])
+  character  Character  @relation(fields: [characterId], references: [id])
+
+  @@unique([storyboardId, characterId], map: "uk_storyboard_character")
+  @@index([characterId], map: "idx_character_id")
+  @@map("storyboard_characters")
+}
+
+model CharacterReferenceAsset {
+  id            BigInt    @id
+  characterId   BigInt    @map("character_id")
+  role          String    @db.VarChar(30)
+  stateKey      String?   @map("state_key") @db.VarChar(100)
+  url           String    @db.VarChar(512)
+  status        String    @default("candidate") @db.VarChar(20)
+  provider      String?   @db.VarChar(50)
+  promptVersion String?   @map("prompt_version") @db.VarChar(100)
+  sourceVersion Int       @default(1) @map("source_version")
+  metadata      Json?
+  createdAt     DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.DateTime(3)
+  deletedAt     DateTime? @map("deleted_at") @db.DateTime(3)
+
+  character Character @relation(fields: [characterId], references: [id])
+
+  @@index([characterId, role, status], map: "idx_character_asset_role")
+  @@index([characterId, stateKey], map: "idx_character_asset_state")
+  @@map("character_reference_assets")
+}
+
+model CharacterStateEvent {
+  id                    BigInt   @id
+  projectId             BigInt   @map("project_id")
+  characterId           BigInt   @map("character_id")
+  episodeNumber         Int      @map("episode_number")
+  storyboardId          BigInt?  @map("storyboard_id")
+  sequence              Int      @default(0)
+  stateKey              String   @map("state_key") @db.VarChar(100)
+  state                 Json
+  sourceType            String   @map("source_type") @db.VarChar(30)
+  sourceVersion         Int      @default(1) @map("source_version")
+  effectiveUntilEpisode Int?     @map("effective_until_episode")
+  status                String   @default("active") @db.VarChar(20)
+  createdAt             DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(3)
+
+  project   Project   @relation(fields: [projectId], references: [id])
+  character Character @relation(fields: [characterId], references: [id])
+
+  @@unique([characterId, episodeNumber, storyboardId, sequence, stateKey], map: "uk_character_state_event")
+  @@index([projectId, episodeNumber], map: "idx_character_state_project_episode")
+  @@index([characterId, episodeNumber, status], map: "idx_character_state_timeline")
+  @@map("character_state_events")
+}
+
+model Generation {
+  id               BigInt    @id
+  storyboardId     BigInt    @map("storyboard_id")
+  type             String    @db.VarChar(50)
+  provider         String    @db.VarChar(50)
+  taskId           String?   @map("task_id") @db.VarChar(255)
+  prompt           String?   @db.Text
+  status           String?   @default("pending") @db.VarChar(20)
+  resultUrl        String?   @map("result_url") @db.VarChar(512)
+  errorMsg         String?   @map("error_msg") @db.Text
+  requestBody      String?   @map("request_body") @db.LongText
+  inputAssets      Json?     @map("input_assets")
+  promptVersion    String?   @map("prompt_version") @db.VarChar(100)
+  plannedDuration  Decimal?  @map("planned_duration") @db.Decimal(18, 6)
+  actualDuration   Decimal?  @map("actual_duration") @db.Decimal(18, 6)
+  compositionMode  String?   @map("composition_mode") @db.VarChar(30)
+  modelName        String?   @map("model_name") @db.VarChar(100)
+  errorCode        String?   @map("error_code") @db.VarChar(50)
+  retryIndex       Int       @default(0) @map("retry_index")
+  activeKey        String?   @unique(map: "uk_generation_active_key") @map("active_key") @db.VarChar(191)
+  resourceVersion  Int       @default(0) @map("resource_version")
+  leaseOwner       String?   @map("lease_owner") @db.VarChar(100)
+  leaseExpiresAt   DateTime? @map("lease_expires_at") @db.DateTime(3)
+  heartbeatAt      DateTime? @map("heartbeat_at") @db.DateTime(3)
+  nextAttemptAt    DateTime? @map("next_attempt_at") @db.DateTime(3)
+  durationMs       Int?      @map("duration_ms")
+  estimatedCostUsd Decimal?  @map("estimated_cost_usd") @db.Decimal(12, 6)
+  metrics          Json?
+  startedAt        DateTime? @default(now()) @map("started_at") @db.DateTime(3)
+  completedAt      DateTime? @map("completed_at") @db.DateTime(3)
+  createdAt        DateTime? @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt        DateTime? @default(now()) @map("updated_at") @db.DateTime(0)
+
+  storyboard       Storyboard        @relation(fields: [storyboardId], references: [id])
+  productionEvents ProductionEvent[]
+  qualityReviews   QualityReview[]
+
+  @@index([storyboardId], map: "idx_storyboard_id")
+  // idx_generation_kpi also covers lookups by type; keep at most 8 indexes including the PK.
+  @@index([provider], map: "idx_provider")
+  @@index([status], map: "idx_status")
+  @@index([createdAt], map: "idx_created_at")
+  @@index([status, nextAttemptAt, leaseExpiresAt], map: "idx_generation_worker_claim")
+  @@index([type, provider, status], map: "idx_generation_kpi")
+  @@map("generations")
+}
+
+model ProductionEvent {
+  id           BigInt   @id
+  eventKey     String   @unique(map: "uk_event_key") @map("event_key") @db.VarChar(100)
+  projectId    BigInt   @map("project_id")
+  episodeId    BigInt?  @map("episode_id")
+  storyboardId BigInt?  @map("storyboard_id")
+  generationId BigInt?  @map("generation_id")
+  eventType    String   @map("event_type") @db.VarChar(50)
+  stage        String   @db.VarChar(30)
+  provider     String?  @db.VarChar(50)
+  modelName    String?  @map("model_name") @db.VarChar(100)
+  status       String   @db.VarChar(20)
+  durationMs   Int?     @map("duration_ms")
+  costUsd      Decimal? @map("cost_usd") @db.Decimal(12, 6)
+  errorCode    String?  @map("error_code") @db.VarChar(50)
+  metadata     Json?
+  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  project    Project     @relation(fields: [projectId], references: [id])
+  episode    Episode?    @relation(fields: [episodeId], references: [id])
+  storyboard Storyboard? @relation(fields: [storyboardId], references: [id])
+  generation Generation? @relation(fields: [generationId], references: [id])
+
+  @@unique([generationId, eventType], map: "uk_event_generation_type")
+  @@index([projectId, createdAt], map: "idx_event_project_time")
+  @@index([stage, provider, status], map: "idx_event_kpi")
+  @@index([generationId], map: "idx_event_generation")
+  @@index([episodeId], map: "idx_event_episode")
+  @@index([storyboardId], map: "idx_event_storyboard")
+  @@map("production_events")
+}
+
+model QualityReview {
+  id           BigInt   @id
+  projectId    BigInt   @map("project_id")
+  episodeId    BigInt?  @map("episode_id")
+  storyboardId BigInt?  @map("storyboard_id")
+  generationId BigInt?  @map("generation_id")
+  scope        String   @db.VarChar(30)
+  reviewer     String   @default("rules-v1") @db.VarChar(50)
+  status       String   @db.VarChar(20)
+  score        Decimal  @db.Decimal(10, 6)
+  issueCount   Int      @default(0) @map("issue_count")
+  blockerCount Int      @default(0) @map("blocker_count")
+  issues       Json
+  redoPlan     Json?    @map("redo_plan")
+  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  project    Project     @relation(fields: [projectId], references: [id])
+  episode    Episode?    @relation(fields: [episodeId], references: [id])
+  storyboard Storyboard? @relation(fields: [storyboardId], references: [id])
+  generation Generation? @relation(fields: [generationId], references: [id])
+
+  @@index([projectId, createdAt], map: "idx_review_project_time")
+  @@index([storyboardId, createdAt], map: "idx_review_storyboard_time")
+  @@index([status, score], map: "idx_review_quality")
+  @@index([episodeId], map: "idx_review_episode")
+  @@index([generationId], map: "idx_review_generation")
+  @@map("quality_reviews")
+}
+
+model VideoMerge {
+  id               BigInt    @id
+  episodeId        BigInt    @map("episode_id")
+  status           String?   @default("pending") @db.VarChar(20)
+  videoUrl         String?   @map("video_url") @db.VarChar(512)
+  subtitleUrls     String?   @map("subtitle_urls") @db.Text
+  videoStatus      String?   @default("pending") @map("video_status") @db.VarChar(20)
+  subtitleStatus   String?   @default("pending") @map("subtitle_status") @db.VarChar(20)
+  subtitleProgress Json?     @map("subtitle_progress")
+  targetWidth      Int?      @map("target_width")
+  targetHeight     Int?      @map("target_height")
+  duration         Decimal?  @db.Decimal(18, 6)
+  errorMsg         String?   @map("error_msg") @db.Text
+  activeKey        String?   @unique(map: "uk_video_merge_active_key") @map("active_key") @db.VarChar(191)
+  resourceVersion  Int       @default(0) @map("resource_version")
+  leaseOwner       String?   @map("lease_owner") @db.VarChar(100)
+  leaseExpiresAt   DateTime? @map("lease_expires_at") @db.DateTime(3)
+  heartbeatAt      DateTime? @map("heartbeat_at") @db.DateTime(3)
+  attempts         Int       @default(0)
+  nextAttemptAt    DateTime? @map("next_attempt_at") @db.DateTime(3)
+  createdAt        DateTime? @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt        DateTime? @default(now()) @map("updated_at") @db.DateTime(0)
+
+  episode Episode @relation(fields: [episodeId], references: [id])
+
+  @@index([episodeId], map: "idx_episode_id")
+  @@index([status], map: "idx_status")
+  @@index([status, nextAttemptAt, leaseExpiresAt], map: "idx_video_merge_worker_claim")
+  @@map("video_merges")
+}
+
+// Shared admission budgets. Credential values are never stored; key is a SHA-256 scope hash.
+model ProviderQuota {
+  key            String   @id @db.Char(64)
+  nextStartAtMs  BigInt   @default(0) @map("next_start_at_ms")
+  windowStartMs  BigInt   @default(0) @map("window_start_ms")
+  tokenBudget    BigInt   @default(0) @map("token_budget")
+  leases         ProviderQuotaLease[]
+
+  @@map("provider_quotas")
+}
+
+model ProviderQuotaLease {
+  id             BigInt @id
+  scopeKey       String @map("scope_key") @db.Char(64)
+  expiresAtMs    BigInt @map("expires_at_ms")
+  quota          ProviderQuota @relation(fields: [scopeKey], references: [key], onDelete: Cascade)
+
+  @@index([scopeKey, expiresAtMs], map: "idx_provider_quota_active")
+  @@map("provider_quota_leases")
+}
+
+model AiServiceConfig {
+  id        BigInt    @id
+  provider  String    @unique(map: "uk_ai_service_config_provider") @db.VarChar(50)
+  apiKey    String?   @map("api_key") @db.VarChar(255)
+  baseUrl   String?   @map("base_url") @db.VarChar(255)
+  modelName String?   @map("model_name") @db.VarChar(100)
+  extra     String?   @db.Text
+  createdAt DateTime? @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt DateTime? @default(now()) @map("updated_at") @db.DateTime(0)
+
+  @@map("ai_service_config")
+}
+
+// Provider usage is business data, independent of raw debug response retention.
+// One row per HTTP attempt; operationKey groups idempotent replays/video polls.
+model HiModelsCall {
+  id            BigInt    @id
+  callId        String    @unique(map: "uk_himodels_call_id") @map("call_id") @db.VarChar(36)
+  userId        BigInt    @map("user_id")
+  jobId         BigInt?   @map("job_id")
+  parentJobId   BigInt?   @map("parent_job_id")
+  generationId  BigInt?   @map("generation_id")
+  provider      String    @default("himodels") @db.VarChar(30)
+  model         String    @db.VarChar(100)
+  endpoint      String    @db.VarChar(100)
+  operationKey  String    @map("operation_key") @db.VarChar(191)
+  httpStatus    Int?      @map("http_status")
+  captureState  String    @default("pending") @map("capture_state") @db.VarChar(30)
+  requestId     String?   @map("request_id") @db.VarChar(255)
+  usage         Json?
+  rawUsage      Json?     @map("raw_usage")
+  billing       Json?
+  sentAt        DateTime  @default(now()) @map("sent_at") @db.DateTime(3)
+  receivedAt    DateTime? @map("received_at") @db.DateTime(3)
+
+  @@index([userId, id], map: "idx_himodels_user_call")
+  @@index([userId, jobId], map: "idx_himodels_user_job")
+  @@index([userId, parentJobId], map: "idx_himodels_user_parent_job")
+  @@index([userId, generationId], map: "idx_himodels_user_generation")
+  @@map("himodels_calls")
+}
+
+model CreatorAsset {
+  id          BigInt    @id
+  userId      BigInt    @map("user_id")
+  type        String    @db.VarChar(10)
+  url         String    @db.VarChar(1024)
+  coverUrl    String?   @map("cover_url") @db.VarChar(1024)
+  prompt      String?   @db.Text
+  provider    String?   @db.VarChar(50)
+  ratio       String?   @db.VarChar(20)
+  duration    Int?
+  sourceJobId BigInt?   @unique(map: "uk_creator_asset_source_job") @map("source_job_id")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.DateTime(3)
+  deletedAt   DateTime? @map("deleted_at") @db.DateTime(3)
+
+  @@index([userId, id], map: "idx_creator_asset_user_id")
+  @@index([userId, type, id], map: "idx_creator_asset_user_type")
+  @@index([deletedAt], map: "idx_creator_asset_deleted_at")
+  @@map("creator_assets")
+}
+
+model WalletAccount {
+  id                  BigInt   @id
+  userId              BigInt   @unique(map: "uk_wallet_user_id") @map("user_id")
+  balancePoints       Decimal  @default(0) @map("balance_points") @db.Decimal(18, 0)
+  lifetimeTopupPoints Decimal  @default(0) @map("lifetime_topup_points") @db.Decimal(18, 0)
+  lifetimeSpentPoints Decimal  @default(0) @map("lifetime_spent_points") @db.Decimal(18, 0)
+  createdAt           DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@map("wallet_accounts")
+}
+
+model WalletTransaction {
+  id                 BigInt   @id
+  userId             BigInt   @map("user_id")
+  type               String   @db.VarChar(20)
+  amountPoints       Decimal  @map("amount_points") @db.Decimal(18, 0)
+  balanceAfterPoints Decimal  @map("balance_after_points") @db.Decimal(18, 0)
+  status             String   @default("completed") @db.VarChar(20)
+  sourceType         String?  @map("source_type") @db.VarChar(30)
+  sourceId           String?  @map("source_id") @db.VarChar(100)
+  idempotencyKey     String   @unique(map: "uk_wallet_idempotency") @map("idempotency_key") @db.VarChar(120)
+  description        String?  @db.VarChar(255)
+  metadata           Json?
+  createdAt          DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  @@index([userId, createdAt], map: "idx_wallet_tx_user_time")
+  @@index([sourceType, sourceId], map: "idx_wallet_tx_source")
+  @@map("wallet_transactions")
+}
+
+model WalletReservation {
+  id           BigInt   @id
+  key          String   @unique(map: "uk_wallet_reservation_key") @db.VarChar(191)
+  userId       BigInt   @map("user_id")
+  scopeKey     String   @map("scope_key") @db.VarChar(100)
+  amountPoints Decimal  @map("amount_points") @db.Decimal(18, 0)
+  status       String   @default("reserved") @db.VarChar(20)
+  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([userId, scopeKey, status], map: "idx_wallet_reservation_scope")
+  @@index([status, updatedAt], map: "idx_wallet_reservation_recovery")
+  @@map("wallet_reservations")
+}
+
+model RechargeOrder {
+  id               BigInt    @id
+  userId           BigInt    @map("user_id")
+  paymentAmountUsd Decimal   @map("payment_amount_usd") @db.Decimal(14, 6)
+  status           String    @default("pending") @db.VarChar(20)
+  provider         String    @default("demo") @db.VarChar(30)
+  providerOrderId  String?   @map("provider_order_id") @db.VarChar(120)
+  idempotencyKey   String    @unique(map: "uk_recharge_idempotency") @map("idempotency_key") @db.VarChar(120)
+  localAmountCents BigInt?   @map("local_amount_cents")
+  localCurrency    String?   @map("local_currency") @db.VarChar(3)
+  countryCode      String?   @map("country_code") @db.VarChar(2)
+  exchangeRate     Decimal?  @map("exchange_rate") @db.Decimal(18, 6)
+  metadata         Json?
+  createdAt        DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  paidAt           DateTime? @map("paid_at") @db.DateTime(3)
+
+  @@index([userId, createdAt], map: "idx_recharge_user_time")
+  @@index([status, createdAt], map: "idx_recharge_status_time")
+  @@map("recharge_orders")
+}
+
+model UserProfile {
+  userId      BigInt   @id @map("user_id")
+  displayName String   @map("display_name") @db.VarChar(80)
+  avatarUrl   String   @map("avatar_url") @db.VarChar(1024)
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@map("user_profiles")
+}
+
+model UserIdentity {
+  // Storage sequence only; userId remains the cross-service Sonyflake identity.
+  rowId           BigInt   @id @default(autoincrement()) @map("id") @db.UnsignedBigInt
+  userId          BigInt   @map("user_id")
+  provider        String   @db.VarChar(32)
+  providerSubject String   @map("provider_subject") @db.VarChar(255)
+  email           String   @db.VarChar(255)
+  emailVerified   Boolean  @map("email_verified")
+  displayName     String?  @map("display_name") @db.VarChar(80)
+  avatarUrl       String?  @map("avatar_url") @db.VarChar(1024)
+  lastLoginAt     DateTime @default(now()) @map("last_login_at") @db.DateTime(3)
+  createdAt       DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@unique([userId, provider], map: "uk_user_identity_user_provider")
+  @@unique([provider, providerSubject], map: "uk_user_identity_provider_subject")
+  @@index([email], map: "idx_user_identity_email")
+  @@map("user_identities")
+}
+
+model AdminGrant {
+  id             BigInt   @id
+  email          String   @unique(map: "uk_admin_grant_email") @db.VarChar(255)
+  role           String   @default("viewer") @db.VarChar(30)
+  permissions    Json
+  enabled        Boolean  @default(true)
+  createdByEmail String   @map("created_by_email") @db.VarChar(255)
+  createdAt      DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([enabled, role], map: "idx_admin_grant_enabled_role")
+  @@map("admin_grants")
+}
+
+model BatchJob {
+  id        BigInt    @id
+  projectId BigInt    @map("project_id")
+  episodeId BigInt    @map("episode_id")
+  phase     String    @db.VarChar(20)
+  total     Int
+  completed Int?      @default(0)
+  failed    Int?      @default(0)
+  shots     String?   @db.Text
+  errorMsg  String?   @map("error_msg") @db.Text
+  createdAt DateTime? @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt DateTime? @default(now()) @map("updated_at") @db.DateTime(0)
+
+  project Project @relation(fields: [projectId], references: [id])
+  episode Episode @relation(fields: [episodeId], references: [id])
+
+  @@index([projectId], map: "idx_project_id")
+  @@index([episodeId], map: "idx_episode_id")
+  @@index([phase], map: "idx_phase")
+  @@index([createdAt], map: "idx_created_at")
+  @@map("batch_jobs")
+}
+
+model ExtractJob {
+  id                 BigInt    @id
+  projectId          BigInt    @map("project_id")
+  phase              String?   @default("analyzing") @db.VarChar(20)
+  chunksDone         Int?      @default(0) @map("chunks_done")
+  chunksTotal        Int?      @default(0) @map("chunks_total")
+  charactersFound    Int?      @default(0) @map("characters_found")
+  scenesFound        Int?      @default(0) @map("scenes_found")
+  error              String?   @db.Text
+  resultCharacters   Json?     @map("result_characters")
+  resultScenes       Json?     @map("result_scenes")
+  committedAt        DateTime? @map("committed_at") @db.DateTime(3)
+  committedSelection Json?     @map("committed_selection")
+  activeKey          String?   @unique(map: "uk_extract_job_active_key") @map("active_key") @db.VarChar(191)
+  leaseOwner         String?   @map("lease_owner") @db.VarChar(100)
+  leaseExpiresAt     DateTime? @map("lease_expires_at") @db.DateTime(3)
+  heartbeatAt        DateTime? @map("heartbeat_at") @db.DateTime(3)
+  nextAttemptAt      DateTime? @map("next_attempt_at") @db.DateTime(3)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt          DateTime  @default(now()) @map("updated_at") @db.Timestamp(0)
+
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@index([projectId], map: "idx_extract_project")
+  @@map("extract_jobs")
+}
+
+model OutlineJob {
+  id               BigInt    @id
+  projectId        BigInt    @map("project_id")
+  phase            String?   @default("generating") @db.VarChar(20)
+  totalEpisodes    Int?      @default(0) @map("total_episodes")
+  receivedChapters Int?      @default(0) @map("received_chapters")
+  error            String?   @db.Text
+  result           Json?
+  activeKey        String?   @unique(map: "uk_outline_job_active_key") @map("active_key") @db.VarChar(191)
+  leaseOwner       String?   @map("lease_owner") @db.VarChar(100)
+  leaseExpiresAt   DateTime? @map("lease_expires_at") @db.DateTime(3)
+  heartbeatAt      DateTime? @map("heartbeat_at") @db.DateTime(3)
+  nextAttemptAt    DateTime? @map("next_attempt_at") @db.DateTime(3)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt        DateTime  @default(now()) @map("updated_at") @db.Timestamp(0)
+
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@index([projectId], map: "idx_project_id")
+  @@index([phase], map: "idx_phase")
+  @@map("outline_jobs")
+}
+
+model ChapterJob {
+  id             BigInt    @id
+  episodeId      BigInt    @map("episode_id")
+  projectId      BigInt    @map("project_id")
+  phase          String?   @default("generating") @db.VarChar(20)
+  attempts       Int?      @default(0)
+  error          String?   @db.Text
+  result         Json?
+  activeKey      String?   @unique(map: "uk_chapter_job_active_key") @map("active_key") @db.VarChar(191)
+  leaseOwner     String?   @map("lease_owner") @db.VarChar(100)
+  leaseExpiresAt DateTime? @map("lease_expires_at") @db.DateTime(3)
+  heartbeatAt    DateTime? @map("heartbeat_at") @db.DateTime(3)
+  nextAttemptAt  DateTime? @map("next_attempt_at") @db.DateTime(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamp(0)
+
+  episode Episode @relation(fields: [episodeId], references: [id])
+
+  @@index([episodeId], map: "idx_episode_id")
+  @@index([projectId], map: "idx_project_id")
+  @@index([phase], map: "idx_phase")
+  @@map("chapter_jobs")
+}
+
+model ScriptJob {
+  id             BigInt    @id
+  episodeId      BigInt    @map("episode_id")
+  projectId      BigInt    @map("project_id")
+  phase          String?   @default("generating") @db.VarChar(20)
+  attempts       Int?      @default(0)
+  error          String?   @db.Text
+  result         Json?
+  activeKey      String?   @unique(map: "uk_script_job_active_key") @map("active_key") @db.VarChar(191)
+  leaseOwner     String?   @map("lease_owner") @db.VarChar(100)
+  leaseExpiresAt DateTime? @map("lease_expires_at") @db.DateTime(3)
+  heartbeatAt    DateTime? @map("heartbeat_at") @db.DateTime(3)
+  nextAttemptAt  DateTime? @map("next_attempt_at") @db.DateTime(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamp(0)
+
+  episode Episode @relation(fields: [episodeId], references: [id])
+
+  @@index([episodeId], map: "idx_episode_id")
+  @@index([projectId], map: "idx_project_id")
+  @@index([phase], map: "idx_phase")
+  @@map("script_jobs")
+}
+
+model StoryboardJob {
+  id             BigInt    @id
+  episodeId      BigInt    @map("episode_id")
+  projectId      BigInt    @map("project_id")
+  phase          String?   @default("generating") @db.VarChar(20)
+  attempts       Int?      @default(0)
+  error          String?   @db.Text
+  result         Json?
+  activeKey      String?   @unique(map: "uk_storyboard_job_active_key") @map("active_key") @db.VarChar(191)
+  leaseOwner     String?   @map("lease_owner") @db.VarChar(100)
+  leaseExpiresAt DateTime? @map("lease_expires_at") @db.DateTime(3)
+  heartbeatAt    DateTime? @map("heartbeat_at") @db.DateTime(3)
+  nextAttemptAt  DateTime? @map("next_attempt_at") @db.DateTime(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamp(0)
+
+  episode Episode @relation(fields: [episodeId], references: [id])
+
+  @@index([episodeId], map: "idx_episode_id")
+  @@index([projectId], map: "idx_project_id")
+  @@index([phase], map: "idx_phase")
+  @@map("storyboard_jobs")
+}
+
+// 项目级 AI 任务的异步 job（novel / setup / split-episodes 等长耗时项目级 LLM 调用共用）
+// kind 区分具体任务类型
+model ProjectAiJob {
+  id             BigInt    @id
+  projectId      BigInt    @map("project_id")
+  kind           String    @db.VarChar(30) // 'novel' | 'setup' | 'split_episodes' | ...
+  phase          String?   @default("generating") @db.VarChar(20)
+  attempts       Int?      @default(0)
+  progress       Int?      @default(0) // 已完成子任务数（如 split_episodes 已完成的章节数）
+  total          Int?      @default(0) // 子任务总数（如 split_episodes 需要处理的章节数）
+  error          String?   @db.Text
+  result         Json?
+  activeKey      String?   @unique(map: "uk_project_ai_job_active_key") @map("active_key") @db.VarChar(191)
+  leaseOwner     String?   @map("lease_owner") @db.VarChar(100)
+  leaseExpiresAt DateTime? @map("lease_expires_at") @db.DateTime(3)
+  heartbeatAt    DateTime? @map("heartbeat_at") @db.DateTime(3)
+  nextAttemptAt  DateTime? @map("next_attempt_at") @db.DateTime(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamp(0)
+
+  @@index([projectId], map: "idx_project_id")
+  @@index([kind], map: "idx_kind")
+  @@index([phase], map: "idx_phase")
+  @@map("project_ai_jobs")
+}
+
+// 角色/场景参考图生成的异步 job（同表存两种，用 target_type 区分）
+model RefImageJob {
+  id             BigInt    @id
+  targetType     String    @map("target_type") @db.VarChar(20) // 'character' | 'scene'
+  targetId       BigInt    @map("target_id")
+  projectId      BigInt    @map("project_id")
+  phase          String?   @default("generating") @db.VarChar(20)
+  attempts       Int?      @default(0)
+  error          String?   @db.Text
+  result         Json?
+  promptVersion  String?   @map("prompt_version") @db.VarChar(100)
+  provider       String?   @db.VarChar(50)
+  quality        String?   @db.VarChar(20)
+  activeKey      String?   @unique(map: "uk_ref_image_job_active_key") @map("active_key") @db.VarChar(191)
+  leaseOwner     String?   @map("lease_owner") @db.VarChar(100)
+  leaseExpiresAt DateTime? @map("lease_expires_at") @db.DateTime(3)
+  heartbeatAt    DateTime? @map("heartbeat_at") @db.DateTime(3)
+  nextAttemptAt  DateTime? @map("next_attempt_at") @db.DateTime(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamp(0)
+
+  @@index([targetType, targetId], map: "idx_target")
+  @@index([projectId], map: "idx_project_id")
+  @@index([phase], map: "idx_phase")
+  @@map("ref_image_jobs")
+}
+
+// 一键生成 EpJob：多 Pod 共享状态（generate-all 的 job 生命周期管理）
+model EpJob {
+  id        BigInt   @id
+  projectId BigInt   @map("project_id")
+  episodeId BigInt   @map("episode_id")
+  phase     String?  @default("running") @db.VarChar(20)
+  total     Int?     @default(0)
+  shots     Json? // JSON 数组 [{storyboardId, order, status, errorMsg?}]
+  errorMsg  String?  @map("error_msg") @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamp(0)
+
+  @@index([episodeId], map: "idx_episode_id")
+  @@index([projectId], map: "idx_project_id")
+  @@index([phase], map: "idx_phase")
+  @@map("ep_jobs")
+}
+
+model CountryRechargeSku {
+  id              BigInt   @id
+  countryCode     String   @map("country_code") @db.VarChar(2)
+  skuCode         String   @unique(map: "uk_sku_code") @map("sku_code") @db.VarChar(50)
+  amountUsdCents  Int      @map("amount_usd_cents")
+  points          Int
+  sortOrder       Int      @default(0) @map("sort_order")
+  enabled         Boolean  @default(true)
+  label           String?  @db.VarChar(100)
+  createdAt       DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([countryCode, enabled], map: "idx_sku_country_enabled")
+  @@index([sortOrder], map: "idx_sku_sort")
+  @@map("country_recharge_skus")
+}
+
+model FxRate {
+  // Storage sequence only; currency remains the application lookup/upsert key.
+  rowId      BigInt   @id @default(autoincrement()) @map("id") @db.UnsignedBigInt
+  currency   String   @unique(map: "uk_fx_rate_currency") @db.VarChar(32)
+  rate       Decimal  @db.Decimal(18, 6)
+  sourceDate String   @map("source_date") @db.VarChar(10)
+  createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([sourceDate], map: "idx_fx_rate_date")
+  @@map("fx_rates")
+}
