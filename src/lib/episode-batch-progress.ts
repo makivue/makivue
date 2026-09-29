@@ -7,6 +7,7 @@ export type EpisodeBatchShot = {
     order: number
     status: EpisodeBatchShotStatus
     errorMsg?: string
+    errorDetail?: string
     failedStage?: EpisodeBatchFailureStage
 }
 

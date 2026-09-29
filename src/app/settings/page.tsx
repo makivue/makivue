@@ -27,7 +27,7 @@ const IMAGE_PROVIDERS = [
         label: 'Nano Banana 2 (Gemini 3.1 Flash Image)',
         desc: '最新通用图片模型，支持 1K / 2K / 4K 与多参考图；速度与质量均衡'
     },
-    { value: 'qwen-image-3.0-pro', label: 'Qwen-Image-3.0-Pro', desc: '阿里百炼图片模型，复用 Happy Horse / DashScope API Key，支持文生图和参考图' },
+    { value: 'qwen-image-3.0-pro', label: 'Qwen-Image-3.0-Pro', desc: '阿里百炼图片模型，支持文生图和参考图' },
     { value: 'gemini-3.1-flash-image', label: 'Gemini 3.1 Flash Image', desc: 'Himodels Gemini Flash 图像模型，支持参考图' },
     { value: 'seedream-5-0-lite', label: 'Seedream 5.0 Lite', desc: 'Himodels Seedream 5.0 Lite 文生图，固定 2K' }
 ]

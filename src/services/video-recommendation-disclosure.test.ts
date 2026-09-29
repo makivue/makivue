@@ -50,7 +50,7 @@ describe('short-drama video model disclosure', () => {
     it('blocks visual-only models for dialogue shots now that external dubbing is retired', () => {
         expect(page).toContain("const dialogueProviderSupported = !hasDialogue || speechCapability.mode === 'native'")
         expect(page).toContain('const canGenerateVideo = dialogueProviderSupported && referenceModeSupported && referenceFramesReady')
-        expect(page).toContain('Happy Horse 只生成画面，无法生成对白；请改用支持原生对白的视频模型。')
+        expect(page).toContain('当前模型不支持原生对白，请选择支持原生对白的视频模型。')
         expect(singleRoute).toContain('不支持原生对白，请改用支持原生对白的视频模型')
         expect(videoService).not.toContain('不能把有对白镜头标记为完成')
         expect(batchRoute).toContain("code: 'VIDEO_PROVIDER_AUDIO_UNSUPPORTED'")

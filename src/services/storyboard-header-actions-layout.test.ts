@@ -3,7 +3,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 describe('storyboard header action layout', () => {
-    it('keeps compact icon actions in the shot header and moves deletion into the expanded body', () => {
+    it('keeps compact icon actions in the shot header and deletion at the top of the expanded body', () => {
         const page = fs.readFileSync(path.join(process.cwd(), 'src/app/projects/[id]/episodes/[episodeId]/page.tsx'), 'utf8')
         const styles = fs.readFileSync(path.join(process.cwd(), 'src/app/globals.css'), 'utf8')
 
@@ -21,7 +21,7 @@ describe('storyboard header action layout', () => {
         expect(page).toContain("videoGenerating || videoQueued ? 'is-status' : ''")
         expect(page).not.toContain("<span>{frameGenerating ? t('生成中')")
         expect(page).not.toContain("<span>{videoGenerating ? t('生成中')")
-        expect(page).toContain('className="flex justify-end border-t border-gray-800 pt-4 lg:col-span-2"')
+        expect(page).not.toContain('className="flex justify-end border-t border-gray-800 pt-4 lg:col-span-2"')
         expect(page).toContain("<span>{deleting ? t('正在删除…') : t('删除分镜')}</span>")
         expect(page).not.toContain('className="studio-shot-delete"')
         expect(page).not.toContain('studio-shot-more')

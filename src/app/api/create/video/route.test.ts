@@ -1,7 +1,18 @@
 import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ after: vi.fn(), write: vi.fn(), unlink: vi.fn(), upload: vi.fn(), fetch: vi.fn(), hiModels: vi.fn(), job: vi.fn(), points: vi.fn(), asset: vi.fn() }))
+const mocks = vi.hoisted(() => ({
+    after: vi.fn(),
+    write: vi.fn(),
+    unlink: vi.fn(),
+    upload: vi.fn(),
+    fetch: vi.fn(),
+    hiModels: vi.fn(),
+    job: vi.fn(),
+    points: vi.fn(),
+    asset: vi.fn(),
+    prepare: vi.fn()
+}))
 vi.mock('node:fs', () => ({ promises: { mkdir: vi.fn(), writeFile: mocks.write, unlink: mocks.unlink } }))
 vi.mock('next/server', async importOriginal => ({ ...(await importOriginal<typeof import('next/server')>()), after: mocks.after }))
 vi.mock('@/lib/current-user', () => ({ currentUserId: () => 7n }))
@@ -10,6 +21,7 @@ vi.mock('@/lib/provider-token-usage.server', () => ({ fetchMeteredProvider: mock
 vi.mock('@/lib/projectAiJobStore', () => ({ updateJob: vi.fn() }))
 vi.mock('@/lib/creator-generation-concurrency', () => ({ createCreatorGenerationJob: mocks.job, CreatorGenerationCapacityError: class extends Error {} }))
 vi.mock('@/services/oss', () => ({ uploadToOSS: mocks.upload, isOSSObjectWithinSubdir: (url: string, subdir: string) => new URL(url).pathname.startsWith(`/${subdir}/`) }))
+vi.mock('@/services/wan-video-reference-image', () => ({ prepareWanVideoReferenceImage: mocks.prepare }))
 vi.mock('@/services/dashscope-config', () => ({ getDashScopeConfig: () => ({ apiKey: 'mock', baseUrl: 'https://provider.test' }) }))
 vi.mock('@/services/seedance-config', () => ({ getSeedanceConfig: async () => ({ apiKey: 'mock', baseUrl: 'https://provider.test' }) }))
 vi.mock('@/services/himodels', () => ({ createHiModelsVideoTask: mocks.hiModels }))
@@ -65,6 +77,7 @@ function videoReferenceRequest(provider = 'wan3', uploads = 0, id = '42') {
 describe('creator video image references', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        mocks.prepare.mockImplementation(async (url: string) => `${url}?prepared=1`)
         mocks.write.mockResolvedValue(undefined)
         mocks.unlink.mockResolvedValue(undefined)
         mocks.upload.mockImplementation(async (_file, _directory, name) => `https://cdn.test/${name}`)
@@ -78,7 +91,7 @@ describe('creator video image references', () => {
         expect((await POST(request(3, provider))).status).toBe(202)
         await mocks.after.mock.calls[0][0]()
         const body = JSON.parse(mocks.fetch.mock.calls[0][1].body)
-        expect(body.input.media).toEqual(mocks.upload.mock.calls.map(call => ({ type: 'reference_image', url: `https://cdn.test/${call[2]}` })))
+        expect(body.input.media).toEqual(mocks.upload.mock.calls.map(call => ({ type: 'reference_image', url: `https://cdn.test/${call[2]}?prepared=1` })))
         expect(body.input.media).toHaveLength(3)
         for (const [file] of mocks.write.mock.calls) expect(mocks.unlink).toHaveBeenCalledWith(file)
     })
@@ -88,7 +101,8 @@ describe('creator video image references', () => {
         await mocks.after.mock.calls[0][0]()
         const media = JSON.parse(mocks.fetch.mock.calls[0][1].body).input.media
         expect(media).toHaveLength(3)
-        expect(media[0].url).toBe('https://cdn.test/saved.png')
+        expect(media[0].url).toBe('https://cdn.test/saved.png?prepared=1')
+        expect(mocks.prepare).toHaveBeenCalledWith('https://cdn.test/saved.png')
         expect(mocks.asset).toHaveBeenCalledWith(7n, 41n)
     })
 

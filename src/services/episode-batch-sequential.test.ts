@@ -184,7 +184,7 @@ describe('sequential episode media generation', () => {
             await startBatch()
         )()
         expect(events).toEqual(['frame:1', 'video:1:failed', 'frame:3', 'video:3'])
-        expect(mocks.updateShot).toHaveBeenCalledWith('batch', '2', expect.objectContaining({ status: 'failed', failedStage: 'frame' }))
+        expect(mocks.updateShot).toHaveBeenCalledWith('batch', '2', expect.objectContaining({ status: 'skipped', errorMsg: expect.stringContaining('依赖第 1 镜') }))
     })
 
     it('does not start the next shot after cancellation during a video', async () => {
@@ -206,7 +206,39 @@ describe('sequential episode media generation', () => {
         )()
         expect(events).toEqual(['frame:3', 'video:3'])
         expect(mocks.updateShot).toHaveBeenCalledWith('batch', '1', expect.objectContaining({ status: 'failed', failedStage: 'frame' }))
-        expect(mocks.updateShot).toHaveBeenCalledWith('batch', '2', expect.objectContaining({ status: 'failed', failedStage: 'frame' }))
+        expect(mocks.updateShot).toHaveBeenCalledWith('batch', '2', expect.objectContaining({ status: 'skipped', errorMsg: expect.stringContaining('依赖第 1 镜') }))
+    })
+
+    it('reports one real failure and traces a long blocked chain back to its original failed shot', async () => {
+        shots = [makeShot(1), ...Array.from({ length: 52 }, (_, index) => makeShot(index + 2, 'stateful')), makeShot(54)]
+        mocks.generateVideo.mockImplementationOnce(async () => events.push('video:1:failed'))
+        mocks.generation.findUnique.mockResolvedValue({ errorMsg: 'Wan 3.0 task FAILED: InvalidParameter: Failed to download https://cdn.example/frame.png' })
+        await (
+            await startBatch()
+        )()
+
+        expect(events).toEqual(['frame:1', 'video:1:failed', 'frame:54', 'video:54'])
+        const failed = mocks.updateShot.mock.calls.filter(([, , patch]) => patch.status === 'failed')
+        expect(failed).toHaveLength(1)
+        expect(failed[0][2]).toMatchObject({ failedStage: 'video', errorDetail: expect.stringContaining('InvalidParameter: Failed to download') })
+        const skipped = mocks.updateShot.mock.calls.filter(([, , patch]) => patch.status === 'skipped')
+        expect(skipped).toHaveLength(52)
+        for (const [, , patch] of skipped) {
+            expect(patch.errorMsg).toContain('依赖第 1 镜')
+            expect(patch.failedStage).toBeUndefined()
+        }
+        expect(mocks.finalizeEpJob).toHaveBeenCalledWith('batch', 'done')
+    })
+
+    it('finishes with an error when all remaining shots are blocked behind one failed generation', async () => {
+        shots = [makeShot(1), makeShot(2, 'stateful'), makeShot(3, 'stateful')]
+        mocks.generateFrame.mockResolvedValueOnce(false)
+        await (
+            await startBatch()
+        )()
+        expect(mocks.generateFrame).toHaveBeenCalledTimes(1)
+        expect(mocks.generateVideo).not.toHaveBeenCalled()
+        expect(mocks.finalizeEpJob).toHaveBeenCalledWith('batch', 'error')
     })
 
     it('does not submit a video when cancelled after its illustration', async () => {

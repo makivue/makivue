@@ -316,6 +316,7 @@ export default function EpisodeBatchModal({ episodeId, requestId, mode, imagePro
                                 <>
                                     {t('共')} {total} {t('个分镜')} · {t('已完成')} {completed} · {t('进行中')} {running}
                                     {failed > 0 ? ` · ${t('失败')} ${failed}` : ''}
+                                    {skipped > 0 ? ` · ${t('未完成')} ${skipped}` : ''}
                                 </>
                             )}
                             {phase === 'done' && (

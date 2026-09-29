@@ -23,9 +23,11 @@ describe('strict continuity chain', () => {
 
     it('blocks a rejected continuity contract and propagates predecessor failure', () => {
         expect(batchRoute).toContain('const strictContinuityRejected =')
-        expect(batchRoute).toContain('未通过串行门禁')
+        expect(batchRoute).toContain('连续性条件未满足，尚未执行')
         expect(batchRoute).toContain('previousSucceeded === false')
-        expect(batchRoute).toContain('上一连续镜头')
+        expect(batchRoute).toContain('blockingShotByStoryboardId.get(previous.id.toString())')
+        expect(batchRoute).toContain('本镜尚未执行；请先完成第')
+        expect(batchRoute).toContain("status: 'skipped'")
         expect(batchRoute).not.toContain('remains parallel')
     })
 

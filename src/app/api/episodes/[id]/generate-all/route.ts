@@ -431,8 +431,8 @@ async function postGenerateAll(req: NextRequest, { params }: Params) {
             const heartbeat = setInterval(() => {
                 void heartbeatEpJob(job.id)
             }, 30_000)
-            const failedStoryboardIds = new Set<string>()
             const todo = candidates as ShotLite[]
+            const blockingShotByStoryboardId = new Map<string, { id: string; order: number }>()
             const signal = getEpJobSignal(job.id)
             const repeatedVideoFailures = new Map<string, number>()
             let videoCircuitOpenReason: string | null = null
@@ -508,7 +508,7 @@ async function postGenerateAll(req: NextRequest, { params }: Params) {
             }
 
             const markStoryboardFailed = async (sb: (typeof todo)[number], error: unknown, failedStage: 'frame' | 'video') => {
-                failedStoryboardIds.add(sb.id.toString())
+                blockingShotByStoryboardId.set(sb.id.toString(), { id: sb.id.toString(), order: sb.order })
                 const presentation = presentEpisodeBatchFailure(error)
                 if (failedStage === 'video' && presentation.circuitKey && !videoCircuitOpenReason) {
                     const nextCount = (repeatedVideoFailures.get(presentation.circuitKey) ?? 0) + 1
@@ -520,7 +520,8 @@ async function postGenerateAll(req: NextRequest, { params }: Params) {
                 await updateShot(job.id, sb.id.toString(), {
                     status: 'failed',
                     failedStage,
-                    errorMsg: presentation.message
+                    errorMsg: presentation.message,
+                    errorDetail: error instanceof Error ? error.message : String(error)
                 })
             }
 
@@ -712,11 +713,17 @@ async function postGenerateAll(req: NextRequest, { params }: Params) {
                     resultByStoryboardId.set(sb.id.toString(), false)
                     try {
                         if (strictContinuityRejected) {
-                            await markStoryboardFailed(sb, new Error(`连续镜头 ${sb.order} 未通过串行门禁：${dependencyAssessment.issues.join('；')}`), 'frame')
+                            blockingShotByStoryboardId.set(sb.id.toString(), { id: sb.id.toString(), order: sb.order })
+                            await updateShot(job.id, sb.id.toString(), { status: 'skipped', errorMsg: `第 ${sb.order} 镜的连续性条件未满足，尚未执行：${dependencyAssessment.issues.join('；')}` })
                             continue
                         }
-                        if (previousSucceeded === false && (dependencyAssessment.sequential || sb.continuityMode === 'stateful')) {
-                            await markStoryboardFailed(sb, new Error(`上一连续镜头 ${previous?.order ?? ''} 未成功完成，已停止本镜串行生成`), 'frame')
+                        if (previous && previousSucceeded === false && (dependencyAssessment.sequential || sb.continuityMode === 'stateful')) {
+                            const blocker = blockingShotByStoryboardId.get(previous.id.toString()) ?? { id: previous.id.toString(), order: previous.order }
+                            blockingShotByStoryboardId.set(sb.id.toString(), blocker)
+                            await updateShot(job.id, sb.id.toString(), {
+                                status: 'skipped',
+                                errorMsg: `依赖第 ${blocker.order} 镜的完整视频，本镜尚未执行；请先完成第 ${blocker.order} 镜，再继续一键生成。`
+                            })
                             continue
                         }
                         if (videoCircuitOpenReason) {
@@ -735,7 +742,7 @@ async function postGenerateAll(req: NextRequest, { params }: Params) {
                 if (await checkCancelled()) {
                     await finalizeEpJob(job.id, 'cancelled')
                 } else {
-                    await finalizeEpJob(job.id, failedStoryboardIds.size === todo.length ? 'error' : 'done')
+                    await finalizeEpJob(job.id, [...resultByStoryboardId.values()].some(Boolean) ? 'done' : 'error')
                     // Measurement and rule-based QC are best-effort and must never
                     // turn an otherwise successful production job into a failure.
                     try {

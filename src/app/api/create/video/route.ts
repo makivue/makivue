@@ -5,6 +5,7 @@ import { withHiModelsUsageScope } from '@/lib/himodels-usage-context.server'
 import { fetchMeteredProvider } from '@/lib/provider-token-usage.server'
 import { currentUserId } from '@/lib/current-user'
 import { getDashScopeConfig } from '@/services/dashscope-config'
+import { prepareWanVideoReferenceImage } from '@/services/wan-video-reference-image'
 import { apiError, apiResponse } from '@/lib/utils'
 import { isOSSObjectWithinSubdir, uploadToOSS } from '@/services/oss'
 import { updateJob } from '@/lib/projectAiJobStore'
@@ -169,55 +170,47 @@ async function runCreatorVideoJob(params: {
         const config = provider === 'seedance' || provider === 'seedance25' ? await getSeedanceConfig(provider) : getDashScopeConfig()
         const seedanceLabel = provider === 'seedance25' ? SEEDANCE_25_LABEL : SEEDANCE_20_LABEL
         const isWan3 = provider === 'wan3' || provider === 'wan3prime'
-        const isWan = provider === 'wanx' || isWan3
+        const isWan = isWan3
         const wan3Label = provider === 'wan3prime' ? WAN_3_PRIME_LABEL : WAN_3_LABEL
-        if (!config?.apiKey) throw new Error(`${isWan ? `${isWan3 ? wan3Label : 'Happy Horse'} / 阿里百炼` : seedanceLabel} API key 未配置，请先在设置中配置`)
+        if (!config?.apiKey) throw new Error(`${isWan ? `${wan3Label} / 阿里百炼` : seedanceLabel} API key 未配置，请先在设置中配置`)
         const baseUrl = (config.baseUrl ?? (isWan ? 'https://dashscope.aliyuncs.com' : provider === 'seedance25' ? SEEDANCE_25_BASE_URL : SEEDANCE_20_BASE_URL)).replace(/\/$/, '')
+        const preparedReferenceUrls = isWan3 ? await Promise.all(referenceUrls.map(url => prepareWanVideoReferenceImage(url))) : referenceUrls
         const requestBody = isWan3
             ? {
                   model: provider === 'wan3prime' ? WAN_3_PRIME_MODEL : WAN_3_MODEL,
                   input: {
                       prompt: [referenceUrl ? 'Use reference image 1 as the opening-frame visual anchor.' : '', videoPrompt, prompt].filter(Boolean).join(' '),
                       ...((referenceUrls.length || referenceVideos.length) && {
-                          media: [...referenceUrls.map(url => ({ type: 'reference_image', url })), ...referenceVideos.map(video => ({ type: 'reference_video', url: video.url }))]
+                          media: [...preparedReferenceUrls.map(url => ({ type: 'reference_image', url })), ...referenceVideos.map(video => ({ type: 'reference_video', url: video.url }))]
                       })
                   },
                   parameters: { resolution: WAN_3_RESOLUTION, ratio, duration }
               }
-            : isWan
-              ? {
-                    model: referenceUrl ? 'happyhorse-1.1-i2v' : 'happyhorse-1.1-t2v',
-                    input: {
-                        prompt,
-                        ...(referenceUrl ? { media: [{ type: 'first_frame', url: referenceUrl }] } : {})
-                    },
-                    parameters: { resolution: '720P', ratio, duration, watermark: false, video_generation_safety: 'standard' }
-                }
-              : {
-                    model: config.modelName ?? (provider === 'seedance25' ? SEEDANCE_25_ENDPOINT_ID : SEEDANCE_20_ENDPOINT_ID),
-                    content: [
-                        {
-                            type: 'text',
-                            text: [
-                                referenceUrls.length === 2 ? 'Use Image 1 as the opening frame and Image 2 as the ending frame.' : referenceUrl ? 'Use Image 1 as the exact opening frame.' : '',
-                                videoPrompt,
-                                prompt
-                            ]
-                                .filter(Boolean)
-                                .join(' ')
-                        },
-                        ...referenceUrls.map((url, index) => ({
-                            type: 'image_url',
-                            image_url: { url },
-                            role: provider === 'seedance25' ? 'reference_image' : index === 0 ? 'first_frame' : 'last_frame'
-                        })),
-                        ...referenceVideos.map(video => ({ type: 'video_url', video_url: { url: video.url }, role: 'reference_video' }))
-                    ],
-                    ratio,
-                    duration,
-                    generate_audio: true,
-                    watermark: false
-                }
+            : {
+                  model: config.modelName ?? (provider === 'seedance25' ? SEEDANCE_25_ENDPOINT_ID : SEEDANCE_20_ENDPOINT_ID),
+                  content: [
+                      {
+                          type: 'text',
+                          text: [
+                              referenceUrls.length === 2 ? 'Use Image 1 as the opening frame and Image 2 as the ending frame.' : referenceUrl ? 'Use Image 1 as the exact opening frame.' : '',
+                              videoPrompt,
+                              prompt
+                          ]
+                              .filter(Boolean)
+                              .join(' ')
+                      },
+                      ...referenceUrls.map((url, index) => ({
+                          type: 'image_url',
+                          image_url: { url },
+                          role: provider === 'seedance25' ? 'reference_image' : index === 0 ? 'first_frame' : 'last_frame'
+                      })),
+                      ...referenceVideos.map(video => ({ type: 'video_url', video_url: { url: video.url }, role: 'reference_video' }))
+                  ],
+                  ratio,
+                  duration,
+                  generate_audio: true,
+                  watermark: false
+              }
         const response = await fetchMeteredProvider(
             `${baseUrl}${isWan ? '/api/v1/services/aigc/video-generation/video-synthesis' : '/api/v3/contents/generations/tasks'}`,
             {

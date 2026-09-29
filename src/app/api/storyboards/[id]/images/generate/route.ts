@@ -14,7 +14,7 @@ export async function POST(req: NextRequest, context: Params) {
 
     // Image generation has no dependency on the video model. Drop legacy or
     // manually supplied video fields so an image request cannot be mistaken
-    // for a Seedance/Happy Horse video request downstream.
+    // for a Seedance/Wan video request downstream.
     const imageBody = { ...body }
     delete imageBody.provider
     delete imageBody.videoProvider
