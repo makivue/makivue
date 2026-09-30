@@ -2,7 +2,7 @@
 
 欢迎改进创作体验、模型适配、多语言文案、文档和测试。
 
-[项目介绍](README.md) · [模型配置](MODEL_CONFIG.md) · [官网](https://makivue.com?utm_source=github)
+[项目介绍](README.zh-CN.md) · [模型配置](MODEL_CONFIG.md) · [官网](https://makivue.com?utm_source=github)
 
 ## 提交问题
 

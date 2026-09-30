@@ -6,66 +6,71 @@
 
 # makivue
 
-**从一个故事想法，到一部 AI 短剧。**
+**Turn a story idea into an AI short drama.**
 
-剧本 · 角色 · 场景 · 分镜 · 视频 · 字幕
+Scripts · Characters · Scenes · Storyboards · Video · Subtitles
 
-基于 Next.js、React 与 TypeScript 的本地 AI 短剧创作工作台。
+A local AI creation workspace built with Next.js, React, and TypeScript.
 
-[官网](https://makivue.com?utm_source=github) · [快速开始](#quick-start) · [模型配置](MODEL_CONFIG.md) · [参与贡献](CONTRIBUTING.md)
+[Website](https://makivue.com?utm_source=github) · [Quick start](#quick-start) · [Model configuration](MODEL_CONFIG.md) · [Contributing](CONTRIBUTING.md)
 
-**简体中文** | [English](README.en.md)
+**English** | [简体中文](README.zh-CN.md) | [Français](README.fr.md)
 
 </div>
 
 ---
 
-makivue 将故事创作、素材管理和视频制作放进同一个项目。你可以从一句创意开始，也可以导入已有小说或剧本，逐步完成角色设计、分镜生成和整集合成。
+makivue brings story development, asset management, and video production into one project. Start with an idea or import an existing novel or script, then develop characters, storyboard shots, and assemble an episode.
 
-**项目与素材保存在本机，模型使用你自己的账号。** 本地版无需在线登录、数据库服务或云存储；生成请求由本机服务直接发送给所选模型供应商。
+**Your projects and media stay on your computer. Models use your own supplier accounts.** The local edition needs no online login, database service, or cloud storage. The local server sends generation requests directly to your selected supplier.
 
-<a id="features"></a>
+## Interface previews
 
-## 功能亮点
+### English
 
-| 能力       | 可以做什么                                                       |
-| ---------- | ---------------------------------------------------------------- |
-| 故事与剧本 | 从创意生成大纲、分集剧本，或导入 TXT、Markdown、DOCX、PDF 文档   |
-| 角色与场景 | 提取角色和场景，管理参考图，在后续创作中复用素材                 |
-| 分镜编辑   | 编辑镜头描述、动作、对白、运镜、时长及首尾帧提示词               |
-| 图片生成   | 制作角色图、场景图、分镜图，也可独立进行 AI 图片创作             |
-| 视频生成   | 按模型能力使用文生视频、图生视频、参考素材和原声生成             |
-| 合成与导出 | 使用本机 FFmpeg 合成镜头和整集视频，处理字幕并下载结果           |
-| 视频复刻   | 分析参考视频的抽样画面、生成同款片段，或剪出高光片段             |
-| 本地工作区 | 保存项目、任务进度、模型调用记录及生成素材                       |
-| 多语言界面 | 中文、英语、法语、阿拉伯语、印尼语、印地语、菲律宾语、日语、韩语 |
+![makivue interface in English](docs/screenshots/home-en.webp)
 
-模型支持的分辨率、时长、参考素材和声音能力各不相同，以当前创作界面和供应商账号权限为准。
+### 简体中文
 
-### 内置风格预览
+![makivue 简体中文界面](docs/screenshots/home-zh-CN.webp)
 
-代码内附 **278 张风格预览图**及对应缩略图。下图均来自本仓库，加载时无需模型密钥或远程图片服务。
+### Français
 
-|                                          水墨                                          |                                         赛博朋克                                         |                                         黏土动画                                          |                                             微缩场景                                             |
-| :------------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------: | :----------------------------------------------------------------------------------------------: |
-| <img src="public/style-previews/thumbs/256/chinese-ink.webp" width="160" alt="水墨" /> | <img src="public/style-previews/thumbs/256/cyberpunk.webp" width="160" alt="赛博朋克" /> | <img src="public/style-previews/thumbs/256/claymation.webp" width="160" alt="黏土动画" /> | <img src="public/style-previews/thumbs/256/miniature-diorama.webp" width="160" alt="微缩场景" /> |
+![Interface de makivue en français](docs/screenshots/home-fr.webp)
 
-<a id="quick-start"></a>
+## Features
 
-## 快速开始
+| Capability            | What you can do                                                                         |
+| --------------------- | --------------------------------------------------------------------------------------- |
+| Stories and scripts   | Develop outlines and episode scripts; import TXT, Markdown, DOCX, or PDF                |
+| Characters and scenes | Extract entities, manage reference images, and reuse assets                             |
+| Storyboard editing    | Adjust actions, dialogue, framing, camera movement, duration, and keyframe prompts      |
+| Image creation        | Generate character, scene, and storyboard images, or use the standalone image workspace |
+| Video generation      | Use text, images, references, and native audio where the chosen model supports them     |
+| Assembly and export   | Compose shots and episodes with local FFmpeg, process subtitles, and download results   |
+| Reference video tools | Analyze sampled frames, generate a similar clip, or cut highlights                      |
+| Local workspace       | Save project records, task progress, model usage records, and generated media           |
+| Languages             | English, Chinese, French, Arabic, Indonesian, Hindi, Filipino, Japanese, and Korean     |
 
-### 1. 准备环境
+Available formats, duration, resolution, and reference inputs depend on the selected model and your supplier account.
 
-| 软件             | 要求                                             |
-| ---------------- | ------------------------------------------------ |
-| Node.js          | 22.12+（22 LTS）或 24+                           |
-| npm              | 随 Node.js 安装                                  |
-| FFmpeg / ffprobe | 本地安装，并加入 PATH                            |
-| 模型账号         | 需要生成时，配置自己对应供应商的 Token / API Key |
+### Bundled style previews
 
-macOS 可使用 `brew install ffmpeg`。Windows、Linux 需自行安装 FFmpeg，或使用下方的 Docker 方式。
+The repository includes **278 style previews** and their thumbnails. These examples load from local files without a model key or remote image service.
 
-先确认命令可用：
+|                                          Ink painting                                          |                                         Cyberpunk                                         |                                         Claymation                                          |                                             Miniature diorama                                             |
+| :--------------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------: | :-------------------------------------------------------------------------------------------------------: |
+| <img src="public/style-previews/thumbs/256/chinese-ink.webp" width="160" alt="Ink painting" /> | <img src="public/style-previews/thumbs/256/cyberpunk.webp" width="160" alt="Cyberpunk" /> | <img src="public/style-previews/thumbs/256/claymation.webp" width="160" alt="Claymation" /> | <img src="public/style-previews/thumbs/256/miniature-diorama.webp" width="160" alt="Miniature diorama" /> |
+
+## Quick start
+
+### Requirements
+
+- Node.js 22.12+ (22 LTS) or 24+, with npm.
+- FFmpeg and ffprobe available on your PATH; on macOS, use `brew install ffmpeg`.
+- Your own credentials for any model suppliers you intend to use.
+
+Check your installation:
 
 ```bash
 node --version
@@ -74,37 +79,33 @@ ffmpeg -version
 ffprobe -version
 ```
 
-### 2. 获取代码并安装依赖
+### Install and run
 
-克隆仓库：
+Clone the repository:
 
 ```bash
 git clone https://github.com/makivue/makivue.git
 cd makivue
 ```
 
-也可以选择 **Code → Download ZIP**，解压后进入项目目录。然后安装依赖并准备个人配置：
+Alternatively, use **Code → Download ZIP**, extract it, and open the project directory. Then install dependencies and prepare your own configuration:
 
 ```bash
 npm ci
 cp .env.example .env
 ```
 
-Windows PowerShell 可以使用 `Copy-Item .env.example .env`。
+On Windows PowerShell, use `Copy-Item .env.example .env`.
 
-编辑 `.env`，仅填写你需要使用的供应商配置。每个使用者必须填写自己的凭证，项目不提供共享 Token。完整说明见[模型配置](MODEL_CONFIG.md)。
-
-### 3. 启动本地工作区
+Edit `.env` and fill in **your own** supplier credentials. The project ships no shared Token or API key. Then start the workspace:
 
 ```bash
 npm run dev
 ```
 
-打开 [http://localhost:3000](http://localhost:3000)。
+Open [http://localhost:3000](http://localhost:3000). Create and edit projects or read script documents without signing in. AI analysis and generation require the relevant credentials. Select a configured model in Settings before generating.
 
-无需登录或充值即可创建项目、编辑内容和读取剧本文档。AI 分析、文本、图片及视频生成需要相应模型凭证。进入“模型设置”选择已配置的模型，然后开始创作。
-
-### 4. 检查配置或使用构建版本
+To inspect configuration or run a production build locally:
 
 ```bash
 npm run models:check
@@ -112,67 +113,53 @@ npm run build
 npm start
 ```
 
-`models:check` 只检查配置是否齐全，不请求供应商、不输出密钥；通过配置检查并不代表账号有权限调用某个模型。修改凭证后需要重启服务。
+The configuration check makes no supplier requests and prints no secrets. It checks configuration presence, not account permissions. Restart the server after changing credentials.
 
-<a id="workflow"></a>
+## Creation workflow
 
-## 从故事到成片
+1. Create a project from an idea or your own script.
+2. Review the outline, episode structure, characters, and dialogue.
+3. Choose a style and prepare character and scene references.
+4. Edit shot descriptions, actions, camera motion, duration, and keyframes.
+5. Generate images and video shots; retry individual shots when needed.
+6. Review the sequence and subtitles, then assemble and export locally.
 
-1. **创建项目**：输入故事想法，或上传自己的小说、剧本文档。
-2. **确认剧本**：整理大纲和分集内容，检查人物关系、剧情节奏与对白。
-3. **准备素材**：选择风格，生成或导入角色、场景参考图。
-4. **编辑分镜**：调整每个镜头的画面、动作、运镜、时长和首尾帧。
-5. **生成镜头**：使用已配置的图片、视频模型；可单独重做某个镜头。
-6. **合成导出**：确认镜头顺序与字幕，在本机合成整集视频并下载。
+Start with a short project to confirm model access and output quality before submitting batch jobs.
 
-建议先用一个短项目走完流程，确认模型权限和输出效果，再进行批量生成。
+## Models and credentials
 
-<a id="models"></a>
+| Supplier                     | Main use                                   | Your configuration                                                   |
+| ---------------------------- | ------------------------------------------ | -------------------------------------------------------------------- |
+| OpenAI / compatible supplier | Text and reference-video frame analysis    | `OPENAI_API_KEY`, plus `OPENAI_BASE_URL` for a compatible supplier   |
+| Azure OpenAI                 | Text                                       | `AZURE_OPENAI_TEXT_API_KEY` and `AZURE_OPENAI_TEXT_ENDPOINT`         |
+| Google Vertex AI             | Gemini text, Nano Banana images, Veo video | Your service account file or `NANO_BANANA_SERVICE_ACCOUNT_JSON_B64`  |
+| Alibaba DashScope            | Qwen images and Wan video                  | `DASHSCOPE_API_KEY`                                                  |
+| Volcengine Ark               | Seedance video                             | `SEEDANCE_API_KEY` and model configuration available to your account |
+| HiModels, optional           | Supported text, image, and video models    | `HIMODELS_API_KEY`                                                   |
 
-## 模型与个人 Token
+Credentials belong in the ignored `.env`, process environment, or an external credential file. The web UI saves model preferences, not credentials.
 
-| 供应商              | 主要用途                                | 个人配置                                                    |
-| ------------------- | --------------------------------------- | ----------------------------------------------------------- |
-| OpenAI / 兼容供应商 | 文本、参考视频画面分析                  | `OPENAI_API_KEY`，兼容供应商另设 `OPENAI_BASE_URL`          |
-| Azure OpenAI        | 文本                                    | `AZURE_OPENAI_TEXT_API_KEY`、`AZURE_OPENAI_TEXT_ENDPOINT`   |
-| Google Vertex AI    | Gemini 文本、Nano Banana 图片、Veo 视频 | 自己的服务账号文件或 `NANO_BANANA_SERVICE_ACCOUNT_JSON_B64` |
-| 阿里百炼 DashScope  | Qwen 图片、Wan 视频                     | `DASHSCOPE_API_KEY`                                         |
-| 火山 Ark            | Seedance 视频                           | `SEEDANCE_API_KEY` 及自己可用的模型配置                     |
-| HiModels（可选）    | 其支持的文本、图片和视频模型            | `HIMODELS_API_KEY`                                          |
+Suppliers bill your own accounts. Prompts and required references are sent to the selected supplier; generated media is saved locally. Local project storage does **not** make model generation offline. See [model configuration](MODEL_CONFIG.md) for details.
 
-**密钥放在本机 `.env`、进程环境变量或仓库外的凭证文件中。** 页面设置只保存模型选择和生成偏好，不保存密钥。不同供应商的 Token 不能混用。
+## Storage and backups
 
-模型费用由供应商直接向你的账号结算。调用模型时，所需提示词和参考素材会发给该供应商；生成结果下载并保存到本地。项目保存在本机，不代表生成过程可以完全离线运行。
-
-具体模型选择、Google 凭证、Ark 模型 ID 和 Docker 凭证挂载见 [MODEL_CONFIG.md](MODEL_CONFIG.md)。
-
-<a id="storage"></a>
-
-## 数据保存与备份
-
-默认数据目录是项目根目录下的 `data/`，可通过 `LOCAL_DATA_DIR` 修改。
+The default data directory is `data/`. Set `LOCAL_DATA_DIR` to use another location.
 
 ```text
 data/
-├── workspace.json    # 项目、偏好、任务与模型调用记录
-└── media/            # 图片、视频、音频、字幕等素材
+├── workspace.json    # Projects, preferences, tasks, and model usage records
+└── media/            # Images, video, audio, and subtitles
 ```
 
-- 记录采用文件锁和原子写入；媒体由本机的 `/api/local-media/...` 路由读取。
-- 内置风格图在 `public/style-previews/`，随代码分发；项目自己的参考图在数据目录中。
-- `public/storage/` 和系统临时目录用于媒体处理过程，不应提交到 Git。
-- 备份时先停止服务，再复制整个数据目录；恢复时关闭服务后放回，并检查 `LOCAL_DATA_DIR`。
-- 凭证文件需要另外妥善保存，不要放进公开仓库或分享的项目备份。
+Records use file locking and atomic writes. Local media is served by `/api/local-media/...`. Bundled previews live in `public/style-previews/`; project references live in the data directory. `public/storage/` and OS temporary directories are used during media processing.
 
-本地版使用 JSON 文件保存记录，不运行 MySQL、SQLite 或其他数据库。保留的 Prisma schema 用于描述记录结构和生成 TypeScript 类型，不需要执行数据库迁移。
+Stop the application before copying the entire data directory for a backup or restore. Keep credentials separately and never include them in public repositories or shared backups.
 
-本地工作区面向单用户使用，开发和直接启动默认绑定回环地址。
+Runtime records use JSON files, not MySQL or SQLite. The retained Prisma schema generates record types; do not run database migrations. This workspace is intended for one local user, with direct startup bound to loopback.
 
-<a id="docker"></a>
+## Docker
 
-## Docker 运行
-
-镜像包含 Node.js 和 FFmpeg。在项目根目录准备好自己的 `.env` 后执行：
+The image includes Node.js and FFmpeg. Prepare your own `.env`, then run:
 
 ```bash
 docker build -t makivue .
@@ -184,31 +171,24 @@ docker run --rm --name makivue \
   makivue
 ```
 
-访问 [http://localhost:3000](http://localhost:3000)。数据卷用于保留项目和素材；`.env` 与用户数据不打包进镜像。上面的续行与路径写法适用于 Bash / Zsh，PowerShell 请调整为对应语法。
+Open [http://localhost:3000](http://localhost:3000). The volume preserves project data; credentials and user data are excluded from the image. Commands above use Bash / Zsh syntax.
 
-若使用 Google 外部凭证文件，需要额外挂载该文件，并将环境变量设置为**容器内路径**，见[配置示例](MODEL_CONFIG.md#docker-credentials)。此运行方式用于本机访问，不是多人公网服务的部署配置。
+An external Google credential file must be mounted separately with its **container path** configured. See the [credential mount example](MODEL_CONFIG.md#docker-credentials). This setup is for local access, not a public multi-user deployment.
 
-<a id="development"></a>
+## Development
 
-## 技术与开发
-
-| 层       | 实现                                 |
-| -------- | ------------------------------------ |
-| 应用     | Next.js 16、React 19、TypeScript     |
-| 样式     | Tailwind CSS 4                       |
-| 记录存储 | 本地 JSON、文件锁、原子写入          |
-| 媒体处理 | FFmpeg、ffprobe、Sharp               |
-| 模型调用 | 本机服务直连供应商，凭证保留在服务端 |
+The application uses Next.js 16, React 19, TypeScript, Tailwind CSS 4, JSON files, FFmpeg, ffprobe, and Sharp.
 
 ```text
-src/app/                 页面和本地服务路由
-src/components/          创作界面与公共组件
-src/services/            模型适配、媒体处理和生成流程
-src/lib/                 本地存储、任务及共享逻辑
-src/i18n/                多语言界面与文案
-public/style-previews/   内置风格预览和缩略图
-scripts/                 开发、配置检查及维护脚本
-prisma/                  记录结构与历史迁移资料
+src/app/                 Pages and local service routes
+src/components/          Shared and creation UI
+src/services/            Model adapters, media processing, generation workflows
+src/lib/                 Local persistence, task handling, shared logic
+src/i18n/                Interface translations
+public/style-previews/   Bundled previews and thumbnails
+docs/screenshots/        Interface screenshots for documentation
+scripts/                 Development, configuration, and maintenance tools
+prisma/                  Record schemas and inactive migration history
 ```
 
 ```bash
@@ -218,44 +198,38 @@ npm run typecheck
 npm test
 ```
 
-构建会先检查提交内容中的敏感信息，再生成记录类型。自动化模型测试使用模拟响应，不需要真实 Token；媒体集成测试需要 FFmpeg。贡献流程见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+Builds check committed content for sensitive information and generate record types. Model tests use mock responses; media integration tests need FFmpeg. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-<a id="faq"></a>
+## FAQ
 
-## 常见问题
+### Do I need platform credits or a website account?
 
-### 需要购买平台积分或登录官网吗？
+No. The local edition uses your supplier accounts. The [website](https://makivue.com?utm_source=github) is a separate destination, not the local workspace's business backend.
 
-本地版不需要。模型调用使用你自己的供应商账号并按其规则计费。[官网](https://makivue.com?utm_source=github)是独立访问入口，不作为本地工作区的业务后端。
+### Where do I enter API keys?
 
-### 为什么设置页没有填写 Token 的输入框？
+In your local `.env`, followed by a server restart. Settings stores generation preferences only. You only need to configure suppliers you use.
 
-模型凭证属于服务端配置，填写到本机 `.env`。设置页仅保存模型偏好；更新凭证后重启服务。
+### FFmpeg or ffprobe is missing?
 
-### 没有配置所有供应商，能启动吗？
+Make both commands available on PATH, or set `FFMPEG_PATH` and `FFPROBE_PATH`. Both tools are included in the Docker image.
 
-可以。只配置实际使用的供应商，并在页面选择对应模型。其他供应商会在调用时提示缺少配置。
+### Why does document import fail?
 
-### 提示找不到 FFmpeg / ffprobe？
+Supported inputs are TXT, Markdown, DOCX, and PDF, up to 8 MiB and 200,000 extracted characters. Scanned PDFs need OCR before import. Convert older `.doc` files to `.docx`.
 
-确认两条命令都可在终端执行，也可在 `.env` 设置 `FFMPEG_PATH` 和 `FFPROBE_PATH`。Docker 镜像已包含它们。
+### Does reference-video analysis transcribe audio?
 
-### 导入 PDF 没有文字或导入失败？
+It analyzes eight sampled frames with a vision model and does not transcribe audio. Similar-video generation produces one model clip; highlight cuts use local FFmpeg.
 
-导入支持 TXT、Markdown、DOCX、PDF，文件上限 8 MiB、提取文本上限 20 万字符。扫描件需要先自行 OCR 为可提取文本的文档；旧版 `.doc` 请先转换为 `.docx`。
+### How do I update?
 
-### 视频复刻会转写原视频音轨吗？
+Stop the service and back up your data. Run `git pull --ff-only` and `npm ci` in your clone. Restart development mode, or rebuild with `npm run build` before `npm start`. Preserve your `.env` and data directory, and resolve local code conflicts before starting again.
 
-目前通过视觉模型分析 8 张抽样画面，不转写音轨。同款生成输出一个模型视频片段；高光剪辑由本机 FFmpeg 完成。
+## Contributing and licensing
 
-### 如何更新？
+Issues, documentation improvements, and code contributions are welcome. Include reproduction steps and sanitized error messages; see the [contribution guide](CONTRIBUTING.md).
 
-停止服务并备份数据后，在自己的克隆目录执行 `git pull --ff-only`、`npm ci`。开发模式重新运行 `npm run dev`；使用构建版本时重新执行 `npm run build` 和 `npm start`。保留自己的 `.env` 与数据目录，合并代码冲突后再启动。
+This project is licensed under the [MIT License](LICENSE), which permits use, modification, distribution, and commercial use. Retain the copyright and license notice when distributing the code. Model outputs and reference materials are also subject to the relevant supplier and asset terms.
 
-## 贡献与授权
-
-欢迎提交问题反馈、文档改进与代码贡献。请提供复现步骤、运行环境和脱敏后的错误信息，具体见[贡献指南](CONTRIBUTING.md)。
-
-本项目采用 [MIT 许可证](LICENSE)，允许使用、修改、分发及商用；分发代码时须保留版权与许可证声明。模型输出和参考素材的使用还需遵守对应供应商与素材的授权条款。
-
-文档组织方式参考 [Huobao Drama](https://github.com/chatfire-AI/huobao-drama)，功能与配置说明按本仓库实现编写。
+Documentation organization was inspired by [Huobao Drama](https://github.com/chatfire-AI/huobao-drama). Features and setup instructions describe this repository.

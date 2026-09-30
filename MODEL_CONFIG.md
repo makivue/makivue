@@ -1,6 +1,6 @@
 # makivue 模型配置
 
-[返回 README](README.md) · [官网](https://makivue.com?utm_source=github)
+[返回 README](README.zh-CN.md) · [官网](https://makivue.com?utm_source=github)
 
 每个使用者需要在对应模型供应商申请自己的 Token / API Key。makivue 不提供共享凭证，也不从其他项目读取密钥。
 
