@@ -59,7 +59,7 @@ export function getGenerationErrorGuidance(errorMessage: string): GenerationErro
         return {
             kind: 'script_quality',
             title: '上次拆本因估算时长暂停',
-            summary: '上次结果因估算时长偏离目标而未保存。现在整集时长仅作提示，通过其他质量检查后即可保存并继续。',
+            summary: '上次结果因估算时长偏离目标而未保存。现在整集时长仅作提示，可以重新生成并继续。',
             nextStep: '请重新拆本集或点击“拆剩余剧本”继续，无需为了凑时长修改章节。',
             retryable: true,
             adminRequired: false
@@ -105,7 +105,7 @@ export function getGenerationErrorGuidance(errorMessage: string): GenerationErro
             kind: 'content_safety',
             title: '真人素材审核未通过',
             summary: '角色认证已完成，但上传的定稿图没有通过真人素材一致性校验。',
-            nextStep: '请到项目“角色”页面更换清晰的多视图角色设定板或面部特写并重新同步；显示可用后再重试视频。',
+            nextStep: '请到项目“角色”页面更换清晰的角色参考图并重新同步；显示可用后再重试视频。',
             editTarget: 'image_prompt',
             retryable: false,
             adminRequired: false
@@ -141,9 +141,9 @@ export function getGenerationErrorGuidance(errorMessage: string): GenerationErro
     ) {
         return {
             kind: 'dialogue_too_long',
-            title: '台词需要自动拆镜',
-            summary: '这段对白超过 Wan 单镜的自然承载范围，盲目重试仍会失败；系统可以按语义拆成相邻连续镜头，台词不会被截断。',
-            nextStep: '点击“自动拆镜”，系统会保留第一镜现有首图，并为新增镜头延续人物、服装、场景和动作状态。',
+            title: '台词超出模型时长',
+            summary: '这段对白超过当前模型的单镜时长限制，请手动调整后再生成。',
+            nextStep: '请手动缩短台词，或新增分镜后分别生成。',
             retryable: false,
             adminRequired: false
         }

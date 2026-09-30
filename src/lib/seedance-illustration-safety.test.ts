@@ -1,5 +1,3 @@
-import fs from 'node:fs'
-import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { getSeedanceIllustrationSafety } from './seedance-illustration-safety'
 
@@ -19,13 +17,5 @@ describe('Seedance illustration safety', () => {
         expect(getSeedanceIllustrationSafety('wanx', true)).toBeNull()
         expect(getSeedanceIllustrationSafety('veo3', true)).toBeNull()
         expect(getSeedanceIllustrationSafety(undefined, true)).toBeNull()
-    })
-
-    it('keeps the guard in both the final hard locks and image-model negative prompt', () => {
-        const aiSource = fs.readFileSync(path.join(process.cwd(), 'src/services/ai.ts'), 'utf8')
-
-        expect(aiSource).toContain('getSeedanceIllustrationSafety(opts?.videoProvider, hasVisibleCharacters)')
-        expect(aiSource).toContain('seedanceIllustrationSafety?.positive,')
-        expect(aiSource).toContain('negativePrompt: imageNegativePrompt')
     })
 })

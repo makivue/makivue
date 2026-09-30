@@ -75,15 +75,6 @@ function stageRank(stage: PipelineStage): number {
     return STAGE_RANK.get(stage) ?? STAGE_ORDER.length
 }
 
-function hasOpeningEnding(text: string | null | undefined): boolean {
-    if (!text) return false
-    return /Opening state\s*[:：]/i.test(text) && /Ending state\s*[:：]/i.test(text)
-}
-
-function isHttpUrl(url: string | null | undefined): boolean {
-    return !!url && /^https?:\/\//i.test(url)
-}
-
 function pushIssue(issues: PipelineIssue[], issue: PipelineIssue) {
     issues.push(issue)
 }
@@ -209,14 +200,6 @@ export async function getProjectPipelineReport(projectId: bigint): Promise<Pipel
     for (const ep of project.episodes) {
         if (!ep.title || !ep.synopsis) {
             pushIssue(issues, { stage: 'outline', severity: 'blocker', episodeNumber: ep.episodeNumber, message: '缺少标题或章节梗概', action: '补齐大纲' })
-        } else if (!/开场视觉|结尾视觉|承接/.test(ep.synopsis)) {
-            pushIssue(issues, {
-                stage: 'outline',
-                severity: 'warning',
-                episodeNumber: ep.episodeNumber,
-                message: '章节梗概没有明确开场/结尾视觉锚点，后续分镜容易跳',
-                action: '补写开场视觉和结尾承接'
-            })
         }
 
         if (!ep.chapterContent?.trim()) {
@@ -224,14 +207,6 @@ export async function getProjectPipelineReport(projectId: bigint): Promise<Pipel
         }
         if (!ep.script?.trim()) {
             pushIssue(issues, { stage: 'script', severity: 'blocker', episodeNumber: ep.episodeNumber, message: '缺少短剧剧本', action: '拆剧本' })
-        } else if (!hasOpeningEnding(ep.script)) {
-            pushIssue(issues, {
-                stage: 'script',
-                severity: 'warning',
-                episodeNumber: ep.episodeNumber,
-                message: '剧本缺少 Opening state / Ending state，跨集首尾帧衔接会变弱',
-                action: '重新拆剧本或手动补齐首尾状态'
-            })
         }
 
         if (ep.script && ep.storyboards.length === 0) {
@@ -243,31 +218,8 @@ export async function getProjectPipelineReport(projectId: bigint): Promise<Pipel
             if (!sb.imagePrompt?.trim()) {
                 pushIssue(issues, { stage: 'storyboard', severity: 'blocker', ...tag, message: '分镜缺少 imagePrompt', action: '重新生成或编辑分镜' })
             }
-            if (!hasOpeningEnding(sb.actionDesc)) {
-                pushIssue(issues, {
-                    stage: 'storyboard',
-                    severity: 'warning',
-                    ...tag,
-                    message: '分镜 actionDesc 缺少 Opening state / Ending state',
-                    action: '补齐首尾状态'
-                })
-            }
-            if (!sb.scene) {
-                pushIssue(issues, { stage: 'storyboard', severity: 'warning', ...tag, message: '分镜未绑定场景，画面环境一致性会下降', action: '绑定场景' })
-            }
-            if (sb.characters.length === 0 && sb.dialogue?.trim()) {
-                pushIssue(issues, { stage: 'storyboard', severity: 'warning', ...tag, message: '有台词但未绑定角色，角色一致性和原声说话人表现会下降', action: '绑定说话角色' })
-            }
             if (!sb.firstFrameUrl) {
                 pushIssue(issues, { stage: 'frame', severity: 'blocker', ...tag, message: '缺少主插图', action: '生成主插图' })
-            } else if (!isHttpUrl(sb.firstFrameUrl)) {
-                pushIssue(issues, {
-                    stage: 'frame',
-                    severity: 'warning',
-                    ...tag,
-                    message: '主插图不是公网 URL，部分视频模型无法读取',
-                    action: '确认 local storage 上传或 NEXT_PUBLIC_BASE_URL'
-                })
             }
             if (!sb.videoUrl) {
                 pushIssue(issues, { stage: 'video', severity: 'blocker', ...tag, message: '缺少镜头视频', action: '生成视频' })

@@ -1,20 +1,16 @@
-import { NextRequest } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { apiResponse, apiError } from '@/lib/utils'
-import { normalizeStoryboardDuration, recommendStoryboardShotType } from '@/lib/storyboard-timing'
-import { genId } from '@/lib/id'
-import { currentUserId } from '@/lib/current-user'
-import { assertEpisodeOwner } from '@/lib/ownership'
-import { classifyStoryboardContinuity } from '@/lib/storyboard-continuity'
 import { parseApiId, parseApiIds } from '@/lib/api-id'
-import { buildStoryboardContinuityState, STORYBOARD_CONTINUITY_STATE_VERSION } from '@/lib/storyboard-state'
-import { syncEpisodeCharacterStateEvents } from '@/services/character-state'
-import { resolveStoryboardEntityLinks } from '@/lib/storyboard-entity-resolution'
-import { supersedeEpisodeStoryboardDataInTransaction } from '@/services/episode-storyboard-replacement'
-import { finishEpisodeDownstreamReset } from '@/services/episode-downstream-reset'
-import { clearEpisodeMergedVideoInTransaction, resetFollowingContinuousMediaInTransaction } from '@/services/artifacts'
+import { currentUserId } from '@/lib/current-user'
+import { genId } from '@/lib/id'
+import { assertEpisodeOwner } from '@/lib/ownership'
+import { prisma } from '@/lib/prisma'
 import { normalizeStoryboardActionPlan, serializeStoryboardActionPlan } from '@/lib/storyboard-action-plan'
 import { buildStoryboardAudioPlan } from '@/lib/storyboard-audio-plan'
+import { resolveStoryboardEntityLinks } from '@/lib/storyboard-entity-resolution'
+import { apiError, apiResponse } from '@/lib/utils'
+import { clearEpisodeMergedVideoInTransaction, resetFollowingContinuousMediaInTransaction } from '@/services/artifacts'
+import { finishEpisodeDownstreamReset } from '@/services/episode-downstream-reset'
+import { supersedeEpisodeStoryboardDataInTransaction } from '@/services/episode-storyboard-replacement'
+import { NextRequest } from 'next/server'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -111,7 +107,7 @@ export async function POST(req: NextRequest, { params }: Params) {
             characterNames: characterIds.map(characterId => episode.project.characters.find(character => character.id === characterId)?.name).filter((name): name is string => !!name)
         })
     }
-    const classified = classifyStoryboardContinuity(resolvedInputs.map(item => ({ ...item.sb, sceneId: item.sceneId, sceneName: item.sceneName, characterNames: item.characterNames })))
+    const classified = resolvedInputs.map(item => ({ ...item.sb, sceneId: item.sceneId, sceneName: item.sceneName, characterNames: item.characterNames, continuityMode: 'independent' }))
     const prepared = classified.map((sb, index) => ({ sb, sceneId: resolvedInputs[index].sceneId, characterIds: resolvedInputs[index].characterIds }))
     const sceneIds = [...new Set(prepared.map(item => item.sceneId).filter((id): id is bigint => id !== null))]
     const characterIds = [...new Set(prepared.flatMap(item => item.characterIds))]
@@ -123,27 +119,10 @@ export async function POST(req: NextRequest, { params }: Params) {
         const count = await prisma.character.count({ where: { id: { in: characterIds }, projectId: episode.projectId, deletedAt: null } })
         if (count !== characterIds.length) return apiError('角色列表包含不属于当前项目的角色')
     }
-    const [sceneRows, characterRows] = await Promise.all([
-        sceneIds.length
-            ? prisma.scene.findMany({
-                  where: { id: { in: sceneIds }, projectId: episode.projectId, deletedAt: null },
-                  select: { id: true, name: true, locationPrompt: true, referenceImageUrl: true, timeOfDay: true, sourceVersion: true }
-              })
-            : Promise.resolve([]),
-        characterIds.length
-            ? prisma.character.findMany({
-                  where: { id: { in: characterIds }, projectId: episode.projectId, deletedAt: null },
-                  select: { id: true, name: true, appearancePrompt: true, referenceImageUrl: true, sourceVersion: true }
-              })
-            : Promise.resolve([])
-    ])
-    const sceneById = new Map(sceneRows.map(scene => [scene.id.toString(), scene]))
-    const characterById = new Map(characterRows.map(character => [character.id.toString(), character]))
 
     const created = await prisma
         .$transaction(
             async tx => {
-
                 const locked = await tx.episode.findUnique({ where: { id: idNum } })
                 if (!locked || locked.deletedAt || locked.operationVersion !== episode.operationVersion) throw new Error('STORYBOARD_SOURCE_CHANGED')
                 const existing = await tx.storyboard.findMany({ where: { episodeId: idNum, deletedAt: null }, select: { id: true, order: true } })
@@ -161,29 +140,12 @@ export async function POST(req: NextRequest, { params }: Params) {
                     const actionPlan = normalizeStoryboardActionPlan(undefined, sbData.actionDesc)
                     const actionDesc = actionPlan ? serializeStoryboardActionPlan(actionPlan) : sbData.actionDesc
                     const audioPlan = buildStoryboardAudioPlan(sbData)
-                    const recommendedShotType = recommendStoryboardShotType(sbData)
-                    const shotType = sbData.shotType && sbData.shotType !== 'medium' ? sbData.shotType : recommendedShotType
-                    const sceneState = sceneId ? (sceneById.get(sceneId.toString()) ?? null) : null
-                    const characterStates = storyboardCharacterIds
-                        .map(characterId => characterById.get(characterId.toString()))
-                        .filter((character): character is NonNullable<typeof character> => !!character)
-                    const continuityState = buildStoryboardContinuityState({
-                        continuityMode: sb.continuityMode,
-                        continuityGroup: sb.continuityGroup,
-                        actionDesc,
-                        shotType,
-                        scene: sceneState,
-                        characters: characterStates,
-                        sourceVersion: episode.sourceVersion
-                    })
-                    const normalizationOverrides = [
-                        sbData.shotType !== shotType ? { field: 'shotType', original: sbData.shotType ?? null, normalized: shotType, reason: 'fallback cinematography rule' } : null
-                    ].filter(Boolean)
+                    const shotType = sbData.shotType || 'medium'
                     const storyboard = await tx.storyboard.create({
                         data: {
                             id: genId(),
                             shotType,
-                            duration: normalizeStoryboardDuration(sbData.duration, sbData),
+                            duration: typeof sbData.duration === 'number' && Number.isFinite(sbData.duration) ? Math.min(60, Math.max(1, Math.round(sbData.duration))) : 5,
                             episodeId: idNum,
                             sceneId: sceneId ?? undefined,
                             order: sbData.order,
@@ -194,12 +156,7 @@ export async function POST(req: NextRequest, { params }: Params) {
                             ...(audioPlan ? { audioPlan: audioPlan as unknown as object } : {}),
                             imagePrompt: sbData.imagePrompt?.slice(0, 20_000),
                             continuityMode: sb.continuityMode,
-                            continuityGroup: sb.continuityGroup,
-                            continuityReason: sb.continuityReason?.slice(0, 255),
-                            continuityState: continuityState as unknown as object,
-                            continuityStateVersion: STORYBOARD_CONTINUITY_STATE_VERSION,
                             originalShotType: sbData.shotType ?? null,
-                            normalizationMetadata: { version: 1, overrides: normalizationOverrides },
                             polishStatus: 'not_requested',
                             promptVersion: 'storyboard-contract-v2',
                             generationModel: 'rules-fallback',
@@ -233,7 +190,6 @@ export async function POST(req: NextRequest, { params }: Params) {
     if (!created) return apiError('分镜内容已变化或序号冲突，请刷新；如需全部替换，请明确选择“覆盖现有分镜”', 409)
 
     if (created.replacement) await finishEpisodeDownstreamReset(created.replacement)
-    await syncEpisodeCharacterStateEvents(idNum)
 
     return apiResponse(created.rows, 201)
 }

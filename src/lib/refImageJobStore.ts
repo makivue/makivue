@@ -1,9 +1,9 @@
-import { prisma } from '@/lib/prisma'
-import { genId } from '@/lib/id'
-import { isP2002Error, retryP2002 } from '@/lib/jobStoreRetry'
 import { parseApiId } from '@/lib/api-id'
-import { isRefImageJobLeaseExpired, REF_IMAGE_STALE_WINDOW_MS, type ReferenceGenerationProgress, type ReferenceGenerationTimings } from '@/lib/reference-generation-progress'
+import { genId } from '@/lib/id'
 import type { ImageGenerationRecovery, ImageProviderSwitch } from '@/lib/image-generation-recovery'
+import { isP2002Error, retryP2002 } from '@/lib/jobStoreRetry'
+import { prisma } from '@/lib/prisma'
+import { isRefImageJobLeaseExpired, REF_IMAGE_STALE_WINDOW_MS, type ReferenceGenerationProgress, type ReferenceGenerationTimings } from '@/lib/reference-generation-progress'
 
 type RefImageJobPhase = 'queued' | 'generating' | 'writing_db' | 'done' | 'error' | 'cancelled'
 export type RefImageTargetType = 'character' | 'scene'
@@ -26,7 +26,7 @@ interface RefImageJobResult {
     inspectionWarning?: string
     /** Registered prompt policy used for this reference generation. */
     promptVersion?: string
-    /** Reference asset responsibility (turnaround sheet / front / 45-degree / profile / back / face / environment). */
+    /** Reference asset role; legacy roles are retained when reading existing local records. */
     role?: string
     /** Script/storyboard visual-state ledger entry represented by this asset. */
     stateKey?: string

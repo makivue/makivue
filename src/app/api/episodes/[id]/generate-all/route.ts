@@ -1,26 +1,24 @@
-import { after, NextRequest } from 'next/server'
-import { withHiModelsUsageScope } from '@/lib/himodels-usage-context.server'
-import { prisma } from '@/lib/prisma'
-import { apiResponse, apiError, apiErrorWithDetails } from '@/lib/utils'
-import { CancelledError, generateFrame, generateVideo, isCancelledError, isImageProvider } from '@/services/ai'
-import type { ImageProvider, ImageQuality, VideoProvider } from '@/services/ai'
-import { normalizeImageQuality } from '@/lib/image-quality'
-import { createEpJob, finalizeEpJob, getActiveEpJobForEpisode, getEpJobSignal, heartbeatEpJob, isEpJobCancelled, updateShot } from '@/lib/episodeJobStore'
-import { genId } from '@/lib/id'
-import { currentUserId } from '@/lib/current-user'
-import { parseApiId } from '@/lib/api-id'
-import { assertEpisodeOwner } from '@/lib/ownership'
-import { reconcileGenerationTelemetry, runProjectQualityReview } from '@/services/production-observability'
-import { assertSufficientPoints, BillingError, quoteGenerationPoints } from '@/services/billing'
-import { getConfiguredVideoLanguage, getDialogueSpeakerNames } from '@/services/video-language'
-import { analyzeVideoShotConstraints, assessPreviousEndingFrameAnchor, assessSequentialContinuityDependency, recommendVideoProvider } from '@/lib/video-production-plan'
-import { refreshEpisodeStoryboardContinuity } from '@/services/storyboard-continuity'
-import { getGenerationCategory, tryClaimGenerationSlot, waitForGenerationQueueAdmission, waitForGenerationSlot, type GenerationCategory } from '@/lib/generation-concurrency'
-import { assertNanoBananaCredentialsConfigured } from '@/services/banana'
 import type { Prisma } from '@/generated/prisma/client'
+import { parseApiId } from '@/lib/api-id'
+import { currentUserId } from '@/lib/current-user'
 import { EPISODE_BATCH_REPEATED_FAILURE_LIMIT, presentEpisodeBatchFailure, repeatedEpisodeBatchFailureMessage } from '@/lib/episode-batch-failure-policy'
-import { resetEpisodeGeneratedMedia, resetStoryboardMediaInTransaction, StaleStoryboardMutationError } from '@/services/artifacts'
+import { createEpJob, finalizeEpJob, getActiveEpJobForEpisode, getEpJobSignal, heartbeatEpJob, isEpJobCancelled, updateShot } from '@/lib/episodeJobStore'
+import { getGenerationCategory, tryClaimGenerationSlot, waitForGenerationQueueAdmission, waitForGenerationSlot, type GenerationCategory } from '@/lib/generation-concurrency'
+import { withHiModelsUsageScope } from '@/lib/himodels-usage-context.server'
+import { genId } from '@/lib/id'
+import { normalizeImageQuality } from '@/lib/image-quality'
+import { assertEpisodeOwner } from '@/lib/ownership'
+import { prisma } from '@/lib/prisma'
 import { DEFAULT_VIDEO_PROVIDER, getVideoProviderCapability, isAvailableProductionVideoProvider } from '@/lib/provider-capabilities'
+import { apiError, apiErrorWithDetails, apiResponse } from '@/lib/utils'
+import type { ImageProvider, ImageQuality, VideoProvider } from '@/services/ai'
+import { CancelledError, generateFrame, generateVideo, isCancelledError, isImageProvider } from '@/services/ai'
+import { resetEpisodeGeneratedMedia, resetStoryboardMediaInTransaction, StaleStoryboardMutationError } from '@/services/artifacts'
+import { assertNanoBananaCredentialsConfigured } from '@/services/banana'
+import { assertSufficientPoints, BillingError, quoteGenerationPoints } from '@/services/billing'
+import { reconcileGenerationTelemetry } from '@/services/production-observability'
+import { getConfiguredVideoLanguage } from '@/services/video-language'
+import { after, NextRequest } from 'next/server'
 
 export const maxDuration = 1800
 
@@ -80,105 +78,6 @@ interface ShotLite {
     scene: { id: bigint; locationPrompt: string | null; timeOfDay?: string | null } | null
 }
 
-async function getPreviousShotEndingFrameAnchor(storyboard: ShotLite) {
-    if (storyboard.continuityMode !== 'stateful' && storyboard.continuityMode !== 'continuous' && storyboard.continuityMode !== 'seamless') return null
-    let previous = await prisma.storyboard.findFirst({
-        where: { episodeId: storyboard.episodeId, order: { lt: storyboard.order }, deletedAt: null },
-        orderBy: { order: 'desc' },
-        select: {
-            id: true,
-            order: true,
-            sceneId: true,
-            actionDesc: true,
-            continuityGroup: true,
-            videoStatus: true,
-            lastFrameUrl: true,
-            plannedLastFrameUrl: true,
-            actualVideoEndFrameUrl: true,
-            characters: { select: { characterId: true } },
-            scene: { select: { timeOfDay: true } }
-        }
-    })
-    let crossEpisode = false
-    if (!previous) {
-        const currentEpisode = await prisma.episode.findUnique({ where: { id: storyboard.episodeId }, select: { projectId: true, episodeNumber: true } })
-        const previousEpisode = currentEpisode
-            ? await prisma.episode.findFirst({
-                  where: { projectId: currentEpisode.projectId, episodeNumber: { lt: currentEpisode.episodeNumber }, deletedAt: null },
-                  orderBy: { episodeNumber: 'desc' },
-                  select: { id: true }
-              })
-            : null
-        if (previousEpisode) {
-            previous = await prisma.storyboard.findFirst({
-                where: { episodeId: previousEpisode.id, deletedAt: null },
-                orderBy: { order: 'desc' },
-                select: {
-                    id: true,
-                    order: true,
-                    sceneId: true,
-                    actionDesc: true,
-                    continuityGroup: true,
-                    videoStatus: true,
-                    lastFrameUrl: true,
-                    plannedLastFrameUrl: true,
-                    actualVideoEndFrameUrl: true,
-                    characters: { select: { characterId: true } },
-                    scene: { select: { timeOfDay: true } }
-                }
-            })
-            crossEpisode = !!previous
-        }
-    }
-    if (!previous) return null
-    const pixelContinuous = storyboard.continuityMode === 'continuous' || storyboard.continuityMode === 'seamless'
-    const previousInput = {
-        order: previous.order,
-        sceneId: previous.sceneId,
-        sceneTimeOfDay: previous.scene?.timeOfDay,
-        continuityGroup: crossEpisode ? storyboard.continuityGroup : previous.continuityGroup,
-        characterIds: previous.characters.map(item => item.characterId),
-        actionDesc: previous.actionDesc
-    }
-    const currentInput = {
-        order: storyboard.order,
-        sceneId: storyboard.sceneId,
-        sceneTimeOfDay: storyboard.scene?.timeOfDay,
-        continuityMode: storyboard.continuityMode,
-        continuityGroup: storyboard.continuityGroup,
-        characterIds: storyboard.characters.map(item => item.character.id),
-        actionDesc: storyboard.actionDesc
-    }
-    const assessment = pixelContinuous ? assessSequentialContinuityDependency(previousInput, currentInput) : assessPreviousEndingFrameAnchor(previousInput, currentInput)
-    const eligible = 'sequential' in assessment ? assessment.sequential : assessment.eligible
-    if (!eligible) {
-        console.info(`[continuity] shot ${storyboard.order} rejected previous ending-frame anchor: ${assessment.issues.join(', ')}`)
-        return null
-    }
-    // 强连续只允许使用上一镜视频真实抽取的尾帧。规划末图和手工末图
-    // 只能为 stateful 镜头提供状态参考，绝不能冒充像素连续锚点。
-    const endingFrameUrl = pixelContinuous
-        ? previous.videoStatus === 'completed'
-            ? previous.actualVideoEndFrameUrl
-            : null
-        : (previous.actualVideoEndFrameUrl ?? previous.plannedLastFrameUrl ?? previous.lastFrameUrl ?? null)
-    if (!endingFrameUrl) return null
-    return {
-        storyboardId: previous.id,
-        order: previous.order,
-        url: endingFrameUrl,
-        label: pixelContinuous
-            ? crossEpisode
-                ? 'previous episode actual video ending frame'
-                : `shot ${previous.order} actual video ending frame`
-            : crossEpisode
-              ? 'previous episode state reference frame'
-              : `shot ${previous.order} state reference frame`,
-        mode: storyboard.continuityMode as 'stateful' | 'continuous' | 'seamless',
-        anchorKind: pixelContinuous ? ('pixel' as const) : 'anchorKind' in assessment ? assessment.anchorKind : ('state' as const)
-    }
-}
-
 // 一键生成本集：每镜生成主插图后立即生成视频；额外关键帧由手动精修入口负责。
 // body: { mode: "missing" | "all", videoProvider?: "seedance" | "seedance25" | "wan3" | "wan3prime" | "seedance-2.0-global" | "seedance-2.5-global" | "MiniMax-H3" }
 async function postGenerateAll(req: NextRequest, { params }: Params) {
@@ -221,10 +120,6 @@ async function postGenerateAll(req: NextRequest, { params }: Params) {
     }
     const imageProviderPromise: Promise<ImageProvider> = imageProviderOverride ? Promise.resolve(imageProviderOverride) : resolveGlobalImageProvider()
     const imageQualityPromise: Promise<ImageQuality> = body.imageQuality ? Promise.resolve(normalizeImageQuality(body.imageQuality)) : resolveGlobalImageQuality()
-
-    // 与配置查询并行，并且只读取批量生成真正需要的项目字段；project: true
-    // 会把小说正文等大字段一并取出，测试环境很容易在网关超时前还没返回响应。
-    await refreshEpisodeStoryboardContinuity(episodeId)
     const [episode, imageProvider, imageQuality] = await Promise.all([
         prisma.episode.findFirst({
             where: { id: episodeId, deletedAt: null },
@@ -263,16 +158,8 @@ async function postGenerateAll(req: NextRequest, { params }: Params) {
     const primaryVideoProvider = videoProviderOverride ?? (await resolveGlobalVideoProvider())
 
     // 只跑需要的 storyboards
-    let predecessorRegenerates = false
-    const candidates = episode.storyboards.filter(sb => {
-        if (mode === 'all') return true
-        const needFrame = !sb.firstFrameUrl
-        const incompatibleDialogueFallback = !!sb.dialogue?.trim() && sb.expectedAudioMode === 'external_dialogue' && !sb.composedVideoUrl
-        const needVideo = !sb.videoUrl || sb.videoStatus !== 'completed' || incompatibleDialogueFallback
-        const followsRegeneratedShot = predecessorRegenerates && (sb.continuityMode === 'continuous' || sb.continuityMode === 'seamless')
-        predecessorRegenerates = needFrame || needVideo || followsRegeneratedShot
-        return predecessorRegenerates
-    })
+    const candidates = episode.storyboards.filter(sb => mode === 'all' || !sb.firstFrameUrl || !sb.videoUrl || sb.videoStatus !== 'completed')
+
     if (candidates.length === 0) {
         return apiError('所有分镜都已生成完成（插图 + 视频）')
     }
@@ -287,67 +174,12 @@ async function postGenerateAll(req: NextRequest, { params }: Params) {
         })
     }
 
-    const dialogueCapacityViolations = candidates
-        .map(storyboard => ({ storyboard, constraints: analyzeVideoShotConstraints({ ...storyboard, provider: primaryVideoProvider }) }))
-        .filter(item => item.constraints.dialogueHandling === 'split')
-    if (dialogueCapacityViolations.length > 0) {
-        const dialogueCapacitySeconds = dialogueCapacityViolations[0].constraints.dialogueCapacitySeconds
-        return apiErrorWithDetails(`${dialogueCapacityViolations.length} 个镜头的台词超过当前模型单镜 ${dialogueCapacitySeconds} 秒自然承载上限。请先拆镜，避免台词截断或异常加速。`, 422, {
-            code: 'DIALOGUE_SPLIT_REQUIRED',
-            maxNaturalDialogueSeconds: dialogueCapacitySeconds,
-            affectedStoryboards: dialogueCapacityViolations.map(item => ({
-                storyboardId: item.storyboard.id.toString(),
-                order: item.storyboard.order,
-                actualDurationSeconds: item.constraints.estimatedDialogueSeconds,
-                durationSource: 'estimated',
-                recommendedSegments: Math.max(2, Math.ceil(item.constraints.estimatedDialogueSeconds / (dialogueCapacitySeconds * 0.9))),
-                maxNaturalDialogueSeconds: dialogueCapacitySeconds
-            })),
-            suggestedAction: 'split_storyboard'
-        })
-    }
-
-    const complexActionViolations = candidates
-        .map(storyboard => ({ storyboard, constraints: analyzeVideoShotConstraints({ ...storyboard, provider: primaryVideoProvider }) }))
-        .filter(item => item.constraints.complexActionDetected)
-    if (complexActionViolations.length > 0) {
-        return apiErrorWithDetails(`${complexActionViolations.length} 个镜头包含多个高动态动作阶段。请先拆成连续动作分镜，再执行全部生成。`, 422, {
-            code: 'ACTION_SPLIT_REQUIRED',
-            affectedStoryboards: complexActionViolations.map(item => ({
-                storyboardId: item.storyboard.id.toString(),
-                order: item.storyboard.order,
-                recommendedSegments: item.constraints.recommendedActionSegments,
-                actionStageCount: item.constraints.actionStageCount
-            })),
-            videoProvider: primaryVideoProvider,
-            suggestedAction: 'split_action_storyboard'
-        })
-    }
-
     // 顶部或请求里选中的视频模型是本次整集任务的硬锁。
     // 推荐逻辑只写审计信息，绝不替用户切换任何一个分镜的模型。
     const [videoProvider, videoLanguage] = await Promise.all([Promise.resolve(primaryVideoProvider), getConfiguredVideoLanguage()])
-    const videoRoutingRecommendationByStoryboard = new Map(
-        candidates.map(storyboard => {
-            const speakerCount = getDialogueSpeakerNames(storyboard.dialogue).length
-            return [
-                storyboard.id.toString(),
-                recommendVideoProvider({
-                    shotType: storyboard.shotType,
-                    duration: storyboard.duration,
-                    dialogue: storyboard.dialogue,
-                    actionDesc: storyboard.actionDesc,
-                    imagePrompt: storyboard.imagePrompt,
-                    continuityMode: storyboard.continuityMode,
-                    characterCount: storyboard.characters.length,
-                    speakerCount
-                })
-            ] as const
-        })
-    )
     const providerForStoryboard = () => videoProvider
     const estimatedBatchPoints = candidates.reduce((total, storyboard) => {
-        const shouldGenerateIllustrations = mode === 'all' || !storyboard.firstFrameUrl || storyboard.continuityMode === 'continuous' || storyboard.continuityMode === 'seamless'
+        const shouldGenerateIllustrations = mode === 'all' || !storyboard.firstFrameUrl
         // 一键生成的目标是尽快打通“主插图 -> 视频”。额外中间帧和
         // 规划末图不被单参考图视频消费，继续保留在手动“生成插图”流程。
         const illustrationCount = shouldGenerateIllustrations ? 1 : 0
@@ -405,12 +237,11 @@ async function postGenerateAll(req: NextRequest, { params }: Params) {
         try {
             const prepared = await prisma.$transaction(
                 async tx => {
-
                     const current = await tx.episode.findUnique({ where: { id: episodeId }, select: { operationVersion: true, deletedAt: true } })
                     if (!current || current.deletedAt || current.operationVersion !== episode.operationVersion) throw new StaleStoryboardMutationError()
                     const rows = []
                     for (const shot of candidates) {
-                        const regenerateFrame = !shot.firstFrameUrl || shot.continuityMode === 'continuous' || shot.continuityMode === 'seamless'
+                        const regenerateFrame = !shot.firstFrameUrl
                         rows.push(await resetStoryboardMediaInTransaction(tx, shot, regenerateFrame ? ['frame'] : ['video'], '批量生成已重置旧媒体和下游结果', { patch: { staleReason: null } }))
                     }
                     return rows
@@ -529,7 +360,7 @@ async function postGenerateAll(req: NextRequest, { params }: Params) {
                 try {
                     if (await checkCancelled()) return false
                     const shotVideoProvider = providerForStoryboard()
-                    const shouldGenerateIllustrations = mode === 'all' || !sb.firstFrameUrl || sb.continuityMode === 'continuous' || sb.continuityMode === 'seamless'
+                    const shouldGenerateIllustrations = mode === 'all' || !sb.firstFrameUrl
                     if (!shouldGenerateIllustrations) {
                         await updateShot(job.id, sb.id.toString(), { status: 'frame_done' })
                         return true
@@ -538,10 +369,6 @@ async function postGenerateAll(req: NextRequest, { params }: Params) {
                     // 步骤 1：一键生成只等待视频真正消费的主插图。
                     // 中间帧和规划末图属于可选精修，不得阻塞整集生产链。
                     if (await checkCancelled()) throw new CancelledError()
-                    const previousShotAnchor = await getPreviousShotEndingFrameAnchor(sb)
-                    if ((sb.continuityMode === 'continuous' || sb.continuityMode === 'seamless') && !previousShotAnchor) {
-                        throw new Error(`连续镜头 ${sb.order} 缺少上一镜成功视频的真实尾帧，已阻断生成`)
-                    }
                     const gen1 = await createAndClaimGeneration({
                         storyboardId: sb.id,
                         type: 'first_frame',
@@ -567,15 +394,6 @@ async function postGenerateAll(req: NextRequest, { params }: Params) {
                         provider: imageProvider,
                         imageQuality,
                         videoProvider: shotVideoProvider,
-                        ...(previousShotAnchor
-                            ? {
-                                  previousShotFrameUrl: previousShotAnchor.url,
-                                  previousShotFrameLabel: previousShotAnchor.label,
-                                  previousContinuityMode: previousShotAnchor.mode,
-                                  previousShotStoryboardId: previousShotAnchor.storyboardId,
-                                  previousShotOrder: previousShotAnchor.order
-                              }
-                            : {}),
                         signal
                     })
                     if (await checkCancelled()) throw new CancelledError()
@@ -612,7 +430,6 @@ async function postGenerateAll(req: NextRequest, { params }: Params) {
                         throw new Error('没有可用插图，跳过视频')
                     }
                     const shotVideoProvider = providerForStoryboard()
-                    const routingRecommendation = videoRoutingRecommendationByStoryboard.get(sb.id.toString())
                     const shot = await prisma.storyboard.findFirst({
                         where: { id: sb.id },
                         include: { characters: { include: { character: true } }, scene: true }
@@ -623,19 +440,7 @@ async function postGenerateAll(req: NextRequest, { params }: Params) {
                         type: 'video',
                         provider: shotVideoProvider,
                         prompt: sb.fullPromptOverride ?? sb.motionOverride ?? sb.videoPrompt ?? sb.imagePrompt ?? '',
-                        resourceVersion: shot.operationVersion,
-                        metrics: routingRecommendation
-                            ? {
-                                  routingDecision: {
-                                      ruleVersion: routingRecommendation.ruleVersion,
-                                      policyApplied: 'explicit_provider_lock',
-                                      recommendedProvider: routingRecommendation.provider,
-                                      appliedProvider: shotVideoProvider,
-                                      reason: routingRecommendation.reason,
-                                      feedbackSummary: routingRecommendation.feedbackSummary
-                                  }
-                              }
-                            : undefined
+                        resourceVersion: shot.operationVersion
                     })
                     await updateShot(job.id, sb.id.toString(), { status: 'video_running' })
                     const markedVideoGenerating = await prisma.storyboard.updateMany({
@@ -685,47 +490,8 @@ async function postGenerateAll(req: NextRequest, { params }: Params) {
 
                 for (const sb of todo.slice().sort((left, right) => left.order - right.order)) {
                     if (await checkCancelled()) break
-                    const previous = previousByStoryboardId.get(sb.id.toString()) ?? null
-                    const dependencyAssessment = assessSequentialContinuityDependency(
-                        previous
-                            ? {
-                                  order: previous.order,
-                                  sceneId: previous.sceneId,
-                                  sceneTimeOfDay: previous.scene?.timeOfDay,
-                                  continuityMode: previous.continuityMode,
-                                  continuityGroup: previous.continuityGroup,
-                                  characterIds: previous.characters.map(item => item.character.id),
-                                  actionDesc: previous.actionDesc
-                              }
-                            : null,
-                        {
-                            order: sb.order,
-                            sceneId: sb.sceneId,
-                            sceneTimeOfDay: sb.scene?.timeOfDay,
-                            continuityMode: sb.continuityMode,
-                            continuityGroup: sb.continuityGroup,
-                            characterIds: sb.characters.map(item => item.character.id),
-                            actionDesc: sb.actionDesc
-                        }
-                    )
-                    const strictContinuityRejected = (sb.continuityMode === 'continuous' || sb.continuityMode === 'seamless') && !dependencyAssessment.sequential
-                    const previousSucceeded = previous ? resultByStoryboardId.get(previous.id.toString()) : undefined
                     resultByStoryboardId.set(sb.id.toString(), false)
                     try {
-                        if (strictContinuityRejected) {
-                            blockingShotByStoryboardId.set(sb.id.toString(), { id: sb.id.toString(), order: sb.order })
-                            await updateShot(job.id, sb.id.toString(), { status: 'skipped', errorMsg: `第 ${sb.order} 镜的连续性条件未满足，尚未执行：${dependencyAssessment.issues.join('；')}` })
-                            continue
-                        }
-                        if (previous && previousSucceeded === false && (dependencyAssessment.sequential || sb.continuityMode === 'stateful')) {
-                            const blocker = blockingShotByStoryboardId.get(previous.id.toString()) ?? { id: previous.id.toString(), order: previous.order }
-                            blockingShotByStoryboardId.set(sb.id.toString(), blocker)
-                            await updateShot(job.id, sb.id.toString(), {
-                                status: 'skipped',
-                                errorMsg: `依赖第 ${blocker.order} 镜的完整视频，本镜尚未执行；请先完成第 ${blocker.order} 镜，再继续一键生成。`
-                            })
-                            continue
-                        }
                         if (videoCircuitOpenReason) {
                             await updateShot(job.id, sb.id.toString(), { status: 'skipped', errorMsg: videoCircuitOpenReason })
                             continue
@@ -747,7 +513,6 @@ async function postGenerateAll(req: NextRequest, { params }: Params) {
                     // turn an otherwise successful production job into a failure.
                     try {
                         await reconcileGenerationTelemetry(episode.projectId)
-                        await runProjectQualityReview(episode.projectId)
                     } catch (observabilityError) {
                         console.error('[generate-all] production observability failed:', observabilityError)
                     }

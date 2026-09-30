@@ -1,13 +1,8 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { X, RefreshCw, CheckCircle2, AlertCircle, ImageIcon, Video, StopCircle, Scissors } from 'lucide-react'
-import type { ImageQuality } from '@/lib/image-quality'
-import { clientFetch } from '@/lib/client-fetch'
-import { getPollingDelay } from '@/lib/polling'
 import WalletBalance from '@/components/WalletBalance'
 import { useI18n } from '@/i18n/I18nProvider'
-import type { ProductionImageProvider, ProductionVideoProvider } from '@/lib/provider-capabilities'
+import { clientFetch } from '@/lib/client-fetch'
 import {
     isEpisodeBatchExecutorInterrupted,
     normalizeTerminalBatchShots,
@@ -17,6 +12,11 @@ import {
     type EpisodeBatchShot,
     type EpisodeBatchShotStatus
 } from '@/lib/episode-batch-progress'
+import type { ImageQuality } from '@/lib/image-quality'
+import { getPollingDelay } from '@/lib/polling'
+import type { ProductionImageProvider, ProductionVideoProvider } from '@/lib/provider-capabilities'
+import { AlertCircle, CheckCircle2, ImageIcon, RefreshCw, StopCircle, Video, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 
 type Phase = EpisodeBatchPhase
 type ShotStatus = EpisodeBatchShotStatus
@@ -57,22 +57,6 @@ function startBatchOnce(key: string, request: () => Promise<BatchStartResponse>)
     return pending
 }
 
-interface DialogueSplitCandidate {
-    storyboardId: string
-    order: number
-    actualDurationSeconds: number
-    durationSource: 'measured' | 'estimated'
-    recommendedSegments: number
-    maxNaturalDialogueSeconds?: number
-}
-
-interface ActionSplitCandidate {
-    storyboardId: string
-    order: number
-    recommendedSegments: number
-    actionStageCount?: number
-}
-
 class ApiResponseError extends Error {
     constructor(
         message: string,
@@ -109,9 +93,6 @@ export default function EpisodeBatchModal({ episodeId, requestId, mode, imagePro
     const [shots, setShots] = useState<ShotProgress[]>([])
     const [err, setErr] = useState<string | null>(null)
     const [cancelling, setCancelling] = useState(false)
-    const [splitCandidates, setSplitCandidates] = useState<DialogueSplitCandidate[]>([])
-    const [actionSplitCandidates, setActionSplitCandidates] = useState<ActionSplitCandidate[]>([])
-    const [splitting, setSplitting] = useState(false)
     const [retryKey, setRetryKey] = useState(0)
     const [requestMode, setRequestMode] = useState<'missing' | 'all'>(mode)
     const executorRecoveryAttemptsRef = useRef(0)
@@ -148,20 +129,6 @@ export default function EpisodeBatchModal({ episodeId, requestId, mode, imagePro
                 if (initialShots.length > 0) onProgressRef.current?.({ phase: 'running', shots: initialShots })
             } catch (e) {
                 if (cancelled) return
-                if (e instanceof ApiResponseError && e.payload.code === 'DIALOGUE_SPLIT_REQUIRED' && Array.isArray(e.payload.affectedStoryboards)) {
-                    setActionSplitCandidates([])
-                    setSplitCandidates(e.payload.affectedStoryboards as DialogueSplitCandidate[])
-                    setPhase('split_required')
-                    setErr(e.message)
-                    return
-                }
-                if (e instanceof ApiResponseError && e.payload.code === 'ACTION_SPLIT_REQUIRED' && Array.isArray(e.payload.affectedStoryboards)) {
-                    setSplitCandidates([])
-                    setActionSplitCandidates(e.payload.affectedStoryboards as ActionSplitCandidate[])
-                    setPhase('split_required')
-                    setErr(e.message)
-                    return
-                }
                 setPhase('error')
                 setErr(e instanceof Error ? e.message : String(e))
             }
@@ -239,52 +206,6 @@ export default function EpisodeBatchModal({ episodeId, requestId, mode, imagePro
         }
     }
 
-    async function handleAutoSplit() {
-        if (splitting || splitCandidates.length + actionSplitCandidates.length === 0) return
-        setSplitting(true)
-        setErr(null)
-        try {
-            for (const candidate of splitCandidates) {
-                const response = await clientFetch(`/api/storyboards/${candidate.storyboardId}/split-dialogue`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        actualDurationSeconds: candidate.actualDurationSeconds,
-                        requestedSegments: candidate.recommendedSegments,
-                        provider: videoProvider
-                    })
-                })
-                try {
-                    await readApiResponse(response)
-                } catch (error) {
-                    if (!(error instanceof ApiResponseError) || error.payload.code !== 'DIALOGUE_ALREADY_SPLIT') throw error
-                }
-            }
-            for (const candidate of actionSplitCandidates) {
-                const response = await clientFetch(`/api/storyboards/${candidate.storyboardId}/split-action`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ requestedSegments: candidate.recommendedSegments, provider: videoProvider })
-                })
-                await readApiResponse(response)
-            }
-            onDone()
-            setSplitCandidates([])
-            setActionSplitCandidates([])
-            setJobId(null)
-            setShots([])
-            setTotal(0)
-            setPhase('running')
-            setRequestMode(mode)
-            setRetryKey(value => value + 1)
-        } catch (e) {
-            setPhase('split_required')
-            setErr(e instanceof Error ? e.message : String(e))
-        } finally {
-            setSplitting(false)
-        }
-    }
-
     function handleRetryMissing() {
         onDone()
         executorRecoveryAttemptsRef.current = 0
@@ -305,7 +226,7 @@ export default function EpisodeBatchModal({ episodeId, requestId, mode, imagePro
                     <div className="flex-1">
                         <h2 className="text-white font-semibold text-base flex items-center gap-2">
                             {phase === 'running' && <RefreshCw className="w-4 h-4 animate-spin text-purple-400" />}
-                            {phase === 'split_required' && <Scissors className="w-4 h-4 text-yellow-300" />}
+
                             {phase === 'done' && (failed === 0 && skipped === 0 ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <AlertCircle className="w-4 h-4 text-yellow-400" />)}
                             {phase === 'error' && <AlertCircle className="w-4 h-4 text-red-400" />}
                             {phase === 'cancelled' && <StopCircle className="w-4 h-4 text-yellow-400" />}
@@ -327,7 +248,7 @@ export default function EpisodeBatchModal({ episodeId, requestId, mode, imagePro
                                 </>
                             )}
                             {phase === 'error' && (err ?? t('出错了'))}
-                            {phase === 'split_required' && (err ?? t('有 {count} 个分镜需要先拆分', { count: splitCandidates.length + actionSplitCandidates.length }))}
+
                             {phase === 'cancelled' && (
                                 <>
                                     {t('已取消')} · {t('已完成')} {completed}/{total}
@@ -364,41 +285,7 @@ export default function EpisodeBatchModal({ episodeId, requestId, mode, imagePro
                         </div>
                     )}
                     {shots.length === 0 && phase === 'running' && <p className="text-sm text-gray-500 text-center py-8">{t('正在准备任务...')}</p>}
-                    {phase === 'split_required' && (
-                        <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4">
-                            <div className="flex items-start gap-3">
-                                <Scissors className="mt-0.5 h-5 w-5 flex-shrink-0 text-yellow-300" />
-                                <div className="min-w-0 flex-1">
-                                    <h3 className="text-sm font-semibold text-yellow-100">生成前需要拆分复杂分镜</h3>
-                                    <p className="mt-1 text-xs leading-relaxed text-yellow-100/75">
-                                        系统尚未创建本集生成任务，也没有清空整集素材。长台词按语义拆分并保留首图；复杂动作按因果阶段拆分并清空该镜旧素材，所有新增镜头都需要单独生成插图和视频。
-                                    </p>
-                                    <div className="mt-3 space-y-2">
-                                        {splitCandidates.map(candidate => (
-                                            <div
-                                                key={candidate.storyboardId}
-                                                className="flex items-center justify-between gap-3 rounded-lg border border-yellow-400/20 bg-black/15 px-3 py-2 text-xs">
-                                                <span className="font-medium text-yellow-50">镜头 {candidate.order}</span>
-                                                <span className="text-yellow-100/70">
-                                                    {candidate.durationSource === 'measured' ? '实测' : '预计'} {candidate.actualDurationSeconds.toFixed(1)} 秒 → {candidate.recommendedSegments} 镜
-                                                </span>
-                                            </div>
-                                        ))}
-                                        {actionSplitCandidates.map(candidate => (
-                                            <div
-                                                key={`action-${candidate.storyboardId}`}
-                                                className="flex items-center justify-between gap-3 rounded-lg border border-orange-400/20 bg-black/15 px-3 py-2 text-xs">
-                                                <span className="font-medium text-orange-50">镜头 {candidate.order} · 复杂动作</span>
-                                                <span className="text-orange-100/70">
-                                                    {candidate.actionStageCount ?? candidate.recommendedSegments} 个动作阶段 → {candidate.recommendedSegments} 镜
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+
                     {displayShots.map(sh => {
                         const isRunning = sh.status === 'frame_running' || sh.status === 'video_running'
                         const isDone = sh.status === 'video_done'
@@ -495,7 +382,7 @@ export default function EpisodeBatchModal({ episodeId, requestId, mode, imagePro
                     <div className="flex-1 text-xs text-gray-400">
                         {phase === 'running' && t('任务可以关闭弹窗在后台运行，稍后回来查看结果。')}
                         {phase === 'cancelled' && t('已暂停。下次再点「一键生成」会从未完成的镜头继续。')}
-                        {phase === 'split_required' && '确认后会先拆镜，再按新的镜头数量重新计算费用并启动生成。'}
+
                         {(phase === 'done' || phase === 'error') && (failed > 0 || skipped > 0 ? t('已完成素材会保留；重试只处理未完成镜头。') : t('生成完成后可以在本集查看和导出成片。'))}
                     </div>
                     {phase === 'running' && jobId && (
@@ -507,15 +394,7 @@ export default function EpisodeBatchModal({ episodeId, requestId, mode, imagePro
                             {cancelling ? t('正在停止...') : t('暂停生成')}
                         </button>
                     )}
-                    {phase === 'split_required' && (
-                        <button
-                            onClick={() => void handleAutoSplit()}
-                            disabled={splitting}
-                            className="flex items-center gap-1.5 rounded-lg bg-yellow-600 px-4 py-2 text-sm font-medium text-white hover:bg-yellow-700 disabled:cursor-wait disabled:opacity-50">
-                            <Scissors className="h-4 w-4" />
-                            {splitting ? '正在拆镜...' : `先自动拆分 ${splitCandidates.length + actionSplitCandidates.length} 个镜头`}
-                        </button>
-                    )}
+
                     {(phase === 'done' || phase === 'error') && (failed > 0 || skipped > 0) && (
                         <button
                             onClick={handleRetryMissing}

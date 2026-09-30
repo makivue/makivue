@@ -11,17 +11,13 @@ describe('short-drama video model disclosure', () => {
     const settingsPage = fs.readFileSync(path.join(process.cwd(), 'src/app/settings/page.tsx'), 'utf8')
     const homePage = fs.readFileSync(path.join(process.cwd(), 'src/app/page.tsx'), 'utf8')
     const seoPages = fs.readFileSync(path.join(process.cwd(), 'src/lib/seo-pages.ts'), 'utf8')
-
-    it('keeps model recommendations collapsed by default', () => {
-        expect(page).toContain('const [showVideoRecommendation, setShowVideoRecommendation] = useState(false)')
-        expect(page).toContain('aria-expanded={showVideoRecommendation}')
-        expect(page).toContain('hidden={!showVideoRecommendation}')
+    it('does not expose model recommendations or comparisons', () => {
+        expect(page).not.toContain('showVideoRecommendation')
+        expect(page).not.toContain('generateComparison')
     })
-
-    it('keeps non-model generation guidance available', () => {
-        expect(page).toContain('onClick={() => setShowVideoRecommendation(current => !current)}')
-        expect(page).toContain('视频生成提示')
-        expect(page).not.toContain('<span className="font-medium">模型推荐与对照</span>')
+    it('keeps input capability guidance', () => {
+        expect(page).toContain('当前模型不支持原生对白')
+        expect(page).toContain('referenceVideoDurationRule')
     })
 
     it('exposes only user-controlled provider switching and locks batch jobs to the selection', () => {

@@ -1,7 +1,7 @@
 {
     "version": 1,
-    "updated": "2026-05-04",
-    "purpose": "Project-local skills for AI Drama Studio production workflow. These skills are reviewed instructions, not third-party executable packages.",
+    "updated": "2026-09-30",
+    "purpose": "Project-local guides for makivue basic generation workflows.",
     "externalReferences": [
         {
             "name": "ClawHub open-novel-writing",
@@ -66,18 +66,6 @@
             "label": "Storyboard Orchestrator",
             "stageKeys": ["storyboard"],
             "path": "skills/storyboard-orchestrator/SKILL.md"
-        },
-        {
-            "id": "visual-continuity-director",
-            "label": "Visual Continuity Director",
-            "stageKeys": ["storyboard", "frame", "video"],
-            "path": "skills/visual-continuity-director/SKILL.md"
-        },
-        {
-            "id": "visual-state-locker",
-            "label": "Visual State Locker",
-            "stageKeys": ["storyboard", "frame", "video"],
-            "path": "skills/visual-state-locker/SKILL.md"
         },
         {
             "id": "frame-video-generator",

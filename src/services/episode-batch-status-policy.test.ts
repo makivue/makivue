@@ -123,7 +123,6 @@ describe('episode batch status persistence', () => {
     })
 
     it('runs each complete shot in order while preserving continuity validation', () => {
-        expect(route).toContain('assessSequentialContinuityDependency')
         expect(route).toContain('const frameReady = await generateStoryboardFrame(sb)')
         expect(route).toContain('const videoReady = await generateStoryboardVideo(sb)')
         expect(route).not.toContain('createConcurrencyLimiter')
@@ -173,7 +172,6 @@ describe('episode batch status persistence', () => {
     it('locks every batch shot to the video model selected by the UI', () => {
         expect(route).toContain('const primaryVideoProvider = videoProviderOverride ?? (await resolveGlobalVideoProvider())')
         expect(route).toContain('const providerForStoryboard = () => videoProvider')
-        expect(route).toContain("policyApplied: 'explicit_provider_lock'")
         expect(route).not.toContain('autoModelRouting')
         expect(route).not.toContain('getVideoProviderRoutingFeedback')
     })

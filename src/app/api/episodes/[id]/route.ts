@@ -1,15 +1,14 @@
-import { NextRequest } from 'next/server'
-import { episodeStatusSnapshot, episodeStatusGenerationWhere } from '@/services/episode-status'
-import { prisma } from '@/lib/prisma'
-import { apiResponse, apiError } from '@/lib/utils'
-import { factRecord } from '@/services/narrative-facts'
-import { currentUserId } from '@/lib/current-user'
-import { assertEpisodeOwner } from '@/lib/ownership'
 import { parseApiId } from '@/lib/api-id'
-import { markEpisodeDownstreamStaleInTransaction, markFollowingEpisodesStaleInTransaction } from '@/services/content-lineage'
-import { refreshEpisodeStoryboardContinuity } from '@/services/storyboard-continuity'
+import { currentUserId } from '@/lib/current-user'
 import { isHiModelsImageModel, isHiModelsVideoModel } from '@/lib/himodels-models'
 import { readHiModelsGenerationUsage } from '@/lib/himodels-usage-ledger.server'
+import { assertEpisodeOwner } from '@/lib/ownership'
+import { prisma } from '@/lib/prisma'
+import { apiError, apiResponse } from '@/lib/utils'
+import { markEpisodeDownstreamStaleInTransaction, markFollowingEpisodesStaleInTransaction } from '@/services/content-lineage'
+import { episodeStatusGenerationWhere, episodeStatusSnapshot } from '@/services/episode-status'
+import { factRecord } from '@/services/narrative-facts'
+import { NextRequest } from 'next/server'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -60,7 +59,6 @@ export async function GET(req: NextRequest, { params }: Params) {
     if (idNum === null) return apiError('剧集 ID 格式无效', 400)
     const guard = await assertEpisodeOwner(idNum, userId)
     if (guard) return guard
-    await refreshEpisodeStoryboardContinuity(idNum)
     const episode = await prisma.episode.findFirst({
         where: { id: idNum, deletedAt: null },
         select: {
@@ -198,7 +196,14 @@ export async function GET(req: NextRequest, { params }: Params) {
     const isActiveGeneration = (sb: (typeof episode.storyboards)[number], generation: (typeof sb.generations)[number]) =>
         isActiveGenerationStatus(generation.status) && generation.resourceVersion === sb.operationVersion
     const staleVideoWithArtifactIds = episode.storyboards
-        .filter(sb => !sb.staleReason && sb.videoStatus !== 'stale' && sb.videoStatus !== 'completed' && typeof sb.videoUrl === 'string' && (sb.videoUrl.startsWith('/api/local-media/') || /^https?:\/\//i.test(sb.videoUrl)))
+        .filter(
+            sb =>
+                !sb.staleReason &&
+                sb.videoStatus !== 'stale' &&
+                sb.videoStatus !== 'completed' &&
+                typeof sb.videoUrl === 'string' &&
+                (sb.videoUrl.startsWith('/api/local-media/') || /^https?:\/\//i.test(sb.videoUrl))
+        )
         .filter(sb => !sb.generations.some(g => g.type === 'video' && isActiveGeneration(sb, g)))
         .map(sb => sb.id)
     const staleFrameWithArtifactIds = episode.storyboards
@@ -262,7 +267,15 @@ export async function GET(req: NextRequest, { params }: Params) {
     let mergeDeliveryById = new Map<string, MergeDeliveryRow>()
     try {
         const storedMerges = await prisma.videoMerge.findMany({ where: { episodeId: idNum }, orderBy: { createdAt: 'desc' } })
-        const subtitleRows: MergeDeliveryRow[] = storedMerges.map(row => ({ id: row.id, subtitle_urls: row.subtitleUrls, video_status: row.videoStatus, subtitle_status: row.subtitleStatus, subtitle_progress: row.subtitleProgress, target_width: row.targetWidth, target_height: row.targetHeight }))
+        const subtitleRows: MergeDeliveryRow[] = storedMerges.map(row => ({
+            id: row.id,
+            subtitle_urls: row.subtitleUrls,
+            video_status: row.videoStatus,
+            subtitle_status: row.subtitleStatus,
+            subtitle_progress: row.subtitleProgress,
+            target_width: row.targetWidth,
+            target_height: row.targetHeight
+        }))
         mergeDeliveryById = new Map(subtitleRows.map(row => [row.id.toString(), row]))
     } catch {
         // 旧数据库没有交付状态字段时保持空 map，待 migration deploy 后自动恢复。
@@ -477,8 +490,6 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         updateData.status = 'drafted'
     }
     const episode = await prisma.$transaction(async tx => {
-
-
         const locked = await tx.episode.findUnique({ where: { id: idNum } })
         if (!locked || locked.deletedAt || locked.sourceVersion !== current.sourceVersion || locked.operationVersion !== current.operationVersion) return null
         await tx.chapterJob.updateMany({

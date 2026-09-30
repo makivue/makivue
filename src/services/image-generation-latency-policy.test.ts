@@ -7,12 +7,8 @@ describe('image generation latency policy', () => {
     const llm = fs.readFileSync(path.join(root, 'src/services/llm.ts'), 'utf8')
     const banana = fs.readFileSync(path.join(root, 'src/services/banana.ts'), 'utf8')
     const batchRoute = fs.readFileSync(path.join(root, 'src/app/api/episodes/[id]/generate-all/route.ts'), 'utf8')
-
-    it('keeps optional frame prompt polishing out of the critical path', () => {
-        const improveFramePrompt = llm.slice(llm.indexOf('export async function improveFrameImagePrompt'), llm.indexOf('export async function rewriteImagePromptForSafety'))
-        expect(improveFramePrompt).toContain('timeoutMs: 12_000')
-        expect(improveFramePrompt).toContain('attempts: 1')
-        expect(improveFramePrompt).toContain('return params.basePrompt')
+    it('removes frame prompt polishing', () => {
+        expect(llm).not.toContain('export async function improveFrameImagePrompt')
     })
 
     it('loads independent Nano Banana references concurrently with a bounded timeout', () => {

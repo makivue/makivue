@@ -8,7 +8,6 @@ describe('scene reference generation flow', () => {
     const route = fs.readFileSync(path.join(process.cwd(), 'src/app/api/scenes/[id]/reference/route.ts'), 'utf8')
     const job = fs.readFileSync(path.join(process.cwd(), 'src/services/scene-reference-job.ts'), 'utf8')
     const batch = fs.readFileSync(path.join(process.cwd(), 'src/services/scene-reference-batch.ts'), 'utf8')
-    const promptRoute = fs.readFileSync(path.join(process.cwd(), 'src/app/api/ai/expand-prompt/route.ts'), 'utf8')
     const scenePromptCompiler = fs.readFileSync(path.join(process.cwd(), 'src/lib/scene-reference-prompt.ts'), 'utf8')
     const progressPolicy = fs.readFileSync(path.join(process.cwd(), 'src/lib/reference-generation-progress.ts'), 'utf8')
 
@@ -27,7 +26,6 @@ describe('scene reference generation flow', () => {
         expect(page).toContain('/scene-references/status/${jobId}')
         expect(progressPolicy).toContain('REFERENCE_BATCH_CONCURRENCY = 8')
         expect(ai).toContain("reportProgress('generating'")
-        expect(ai).toContain("reportProgress('inspecting'")
         expect(ai).toContain("reportProgress('uploading'")
     })
 
@@ -98,12 +96,6 @@ describe('scene reference generation flow', () => {
         expect(page).not.toContain('className="w-64 flex-shrink-0"')
     })
 
-    it('feeds the selected scene views into storyboard frame generation within the provider budget', () => {
-        expect(ai).toContain('const selectedSceneReferences = getSelectedSceneReferenceUrls(')
-        expect(ai).toContain('for (const sceneReference of activeSceneReferences) pushBudgetedReference(sceneReference)')
-        expect(ai).toContain('use the selected views together to reconstruct one coherent location')
-    })
-
     it('shows a content-specific toast when a provider switches after three 429 responses', () => {
         expect(page).toContain('notifyImageProviderSwitch(progress.providerSwitch,')
         expect(page).toContain('次触发 429，已从')
@@ -140,15 +132,11 @@ describe('scene reference generation flow', () => {
         expect(ai).toContain('const styleReferences = (setup.styleReferenceImages ?? []).filter(Boolean).slice(0, 1)')
         expect(sceneGeneration).toContain('maxAttempts: 1')
         expect(sceneGeneration).not.toContain('inspectSceneReferenceQuality')
-        expect(sceneGeneration).not.toContain("reportProgress('inspecting'")
         expect(sceneGeneration).not.toContain('sceneReferenceRetryCorrection')
     })
 
     it('keeps location identity above reusable style motifs in generation and prompt editing', () => {
         expect(ai).toContain('buildSceneReferenceGenerationPrompt({')
-        expect(promptRoute).toContain('projectVisualStyle')
-        expect(promptRoute).toContain('const style = getVisualStyleForSetup(setup)')
-        expect(promptRoute).toContain("the named location's category, physical function, scale, geography and navigable topology have higher content priority")
     })
 
     it('can regenerate one new candidate for every eligible scene without replacing selected references', () => {

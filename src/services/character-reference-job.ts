@@ -1,15 +1,14 @@
-import { prisma } from '@/lib/prisma'
-import { StaleReferenceMutationError, withActiveReferenceWrite } from './reference-persistence-guard'
+import { waitForReferenceImageSlot } from '@/lib/generation-concurrency'
 import { withHiModelsUsageScope } from '@/lib/himodels-usage-context.server'
 import { genId } from '@/lib/id'
+import type { ImageQuality } from '@/lib/image-quality'
+import { prisma } from '@/lib/prisma'
 import { updateJob } from '@/lib/refImageJobStore'
-import { isRefImageJobRuntimeExceeded, referenceProgressAt, REF_IMAGE_HEARTBEAT_INTERVAL_MS, REF_IMAGE_JOB_MAX_RUNTIME_MS, type ReferenceGenerationProgress } from '@/lib/reference-generation-progress'
-import { waitForReferenceImageSlot } from '@/lib/generation-concurrency'
+import { isRefImageJobRuntimeExceeded, REF_IMAGE_HEARTBEAT_INTERVAL_MS, REF_IMAGE_JOB_MAX_RUNTIME_MS, referenceProgressAt, type ReferenceGenerationProgress } from '@/lib/reference-generation-progress'
+import { generateCharacterReference, type CharacterReferenceRole, type ImageProvider } from '@/services/ai'
 import { chargeModelUsage } from '@/services/billing'
 import { markReferenceDependentsStaleInTransaction } from '@/services/content-lineage'
-import { generateCharacterReference, type CharacterReferenceRole, type ImageProvider } from '@/services/ai'
-import type { ImageQuality } from '@/lib/image-quality'
-import { characterReferenceAnimalSpecies } from '@/lib/character-reference-retry'
+import { StaleReferenceMutationError, withActiveReferenceWrite } from './reference-persistence-guard'
 
 export interface CharacterReferenceJobInput {
     jobId: string
@@ -106,10 +105,6 @@ async function executeCharacterReferenceJob({
             async tx => {
                 const character = await tx.character.findFirst({ where: { id: characterId, deletedAt: null } })
                 if (!character) throw new Error('Character not found')
-                const animalSpecies = characterReferenceAnimalSpecies(
-                    [character.name, character.canonicalName, character.role, character.personality, character.appearancePrompt].filter(Boolean).join('\n')
-                )
-                const replacingLegacyAnimalSheets = replaceSelected && role === 'turnaround_sheet' && Boolean(animalSpecies) && /turnaround-sheet-v(?:1[2-9]|[2-9]\d)/.test(promptVersion)
                 const existingSelected = await tx.characterReferenceAsset.findFirst({
                     where: {
                         characterId,
@@ -120,25 +115,18 @@ async function executeCharacterReferenceJob({
                     },
                     select: { id: true }
                 })
-                const currentCandidates = replacingLegacyAnimalSheets ? [] : parseCharacterReferenceCandidates(character.referenceCandidates)
-                const candidates = role === 'turnaround_sheet' ? [url, ...currentCandidates.filter(candidate => candidate !== url)].slice(0, 8) : currentCandidates
-                const shouldSelect = replaceSelected || (!existingSelected && !(role === 'turnaround_sheet' && character.referenceImageUrl))
-                const referenceImageUrl = role === 'turnaround_sheet' && shouldSelect ? url : character.referenceImageUrl
-                const primarySheetChanged = role === 'turnaround_sheet' && shouldSelect && character.referenceImageUrl !== url
+                const currentCandidates = parseCharacterReferenceCandidates(character.referenceCandidates)
+                const candidates = role === 'full_body' ? [url, ...currentCandidates.filter(candidate => candidate !== url)].slice(0, 8) : currentCandidates
+                const shouldSelect = replaceSelected || (!existingSelected && !(role === 'full_body' && character.referenceImageUrl))
+                const referenceImageUrl = role === 'full_body' && shouldSelect ? url : character.referenceImageUrl
+                const primarySheetChanged = role === 'full_body' && shouldSelect && character.referenceImageUrl !== url
                 if (replaceSelected) {
-                    if (replacingLegacyAnimalSheets) {
-                        await tx.characterReferenceAsset.updateMany({
-                            where: { characterId, role, stateKey: null, deletedAt: null },
-                            data: { status: 'candidate', deletedAt: new Date() }
-                        })
-                    } else {
-                        await tx.characterReferenceAsset.updateMany({
-                            where: { characterId, role, stateKey: null, status: 'selected', deletedAt: null },
-                            data: { status: 'candidate' }
-                        })
-                    }
+                    await tx.characterReferenceAsset.updateMany({
+                        where: { characterId, role, stateKey: null, status: 'selected', deletedAt: null },
+                        data: { status: 'candidate' }
+                    })
                 }
-                if (role === 'turnaround_sheet') {
+                if (role === 'full_body') {
                     await tx.character.update({
                         where: { id: characterId },
                         data: {

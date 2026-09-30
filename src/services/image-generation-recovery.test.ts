@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => {
     class MockBananaImageSafetyError extends Error {
@@ -407,10 +407,11 @@ describe('image generation automatic recovery', () => {
         expect(imageProviderPool('seedream-5-0-lite')).toBe('himodels')
         expect(imageProviderPool('qwen-image-3.0-pro')).toBe('qwen')
     })
-
-    it('enables automatic fallback for primary character turnaround sheets only', () => {
+    it('keeps character generation on the selected provider', () => {
         const source = fs.readFileSync(path.join(process.cwd(), 'src/services/ai.ts'), 'utf8')
-        expect(source).toContain("automaticFallback: role === 'turnaround_sheet'")
+        const character = source.slice(source.indexOf('export async function generateCharacterReference'), source.indexOf('export async function generateSceneReference'))
+        expect(character).toContain('allowProviderSwitch: false')
+        expect(character).toContain('automaticFallback: false')
     })
 
     it('locks storyboard illustrations to the explicitly selected image provider', () => {

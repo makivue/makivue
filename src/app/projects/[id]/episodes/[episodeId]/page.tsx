@@ -1,74 +1,36 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
-import type { ReactNode, TextareaHTMLAttributes } from 'react'
-import { createPortal } from 'react-dom'
-import Link, { useParams } from '@/i18n/navigation'
-import { usePathname } from 'next/navigation'
-import {
-    ArrowLeft,
-    Plus,
-    Play,
-    Video,
-    Layers,
-    Merge,
-    Minus,
-    RefreshCw,
-    CheckCircle,
-    XCircle,
-    ChevronLeft,
-    ChevronRight,
-    ChevronDown,
-    ChevronUp,
-    Wand2,
-    Sparkles,
-    BookOpen,
-    Users,
-    MapPin,
-    Globe,
-    Film as FilmIcon,
-    Image as ImageIcon,
-    X as CloseIcon,
-    AlertCircle,
-    AlertTriangle,
-    StopCircle,
-    Trash2,
-    Languages,
-    Check,
-    Info,
-    Settings,
-    Upload
-} from 'lucide-react'
-import ModelSwitcher from '@/components/ModelSwitcher'
-import CreationJourney from '@/components/CreationJourney'
-import OptimizedMediaImage from '@/components/OptimizedMediaImage'
-import { extractStoryboardBoundaryStates } from '@/lib/storyboard-state'
 import { useConfirmDialog } from '@/components/ConfirmDialog'
-import { normalizeImageQuality, type ImageQuality } from '@/lib/image-quality'
-import { recommendStoryboardDuration } from '@/lib/storyboard-timing'
-import { clientFetch, isRequestAbortError, readApiJson } from '@/lib/client-fetch'
-import { isUnavailablePageStatus, isValidRouteResourceId, redirectToHomepage } from '@/lib/home-redirect'
-import { pushToast } from '@/components/Toast'
-import EpisodeBatchModal from './EpisodeBatchModal'
-import { useI18n } from '@/i18n/I18nProvider'
-
-// 短剧生成阶段开放视频模型选择；顶部选择作为新分镜和一键生成的默认模型。
-const SHOW_SHORT_DRAMA_VIDEO_MODEL_CONTROLS = true
-const MAX_ILLUSTRATION_COUNT = 10
-import { isLocale, localeDisplayName, localizePath } from '@/i18n/config'
-import WalletBalance from '@/components/WalletBalance'
-import { normalizeVideoLanguage, type VideoLanguage } from '@/lib/video-language'
-import { getVideoSpeechCapability, usesEmbeddedVideoAudio } from '@/lib/video-audio-policy'
+import CreationJourney from '@/components/CreationJourney'
 import CustomSelect from '@/components/CustomSelect'
-import ModelSourceBadge from '@/components/ModelSourceBadge'
 import GenerationFailureNotice from '@/components/GenerationFailureNotice'
+import HomeLogoLink from '@/components/HomeLogoLink'
+import ModelSwitcher from '@/components/ModelSwitcher'
+import OptimizedMediaImage from '@/components/OptimizedMediaImage'
+import { pushToast } from '@/components/Toast'
+import WalletBalance from '@/components/WalletBalance'
+import { useI18n } from '@/i18n/I18nProvider'
+import { isLocale, localeDisplayName, localizePath } from '@/i18n/config'
+import Link, { useParams } from '@/i18n/navigation'
+import { getAuthToken } from '@/lib/auth'
+import { clientFetch, isRequestAbortError, readApiJson } from '@/lib/client-fetch'
+import {
+    isEpisodeBatchExecutorInterrupted,
+    resolveEpisodeBatchFailureStage,
+    type EpisodeBatchFailureStage,
+    type EpisodeBatchPhase,
+    type EpisodeBatchShot,
+    type EpisodeBatchShotStatus
+} from '@/lib/episode-batch-progress'
+import { createEpisodeNavigationLoader } from '@/lib/episode-navigation-loader'
+import type { EpisodeStatusSnapshot } from '@/lib/episode-status'
+import { episodeWorkspaceRoute, neighbouringEpisodeIds } from '@/lib/episode-workspace-navigation'
+import { releaseGenerationCapacityReservation, tryReserveGenerationCapacity, type GenerationCapacityReservations } from '@/lib/generation-capacity-reservations'
+import { isUnavailablePageStatus, isValidRouteResourceId, redirectToHomepage } from '@/lib/home-redirect'
 import type { ImageProviderSwitch } from '@/lib/image-generation-recovery'
-import { analyzeVideoShotConstraints, recommendVideoProvider } from '@/lib/video-production-plan'
-import { getGenerationErrorGuidance } from '@/lib/generation-error-guidance'
-import { shouldGenerateEpisodeStoryboards } from '@/lib/storyboard-batch-selection'
-import { buildStoryboardGenerationRequest } from '@/lib/storyboard-generation-request'
-import { storyboardGenerationEndpoint, type StoryboardGenerationRequestType } from '@/lib/storyboard-generation-endpoint'
-import { collectStoryboardGenerationFailureNotices, generationFeedbackStageForRequest, generationFeedbackWatchKey } from '@/lib/storyboard-generation-feedback'
+import { normalizeImageQuality, type ImageQuality } from '@/lib/image-quality'
+import { GENERATION_MODEL_SOURCE_LABELS, GENERATION_MODEL_SOURCES, generationModelSource, isGenerationModelVisible, modelDisplayNameWithSource } from '@/lib/model-display'
+import { getPollingDelay } from '@/lib/polling'
 import {
     DEFAULT_VIDEO_PROVIDER,
     getVideoProviderCapability,
@@ -82,23 +44,11 @@ import {
     type ProductionImageProvider,
     type ProductionVideoProvider
 } from '@/lib/provider-capabilities'
-import {
-    isEpisodeBatchExecutorInterrupted,
-    resolveEpisodeBatchFailureStage,
-    type EpisodeBatchFailureStage,
-    type EpisodeBatchPhase,
-    type EpisodeBatchShot,
-    type EpisodeBatchShotStatus
-} from '@/lib/episode-batch-progress'
+import { shouldGenerateEpisodeStoryboards } from '@/lib/storyboard-batch-selection'
 import { resolveVideoFailureDisplay } from '@/lib/storyboard-failure-display'
-import { getPollingDelay } from '@/lib/polling'
-import type { EpisodeStatusSnapshot } from '@/lib/episode-status'
-import { createEpisodeNavigationLoader } from '@/lib/episode-navigation-loader'
-import { episodeWorkspaceRoute, neighbouringEpisodeIds } from '@/lib/episode-workspace-navigation'
-import { getAuthToken } from '@/lib/auth'
-import HomeLogoLink from '@/components/HomeLogoLink'
-import { releaseGenerationCapacityReservation, tryReserveGenerationCapacity, type GenerationCapacityReservations } from '@/lib/generation-capacity-reservations'
-import { GENERATION_MODEL_SOURCES, GENERATION_MODEL_SOURCE_LABELS, generationModelSource, isGenerationModelVisible, modelDisplayNameWithSource } from '@/lib/model-display'
+import { storyboardGenerationEndpoint, type StoryboardGenerationRequestType } from '@/lib/storyboard-generation-endpoint'
+import { collectStoryboardGenerationFailureNotices, generationFeedbackStageForRequest, generationFeedbackWatchKey } from '@/lib/storyboard-generation-feedback'
+import { buildStoryboardGenerationRequest } from '@/lib/storyboard-generation-request'
 import {
     formatReferenceVideoDurationViolation,
     getReferenceVideoDurationViolation,
@@ -108,6 +58,52 @@ import {
     resolveReferenceVideoMimeType,
     type StoryboardReferenceVideo
 } from '@/lib/storyboard-reference-videos'
+import { extractStoryboardBoundaryStates } from '@/lib/storyboard-state'
+import { getVideoSpeechCapability, usesEmbeddedVideoAudio } from '@/lib/video-audio-policy'
+import { normalizeVideoLanguage, type VideoLanguage } from '@/lib/video-language'
+import {
+    AlertCircle,
+    AlertTriangle,
+    ArrowLeft,
+    BookOpen,
+    Check,
+    CheckCircle,
+    ChevronDown,
+    ChevronLeft,
+    ChevronRight,
+    ChevronUp,
+    X as CloseIcon,
+    Film as FilmIcon,
+    Globe,
+    Image as ImageIcon,
+    Info,
+    Languages,
+    Layers,
+    MapPin,
+    Merge,
+    Minus,
+    Play,
+    Plus,
+    RefreshCw,
+    Settings,
+    Sparkles,
+    StopCircle,
+    Trash2,
+    Upload,
+    Users,
+    Video,
+    Wand2,
+    XCircle
+} from 'lucide-react'
+import { usePathname } from 'next/navigation'
+import type { ReactNode, TextareaHTMLAttributes } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import EpisodeBatchModal from './EpisodeBatchModal'
+
+// 短剧生成阶段开放视频模型选择；顶部选择作为新分镜和一键生成的默认模型。
+const SHOW_SHORT_DRAMA_VIDEO_MODEL_CONTROLS = true
+const MAX_ILLUSTRATION_COUNT = 10
 
 type ImageProvider = ProductionImageProvider
 type ModelOption<T extends string> = {
@@ -258,15 +254,6 @@ function parseSubtitleProgress(raw: Episode['merges'][number]['subtitleProgress'
     } catch {
         return null
     }
-}
-
-function countDialogueSpeakers(dialogue: string | null | undefined) {
-    if (!dialogue?.trim()) return 0
-    const names = dialogue
-        .split(/\r?\n+/)
-        .map(line => line.match(/^([^:：\n]{1,40})[:：]\s*(.+)$/)?.[1]?.trim())
-        .filter((name): name is string => !!name)
-    return new Set(names).size || 1
 }
 
 interface Character {
@@ -529,30 +516,6 @@ function rememberEpisodeWorkspace(
     episodeWorkspaceCache.set(projectId, cached)
 }
 
-type DialogueSplitRequired = {
-    code: 'DIALOGUE_SPLIT_REQUIRED'
-    storyboardId?: string
-    actualDurationSeconds?: number
-    durationSource?: 'measured' | 'estimated'
-    recommendedSegments?: number
-    maxNaturalDialogueSeconds?: number
-    videoProvider?: ProductionVideoProvider
-}
-
-type ActionSplitRequired = {
-    code: 'ACTION_SPLIT_REQUIRED'
-    storyboardId?: string
-    recommendedSegments?: number
-    actionStageCount?: number
-    videoProvider?: ProductionVideoProvider
-}
-
-function parseWanDialogueDurationSeconds(message: string | null | undefined) {
-    const match = message?.match(/当前台词为\s*([\d.]+)\s*秒/i) ?? message?.match(/(?:audio|dialogue)[^\d]{0,30}([\d.]+)\s*(?:seconds?|s)\b/i)
-    const duration = Number(match?.[1])
-    return Number.isFinite(duration) && duration > 0 ? duration : undefined
-}
-
 async function fetchJson<T>(url: string, redirectIfUnavailable = true): Promise<ApiPayload<T>> {
     const res = await clientFetch(url)
     const text = await res.text()
@@ -627,41 +590,6 @@ async function fetchGenerationCapacity(category: GenerationCapacityCategory): Pr
     return json.data as GenerationCapacity
 }
 
-// expand-prompt 全局并发限流。打开分镜页时可能同时展开多张卡片 → 并发几十个 POST
-// 会把后端 DB 连接池 / LLM 上游打爆（500 空 body）。这里限制同一时刻最多 N 个 POST
-// 在飞，超过的排队，用户感知不明显但服务端稳很多。
-const EXPAND_MAX_CONCURRENT = 3
-let expandActive = 0
-const expandQueue: Array<() => void> = []
-
-function acquireExpandSlot(): Promise<void> {
-    if (expandActive < EXPAND_MAX_CONCURRENT) {
-        expandActive++
-        return Promise.resolve()
-    }
-    return new Promise<void>(resolve => {
-        expandQueue.push(() => {
-            expandActive++
-            resolve()
-        })
-    })
-}
-
-function releaseExpandSlot() {
-    expandActive--
-    const next = expandQueue.shift()
-    if (next) next()
-}
-
-async function runWithExpandConcurrency<T>(fn: () => Promise<T>): Promise<T> {
-    await acquireExpandSlot()
-    try {
-        return await fn()
-    } finally {
-        releaseExpandSlot()
-    }
-}
-
 function nextStoryboardPollInterval(attempt: number): number {
     return getPollingDelay({ baseMs: STORYBOARD_JOB_POLL_STEPS[Math.min(attempt, STORYBOARD_JOB_POLL_STEPS.length - 1)] })
 }
@@ -699,89 +627,6 @@ const VIDEO_REFERENCE_MODES: Array<{ key: VideoReferenceMode; label: string; hin
     { key: 'single', label: '首帧', hint: '使用第一张插图作为视频开场画面' },
     { key: 'first_last', label: '首尾帧', hint: '使用第一张和最后一张插图约束视频起点与终点，至少需要两张插图' }
 ]
-
-type JsonRecord = Record<string, unknown>
-
-function isRecord(value: unknown): value is JsonRecord {
-    return !!value && typeof value === 'object' && !Array.isArray(value)
-}
-
-function redactDataUrlsForDisplay(value: unknown): unknown {
-    if (typeof value === 'string') {
-        if (!value.startsWith('data:image/')) return value
-        const commaIndex = value.indexOf(',')
-        const prefix = commaIndex >= 0 ? value.slice(0, commaIndex + 1) : 'data:image/*;base64,'
-        const encodedLength = commaIndex >= 0 ? value.length - commaIndex - 1 : 0
-        return `${prefix}[omitted ${encodedLength} base64 chars]`
-    }
-    if (Array.isArray(value)) return value.map(item => redactDataUrlsForDisplay(item))
-    if (isRecord(value)) return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, redactDataUrlsForDisplay(item)]))
-    return value
-}
-
-function parseRequestBody(requestBody: string | null | undefined): JsonRecord | null {
-    if (!requestBody) return null
-    try {
-        const parsed = JSON.parse(requestBody)
-        return isRecord(parsed) ? parsed : null
-    } catch {
-        return null
-    }
-}
-
-function getNestedRecord(root: JsonRecord | null, path: string[]): JsonRecord | null {
-    let current: unknown = root
-    for (const key of path) {
-        if (!isRecord(current)) return null
-        current = current[key]
-    }
-    return isRecord(current) ? current : null
-}
-
-function getRequestPrompt(parsed: JsonRecord | null): string {
-    const requestBody = getNestedRecord(parsed, ['requestBody'])
-    const root = requestBody ?? parsed
-    const input = getNestedRecord(root, ['input'])
-    if (typeof input?.prompt === 'string') return input.prompt
-
-    const content = root?.content
-    if (Array.isArray(content)) {
-        const textPart = content.find(item => isRecord(item) && item.type === 'text' && typeof item.text === 'string')
-        if (isRecord(textPart) && typeof textPart.text === 'string') return textPart.text
-    }
-    return ''
-}
-
-function getVideoRequestSummary(req: VideoGenerationRequest | null | undefined) {
-    const parsed = parseRequestBody(req?.requestBody)
-    if (!req || !parsed) return null
-
-    const requestBody = getNestedRecord(parsed, ['requestBody'])
-    const root = requestBody ?? parsed
-    const input = getNestedRecord(root, ['input'])
-    const media = Array.isArray(input?.media) ? input.media.filter(isRecord) : Array.isArray(root.content) ? root.content.filter(item => isRecord(item) && item.type === 'image_url') : []
-    const frames = Array.isArray(parsed.frames) ? parsed.frames.filter(isRecord) : []
-    const prompt = getRequestPrompt(parsed)
-    const preview = JSON.stringify(redactDataUrlsForDisplay(parsed), null, 2)
-
-    return {
-        provider: typeof parsed.provider === 'string' ? parsed.provider : req.provider,
-        model: typeof root.model === 'string' ? root.model : '',
-        mode: typeof parsed.mode === 'string' ? parsed.mode : typeof parsed.referenceMode === 'string' ? parsed.referenceMode : '',
-        status: req.status,
-        taskId: req.taskId,
-        createdAt: req.createdAt,
-        frameCount: typeof parsed.frameCount === 'number' ? parsed.frameCount : media.length || frames.length,
-        mediaTypes: media.map(item => {
-            const type = typeof item.type === 'string' ? item.type : ''
-            const role = typeof item.role === 'string' ? item.role : ''
-            return role ? role : type
-        }),
-        frameLabels: frames.map((frame, index) => (typeof frame.label === 'string' ? frame.label : `frame ${index + 1}`)),
-        prompt,
-        preview
-    }
-}
 
 type AutoGrowTextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
     value: string
@@ -1942,7 +1787,7 @@ function EpisodeWorkspace({ projectId, episodeId }: { projectId: string; episode
                         {
                             order,
                             shotType: 'medium',
-                            duration: recommendStoryboardDuration({ shotType: 'medium' }, getVideoProviderCapability(globalVideoProvider)?.duration.max ?? 15)
+                            duration: 5
                         }
                     ]
                 })
@@ -2084,87 +1929,6 @@ function EpisodeWorkspace({ projectId, episodeId }: { projectId: string; episode
         }
     }
 
-    async function autoSplitStoryboard(sbId: string, details: Partial<DialogueSplitRequired> = {}) {
-        const duration = Number(details.actualDurationSeconds)
-        const actualDurationSeconds = Number.isFinite(duration) && duration > 0 ? duration : undefined
-        const splitProvider = details.videoProvider ?? globalVideoProvider
-        const maximumSeconds = details.maxNaturalDialogueSeconds ?? getVideoProviderCapability(splitProvider)?.duration.max ?? 15
-        const recommendedSegments = Math.max(2, Number(details.recommendedSegments) || Math.ceil((actualDurationSeconds ?? maximumSeconds + 3) / (maximumSeconds * 0.9)))
-        const sourceLabel = details.durationSource === 'measured' ? '实测' : '预计'
-        const ok = await confirm({
-            title: `自动拆成 ${recommendedSegments} 个连续分镜`,
-            message: [
-                actualDurationSeconds
-                    ? `这段台词${sourceLabel} ${actualDurationSeconds.toFixed(1)} 秒，超过当前模型单镜 ${maximumSeconds} 秒自然承载范围。`
-                    : `这段台词超过当前模型单镜 ${maximumSeconds} 秒自然承载范围。`,
-                '系统会按语义停顿拆分台词，不截断对白；第一段保留当前首图，新增分镜自动继承角色、场景、服装、道具和连续性状态。',
-                '新增分镜需要单独生成插图和视频，因此镜头数与后续生成费用会相应增加。'
-            ].join('\n\n'),
-            confirmText: '确认自动拆镜',
-            tone: 'warning'
-        })
-        if (!ok) return false
-
-        const response = await clientFetch(`/api/storyboards/${sbId}/split-dialogue`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ actualDurationSeconds, requestedSegments: recommendedSegments, provider: splitProvider })
-        })
-        const json = await response.json().catch(() => null)
-        if (response.status === 409 && json?.code === 'DIALOGUE_ALREADY_SPLIT') {
-            await fetchAll()
-            setExpandedShot(sbId)
-            pushToast('info', '该台词已在另一项操作中完成拆镜，页面已刷新。')
-            return true
-        }
-        if (!response.ok || !json?.success) {
-            setAiMsg({ type: 'error', text: json?.error ?? '自动拆镜失败，请稍后重试' })
-            return false
-        }
-        const segmentCount = Number(json.data?.segmentCount) || recommendedSegments
-        await fetchAll()
-        setExpandedShot(sbId)
-        pushToast('success', `已自动拆成 ${segmentCount} 镜，台词未截断；第一镜原首图已保留。`)
-        return true
-    }
-
-    async function autoSplitActionStoryboard(sbId: string, details: Partial<ActionSplitRequired> = {}) {
-        const splitProvider = details.videoProvider ?? globalVideoProvider
-        const recommendedSegments = Math.min(4, Math.max(2, Number(details.recommendedSegments) || Number(details.actionStageCount) || 2))
-        const ok = await confirm({
-            title: `拆成 ${recommendedSegments} 个连续动作镜头`,
-            message: [
-                '系统只调整分镜，不修改原始小说和剧本文本。每镜只保留一个主要动作因果阶段，并让后一镜 Opening state 承接前一镜 Ending state。',
-                '当前分镜已有的插图、视频和合成结果会清空；拆分后的所有镜头需要重新生成，因此费用和耗时会增加。',
-                '打斗双方的视线目标、格挡/闪避、接触点、受力反应和重心变化会分别写入新分镜。'
-            ].join('\n\n'),
-            confirmText: '确认拆动作镜头',
-            tone: 'warning'
-        })
-        if (!ok) return false
-
-        const response = await clientFetch(`/api/storyboards/${sbId}/split-action`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ requestedSegments: recommendedSegments, provider: splitProvider })
-        })
-        const json = await response.json().catch(() => null)
-        if (response.status === 409 && json?.code === 'ACTION_SPLIT_STALE') {
-            await fetchAll()
-            pushToast('info', '该分镜刚刚被更新，页面已刷新，请确认最新内容后重试。')
-            return false
-        }
-        if (!response.ok || !json?.success) {
-            setAiMsg({ type: 'error', text: json?.error ?? '动作拆镜失败，请稍后重试' })
-            return false
-        }
-        const segmentCount = Number(json.data?.segmentCount) || recommendedSegments
-        await fetchAll()
-        setExpandedShot(sbId)
-        pushToast('success', `已拆成 ${segmentCount} 个连续动作镜头；原始剧本未修改，现有生成内容已清空。`)
-        return true
-    }
-
     function generationCapacityReservationId(sbId: string, category: GenerationCapacityCategory) {
         return `${sbId}:${category}`
     }
@@ -2228,14 +1992,6 @@ function EpisodeWorkspace({ projectId, episodeId }: { projectId: string; episode
             })
             if (!res.ok) {
                 const json = await res.json().catch(() => null)
-                if (res.status === 409 && json?.code === 'DIALOGUE_SPLIT_REQUIRED') {
-                    await autoSplitStoryboard(sbId, json as DialogueSplitRequired)
-                    return
-                }
-                if (res.status === 409 && json?.code === 'ACTION_SPLIT_REQUIRED') {
-                    await autoSplitActionStoryboard(sbId, json as ActionSplitRequired)
-                    return
-                }
                 const text = res.status === 429 && typeof json?.error === 'string' ? json.error : friendlyGenerateError(res.status, `生成请求失败：${json?.error ?? res.statusText}`)
                 const capacityCategory: GenerationCapacityCategory = json?.category === 'image' || json?.category === 'video' ? json.category : type === 'video' ? 'video' : 'image'
                 const capacityRejected = res.status === 429 && (json?.code === 'GENERATION_CONCURRENCY_LIMIT' || json?.code === 'GENERATION_QUEUE_FULL' || /最多同时处理/.test(text))
@@ -3252,8 +3008,6 @@ function EpisodeWorkspace({ projectId, episodeId }: { projectId: string; episode
                                                     onGenerate={(type, provider, referenceMode, imageProvider, imageQuality, illustrationCount) =>
                                                         triggerGenerate(sb.id, type, provider, referenceMode, imageProvider, imageQuality, illustrationCount)
                                                     }
-                                                    onAutoSplit={details => autoSplitStoryboard(sb.id, details)}
-                                                    onAutoSplitAction={details => autoSplitActionStoryboard(sb.id, details)}
                                                     onRegenerateMiddleFrame={(frameId, provider, imageProvider, imageQuality) =>
                                                         regenerateMiddleFrame(sb.id, frameId, provider, imageProvider, imageQuality)
                                                     }
@@ -3441,7 +3195,6 @@ function ShotCard({
     batchStatus,
     batchError,
     batchFailureStage,
-    prevShots,
     onToggle,
     onUpdate,
     onDelete,
@@ -3449,8 +3202,6 @@ function ShotCard({
     onCheckGenerationCapacity,
     onReleaseGenerationCapacity,
     onGenerate,
-    onAutoSplit,
-    onAutoSplitAction,
     onRegenerateMiddleFrame,
     onDeleteMiddleFrame,
     onDeleteFrame,
@@ -3484,8 +3235,6 @@ function ShotCard({
         imageQuality?: ImageQuality,
         illustrationCount?: number
     ) => void | Promise<void>
-    onAutoSplit: (details?: Partial<DialogueSplitRequired>) => boolean | Promise<boolean>
-    onAutoSplitAction: (details?: Partial<ActionSplitRequired>) => boolean | Promise<boolean>
     onRegenerateMiddleFrame: (frameId: string, provider?: string, imageProvider?: ImageProvider, imageQuality?: ImageQuality) => void | Promise<void>
     onDeleteMiddleFrame: (frame: Illustration) => void
     onDeleteFrame: (frame: Illustration) => void
@@ -3519,15 +3268,6 @@ function ShotCard({
     const imageQuality = defaultImageQuality ?? 'standard'
     const [illustrationCount, setIllustrationCount] = useState(1)
     const [videoReferenceMode, setVideoReferenceMode] = useState<VideoReferenceMode>('single')
-    const [expandingField, setExpandingField] = useState<'imagePromptExpand' | 'imagePromptRewrite' | 'actionDescExpand' | 'actionDescRewrite' | null>(null)
-    const [expandingVideoPrompt, setExpandingVideoPrompt] = useState<'expand' | 'rewrite' | null>(null)
-    const [expandError, setExpandError] = useState<string | null>(null)
-    const [videoPromptError, setVideoPromptError] = useState<string | null>(null)
-    const [klingComparison, setKlingComparison] = useState<KlingComparison | null>(sb.latestKlingComparison ?? null)
-    const [submittingKling, setSubmittingKling] = useState(false)
-    const [speechComparisons, setSpeechComparisons] = useState<SpeechComparison[]>(sb.latestSpeechComparisons ?? [])
-    const [splittingDialogue, setSplittingDialogue] = useState(false)
-    const [splittingAction, setSplittingAction] = useState(false)
     const [referenceVideos, setReferenceVideos] = useState<StoryboardReferenceVideo[]>(() => parseStoryboardReferenceVideos(sb.referenceVideoAssets))
     const [uploadingReferenceVideo, setUploadingReferenceVideo] = useState(false)
     const [deletingReferenceVideoId, setDeletingReferenceVideoId] = useState<string | null>(null)
@@ -3571,188 +3311,7 @@ function ShotCard({
             trigger?.focus({ preventScroll: true })
         }
     }, [showShotSettings, expanded, settingsFocusVersion])
-
-    // 立即 POST 拿 jobId，再轮询 status，兼容之前直接返回结果的老代码
-    async function submitExpandJob(body: Record<string, unknown>): Promise<string> {
-        // 打开分镜页可能同时展开多张卡片 → 一次并发数十个 POST，
-        // 曾经把服务端 DB 连接池打满导致部分请求 500 空 body。
-        // 通过并发限流 + 一次 5xx 重试，把偶发 500 兜住。
-        const submit = () => submitExpandJobRaw(body)
-        return runWithExpandConcurrency(submit)
-    }
-
-    async function submitExpandJobRaw(body: Record<string, unknown>): Promise<string> {
-        let res = await clientFetch('/api/ai/expand-prompt', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...body, projectId })
-        })
-        // 空 body 500（服务端进程级异常）时短暂退避后重试一次
-        if (res.status >= 500) {
-            await new Promise(r => setTimeout(r, 600 + Math.random() * 900))
-            res = await clientFetch('/api/ai/expand-prompt', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...body, projectId })
-            })
-        }
-        if (!res.ok) {
-            let msg = `请求失败 (${res.status})`
-            try {
-                const e = await res.json()
-                if (e?.error) msg = e.error
-            } catch {}
-            throw new Error(msg)
-        }
-        const json = await res.json()
-        if (!json?.success) throw new Error(json?.error ?? '请求失败')
-        const jobId = json.data?.jobId as string | undefined
-        if (!jobId) throw new Error('未返回 jobId')
-
-        const steps = [1500, 2000, 3000, 5000, 8000, 10000]
-        for (let attempt = 0; attempt < 33; attempt += 1) {
-            const s = await clientFetch(`/api/ai/expand-prompt/status/${jobId}`)
-            const sj = await s.json()
-            if (!sj?.success) throw new Error(sj?.error ?? '轮询失败')
-            const data = sj.data ?? {}
-            if (data.phase === 'done') {
-                const expanded = data.result?.expanded
-                if (typeof expanded !== 'string') throw new Error('任务已完成但未返回结果')
-                return expanded
-            }
-            if (data.phase === 'error') throw new Error(data.error ?? '任务失败')
-            await new Promise(r => setTimeout(r, getPollingDelay({ baseMs: steps[Math.min(attempt, steps.length - 1)] })))
-        }
-        throw new Error('任务超时（5 分钟未完成）')
-    }
-
-    async function rewriteVideoPrompt(
-        context: {
-            actionDesc?: string | null
-            imagePrompt?: string | null
-            dialogue?: string | null
-            shotType?: string | null
-            duration?: number | null
-        },
-        opts?: { persist?: 'generated' | 'override' }
-    ) {
-        setExpandingVideoPrompt('rewrite')
-        setVideoPromptError(null)
-        try {
-            const expanded = await submitExpandJob({
-                field: 'videoPrompt',
-                action: 'rewrite',
-                videoContext: { ...context, provider: videoProvider, referenceMode: videoReferenceMode },
-                context: (prevShots ?? []).map(s => ({ imagePrompt: s.imagePrompt ?? '', actionDesc: s.actionDesc ?? '', dialogue: s.dialogue ?? '' }))
-            })
-            if (expanded) {
-                setVideoPromptDraft(expanded)
-                if (opts?.persist === 'generated' && !(await onUpdate({ videoPrompt: expanded, motionOverride: null, fullPromptOverride: null }))) throw new Error('生成的视频 Prompt 保存失败')
-                if (opts?.persist === 'override' && !(await onUpdate({ motionOverride: expanded, videoPrompt: null, fullPromptOverride: null }))) throw new Error('视频 Prompt 保存失败')
-            }
-            return expanded
-        } catch (err) {
-            setVideoPromptError(err instanceof Error ? err.message : '生成视频 Prompt 失败')
-            return null
-        } finally {
-            setExpandingVideoPrompt(null)
-        }
-    }
-
-    async function handleExpandPrompt(field: 'imagePrompt' | 'actionDesc') {
-        const text = field === 'imagePrompt' ? localData.imagePrompt : localData.actionDesc
-        if (!text.trim()) return
-        setExpandingField(`${field}Expand` as 'imagePromptExpand' | 'actionDescExpand')
-        setExpandError(null)
-        try {
-            const context = (prevShots ?? []).map(s => ({
-                imagePrompt: s.imagePrompt ?? '',
-                actionDesc: s.actionDesc ?? '',
-                dialogue: s.dialogue ?? ''
-            }))
-            const expanded = await submitExpandJob({ field, text, context })
-            if (expanded) {
-                setLocalData(prev => ({ ...prev, [field]: expanded }))
-                // 不再立即 rewrite videoPrompt：videoPrompt 会在点"生成视频"时按需生成（ensureVideoPromptForGenerate）
-            }
-        } catch (err) {
-            setExpandError(err instanceof Error ? err.message : '扩写失败')
-        } finally {
-            setExpandingField(null)
-        }
-    }
-
-    async function handleRewriteField(field: 'imagePrompt' | 'actionDesc') {
-        setExpandingField(`${field}Rewrite` as 'imagePromptRewrite' | 'actionDescRewrite')
-        setExpandError(null)
-        try {
-            const selectedCharNames = localData.characterIds.map(id => characters.find(c => c.id === id)?.name).filter(Boolean) as string[]
-            const selectedScene = scenes.find(s => s.id === localData.sceneId)
-            const storyboardContext = {
-                dialogue: localData.dialogue,
-                shotType: localData.shotType,
-                duration: localData.duration,
-                imagePrompt: field === 'actionDesc' ? localData.imagePrompt : null,
-                actionDesc: field === 'imagePrompt' ? localData.actionDesc : null,
-                characterNames: selectedCharNames,
-                sceneName: selectedScene?.name ?? null
-            }
-            const context = (prevShots ?? []).map(s => ({
-                imagePrompt: s.imagePrompt ?? '',
-                actionDesc: s.actionDesc ?? '',
-                dialogue: s.dialogue ?? ''
-            }))
-            const expanded = await submitExpandJob({ field, action: 'rewrite', storyboardContext, context })
-            if (expanded) {
-                setLocalData(prev => ({ ...prev, [field]: expanded }))
-                // 不再连锁 rewrite videoPrompt：videoPrompt 会在点"生成视频"时按需生成
-            }
-        } catch (err) {
-            setExpandError(err instanceof Error ? err.message : '改写失败')
-        } finally {
-            setExpandingField(null)
-        }
-    }
-
-    async function handleVideoPromptAction(action: 'expand' | 'rewrite') {
-        if (action === 'rewrite') {
-            await rewriteVideoPrompt({
-                actionDesc: localData.actionDesc,
-                imagePrompt: localData.imagePrompt,
-                dialogue: localData.dialogue,
-                shotType: localData.shotType,
-                duration: localData.duration
-            })
-            return
-        }
-        setExpandingVideoPrompt('expand')
-        setVideoPromptError(null)
-        try {
-            if (!videoPromptDraft.trim()) return
-            const expanded = await submitExpandJob({
-                field: 'videoPrompt',
-                action: 'expand',
-                text: videoPromptDraft,
-                videoContext: {
-                    actionDesc: localData.actionDesc,
-                    imagePrompt: localData.imagePrompt,
-                    dialogue: localData.dialogue,
-                    shotType: localData.shotType,
-                    duration: localData.duration,
-                    provider: videoProvider,
-                    referenceMode: videoReferenceMode
-                }
-            })
-            if (expanded) setVideoPromptDraft(expanded)
-        } catch (err) {
-            setVideoPromptError(err instanceof Error ? err.message : '扩写失败')
-        } finally {
-            setExpandingVideoPrompt(null)
-        }
-    }
     const [showVideoPrompt, setShowVideoPrompt] = useState(false)
-    const [showVideoRecommendation, setShowVideoRecommendation] = useState(false)
-    const [promptOverrideMode, setPromptOverrideMode] = useState<'motion' | 'full'>(sb.fullPromptOverride ? 'full' : 'motion')
     const [videoPromptDraft, setVideoPromptDraft] = useState(sb.fullPromptOverride ?? sb.motionOverride ?? sb.videoPrompt ?? '')
     const [savingVideoPrompt, setSavingVideoPrompt] = useState(false)
     // 视频"生成"按钮的乐观锁：
@@ -3809,7 +3368,6 @@ function ShotCard({
     const batchVideoFailed = activeGenerationStatus === 'failed' && (resolvedBatchFailureStage === 'video' || (!resolvedBatchFailureStage && frameReady))
     const frameSucceeded = frameReady || batchFrameReady
     const hasDialogue = !!localData.dialogue.trim()
-    const speakerCount = countDialogueSpeakers(localData.dialogue)
     const embeddedVideoAudio = storyboardUsesEmbeddedVideoAudio(sb)
     const selectedProviderUsesEmbeddedAudio = usesEmbeddedVideoAudio(videoProvider)
     const speechCapability = getVideoSpeechCapability(videoProvider, hasDialogue)
@@ -3829,25 +3387,6 @@ function ShotCard({
         : `${selectedVideoCapability?.label ?? videoProvider} ${t('不支持参考视频')}`
     const referenceVideoDurationViolation = getReferenceVideoDurationViolation(referenceVideos, referenceVideoDurationRule)
     const referenceVideoDurationError = referenceVideoDurationViolation ? formatReferenceVideoDurationViolation(selectedVideoCapability?.label ?? videoProvider, referenceVideoDurationViolation) : ''
-    const videoRecommendation = recommendVideoProvider({
-        shotType: localData.shotType,
-        duration: localData.duration,
-        dialogue: localData.dialogue,
-        actionDesc: localData.actionDesc,
-        imagePrompt: localData.imagePrompt,
-        continuityMode: sb.continuityMode,
-        characterCount: localData.characterIds.length,
-        speakerCount
-    })
-    const shotConstraintAnalysis = analyzeVideoShotConstraints({
-        provider: videoProvider,
-        shotType: localData.shotType,
-        duration: localData.duration,
-        dialogue: localData.dialogue,
-        actionDesc: localData.actionDesc,
-        imagePrompt: localData.imagePrompt,
-        keyframeCount: illustrationCount
-    })
     const videoFailure = resolveVideoFailureDisplay({
         videoUrl: sb.videoUrl,
         videoStatus: sb.videoStatus,
@@ -3856,20 +3395,9 @@ function ShotCard({
         persistedError: sb.latestErrors?.video?.errorMsg,
         providerSwitched: false
     })
-    const videoFailureMessage = videoFailure.message
-    const videoFailureGuidance = videoFailureMessage ? getGenerationErrorGuidance(videoFailureMessage) : null
-    const failedDialogueDuration = parseWanDialogueDurationSeconds(videoFailureMessage)
-    const splitDuration = failedDialogueDuration ?? shotConstraintAnalysis.estimatedDialogueSeconds
-    const recommendedSplitSegments = Math.max(
-        2,
-        Math.ceil(splitDuration / (shotConstraintAnalysis.dialogueCapacitySeconds * 0.9)),
-        shotConstraintAnalysis.keyframeDialogueConflict ? Math.max(2, illustrations.length - 1) : 0
-    )
-    const videoRequestSummary = getVideoRequestSummary(sb.latestVideoRequest)
     const videoQueued = sb.latestVideoRequest?.status === 'queued' || activeGenerationStatus === 'frame_done'
     const videoGenerating = submittingVideo || batchVideoRunning || (sb.videoStatus === 'generating' && !videoQueued)
-    const videoPromptFallback = videoRequestSummary?.prompt ?? ''
-    const videoPromptSaved = promptOverrideMode === 'full' ? (sb.fullPromptOverride ?? '') : (sb.motionOverride ?? sb.videoPrompt ?? '')
+    const videoPromptSaved = sb.fullPromptOverride ?? sb.motionOverride ?? sb.videoPrompt ?? ''
     const videoPromptDirty = videoPromptDraft.trim() !== videoPromptSaved.trim()
     const referenceModeSupported = supportsVideoReferenceMode(videoProvider, videoReferenceMode)
     const dialogueProviderSupported = !hasDialogue || speechCapability.mode === 'native'
@@ -3917,77 +3445,10 @@ function ShotCard({
     }, [sb.referenceVideoAssets])
 
     useEffect(() => {
-        const nextMode = sb.fullPromptOverride ? 'full' : 'motion'
         // 分镜切换或服务端保存完成后，同步本地 Prompt 编辑器草稿。
         // eslint-disable-next-line react-hooks/set-state-in-effect
-        setPromptOverrideMode(nextMode)
-        setVideoPromptDraft(sb.fullPromptOverride ?? sb.motionOverride ?? sb.videoPrompt ?? videoPromptFallback)
-    }, [sb.id, sb.fullPromptOverride, sb.motionOverride, sb.videoPrompt, videoPromptFallback])
-
-    useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setKlingComparison(sb.latestKlingComparison ?? null)
-    }, [sb.latestKlingComparison])
-
-    useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setSpeechComparisons(sb.latestSpeechComparisons ?? [])
-    }, [sb.latestSpeechComparisons])
-
-    async function generateKlingComparison() {
-        if (!(await canStartGeneration('video'))) return
-        let capacityReserved = true
-        setSubmittingKling(true)
-        try {
-            const response = await clientFetch(`/api/storyboards/${sb.id}/compare-kling`, { method: 'POST' })
-            const json = await response.json().catch(() => ({}))
-            if (!response.ok) throw new Error(json.error ?? 'Kling 对照任务启动失败')
-            onReleaseGenerationCapacity('video')
-            capacityReserved = false
-            pushToast('info', 'Kling 高动态对照已启动；它只生成旁路样片，不会覆盖主视频。')
-            for (let attempt = 0; attempt < 180; attempt += 1) {
-                await new Promise(resolve => setTimeout(resolve, 5_000))
-                const statusResponse = await clientFetch(`/api/storyboards/${sb.id}/compare-kling`)
-                const statusJson = await statusResponse.json().catch(() => ({}))
-                if (!statusResponse.ok) throw new Error(statusJson.error ?? 'Kling 对照状态查询失败')
-                const latest = (statusJson.data ?? null) as KlingComparison | null
-                setKlingComparison(latest)
-                if (!latest || latest.status === 'failed' || latest.status === 'cancelled' || latest.status === 'completed') {
-                    if (latest?.status === 'completed') pushToast('success', 'Kling 对照样片已完成，可与主视频并排检查。')
-                    if (latest?.status === 'failed') pushToast('error', latest.errorMsg ?? 'Kling 对照生成失败')
-                    break
-                }
-            }
-        } catch (error) {
-            pushToast('error', error instanceof Error ? error.message : 'Kling 对照任务失败')
-        } finally {
-            if (capacityReserved) onReleaseGenerationCapacity('video')
-            setSubmittingKling(false)
-        }
-    }
-
-    async function ensureVideoPromptForGenerate() {
-        if (!sb.motionOverride?.trim() && !sb.fullPromptOverride?.trim() && (localData.actionDesc?.trim() || localData.imagePrompt?.trim())) {
-            const generated = await rewriteVideoPrompt(
-                {
-                    actionDesc: localData.actionDesc,
-                    imagePrompt: localData.imagePrompt,
-                    dialogue: localData.dialogue,
-                    shotType: localData.shotType,
-                    duration: localData.duration
-                },
-                { persist: 'generated' }
-            )
-            if (generated) {
-                setVideoPromptDraft(generated)
-            }
-        }
-    }
-
-    // videoPrompt 不做打开卡片时的自动预生成：
-    // 1) 后端 buildVideoText 有完整 fallback，即使为空也能生视频
-    // 2) 用户想自定义时随时可以点"改写 / 扩写"按钮
-    // 3) 真正下发生成视频时，若为空会现场生成一版并写回 DB，见 triggerGenerate 分支
+        setVideoPromptDraft(sb.fullPromptOverride ?? sb.motionOverride ?? sb.videoPrompt ?? '')
+    }, [sb.id, sb.fullPromptOverride, sb.motionOverride, sb.videoPrompt])
 
     async function save() {
         if (savingShotSettings) return
@@ -4018,9 +3479,7 @@ function ShotCard({
         setSavingVideoPrompt(true)
         try {
             const value = videoPromptDraft.trim() || null
-            await onUpdate(
-                promptOverrideMode === 'full' ? { fullPromptOverride: value, motionOverride: null, videoPrompt: null } : { motionOverride: value, fullPromptOverride: null, videoPrompt: null }
-            )
+            await onUpdate({ videoPrompt: value, fullPromptOverride: null, motionOverride: null })
         } finally {
             setSavingVideoPrompt(false)
         }
@@ -4206,7 +3665,6 @@ function ShotCard({
         setSubmittingVideo(true)
         try {
             await saveBeforeGenerate()
-            await ensureVideoPromptForGenerate()
             await onGenerate('video', videoProvider, referenceMode)
         } finally {
             onReleaseGenerationCapacity('video')
@@ -4236,41 +3694,6 @@ function ShotCard({
         }
     }
 
-    async function autoSplitDialogue(details: Partial<DialogueSplitRequired> = {}) {
-        if (splittingDialogue) return
-        setSplittingDialogue(true)
-        try {
-            await saveBeforeGenerate()
-            await onAutoSplit({
-                actualDurationSeconds:
-                    details.actualDurationSeconds ?? (dirty ? shotConstraintAnalysis.estimatedDialogueSeconds : failedDialogueDuration) ?? shotConstraintAnalysis.estimatedDialogueSeconds,
-                durationSource: details.durationSource ?? (!dirty && failedDialogueDuration ? 'measured' : 'estimated'),
-                recommendedSegments:
-                    details.recommendedSegments ??
-                    (dirty ? Math.max(2, Math.ceil(shotConstraintAnalysis.estimatedDialogueSeconds / (shotConstraintAnalysis.dialogueCapacitySeconds * 0.9))) : recommendedSplitSegments),
-                maxNaturalDialogueSeconds: shotConstraintAnalysis.dialogueCapacitySeconds,
-                videoProvider
-            })
-        } finally {
-            setSplittingDialogue(false)
-        }
-    }
-
-    async function autoSplitAction() {
-        if (splittingAction) return
-        setSplittingAction(true)
-        try {
-            await saveBeforeGenerate()
-            await onAutoSplitAction({
-                recommendedSegments: shotConstraintAnalysis.recommendedActionSegments,
-                actionStageCount: shotConstraintAnalysis.actionStageCount,
-                videoProvider
-            })
-        } finally {
-            setSplittingAction(false)
-        }
-    }
-
     return (
         <div
             id={`shot-${sb.id}`}
@@ -4284,13 +3707,7 @@ function ShotCard({
                         <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-purple-500/10 px-2 py-1 text-[11px] font-semibold tracking-wide text-purple-200 ring-1 ring-inset ring-purple-400/15">
                             {String(idx + 1).padStart(2, '0')}
                         </span>
-                        {sb.polishStatus === 'fallback_initial' && (
-                            <span
-                                className="shrink-0 rounded-full border border-yellow-500/40 bg-yellow-500/10 px-2 py-0.5 text-[10px] text-yellow-300"
-                                title="分镜二次质检失败，当前展示已保留的初稿；可重新生成分镜。">
-                                初稿回退
-                            </span>
-                        )}
+
                         {sb.dialogue && (
                             <span
                                 data-i18n-skip
@@ -4685,28 +4102,7 @@ function ShotCard({
                                                         id={`shot-${sb.id}-action-editor`}
                                                         title="动作描述"
 
-                                                        toolbar={
-                                                            <>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => handleRewriteField('actionDesc')}
-                                                                    disabled={expandingField?.startsWith('actionDesc') ?? false}
-                                                                    title="AI 改写动作描述（从头生成）"
-                                                                    className="flex items-center gap-1 text-[11px] text-blue-400 hover:text-blue-300 disabled:cursor-not-allowed disabled:opacity-40">
-                                                                    <RefreshCw className={`w-3 h-3 ${expandingField === 'actionDescRewrite' ? 'animate-spin' : ''}`} />
-                                                                    {expandingField === 'actionDescRewrite' ? '改写中...' : '改写'}
-                                                                </button>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => handleExpandPrompt('actionDesc')}
-                                                                    disabled={!localData.actionDesc.trim() || (expandingField?.startsWith('actionDesc') ?? false)}
-                                                                    title="AI 扩写动作描述（丰富现有内容）"
-                                                                    className="flex items-center gap-1 text-[11px] text-purple-400 hover:text-purple-300 disabled:cursor-not-allowed disabled:opacity-40">
-                                                                    <Sparkles className={`w-3 h-3 ${expandingField === 'actionDescExpand' ? 'animate-pulse' : ''}`} />
-                                                                    {expandingField === 'actionDescExpand' ? '扩写中...' : '扩写'}
-                                                                </button>
-                                                            </>
-                                                        }>
+                                                        toolbar={<></>}>
                                                         <AutoGrowTextarea
                                                             aria-label="动作描述"
                                                             value={localData.actionDesc}
@@ -4724,28 +4120,7 @@ function ShotCard({
                                                         id={`shot-${sb.id}-image-prompt-editor`}
                                                         title="图像描述"
 
-                                                        toolbar={
-                                                            <>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => handleRewriteField('imagePrompt')}
-                                                                    disabled={expandingField?.startsWith('imagePrompt') ?? false}
-                                                                    title="AI 改写图像描述（从头生成）"
-                                                                    className="flex items-center gap-1 text-[11px] text-blue-400 hover:text-blue-300 disabled:cursor-not-allowed disabled:opacity-40">
-                                                                    <RefreshCw className={`w-3 h-3 ${expandingField === 'imagePromptRewrite' ? 'animate-spin' : ''}`} />
-                                                                    {expandingField === 'imagePromptRewrite' ? '改写中...' : '改写'}
-                                                                </button>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => handleExpandPrompt('imagePrompt')}
-                                                                    disabled={!localData.imagePrompt.trim() || (expandingField?.startsWith('imagePrompt') ?? false)}
-                                                                    title="AI 扩写图像描述（丰富现有内容）"
-                                                                    className="flex items-center gap-1 text-[11px] text-purple-400 hover:text-purple-300 disabled:cursor-not-allowed disabled:opacity-40">
-                                                                    <Sparkles className={`w-3 h-3 ${expandingField === 'imagePromptExpand' ? 'animate-pulse' : ''}`} />
-                                                                    {expandingField === 'imagePromptExpand' ? '扩写中...' : '扩写'}
-                                                                </button>
-                                                            </>
-                                                        }>
+                                                        toolbar={<></>}>
                                                         <AutoGrowTextarea
                                                             id={`shot-${sb.id}-imagePrompt`}
                                                             aria-label="图像描述"
@@ -4761,13 +4136,6 @@ function ShotCard({
                                                     </ShotSettingsField>
                                                 </div>
 
-                                                {expandError && (
-                                                    <p
-                                                        role="alert"
-                                                        className="text-xs text-red-400">
-                                                        {expandError}
-                                                    </p>
-                                                )}
                                                 <div className="flex gap-2">
                                                     <div className="flex-1">
                                                         <label className="text-xs text-gray-500 block mb-1">{t('场景')}</label>
@@ -4861,7 +4229,7 @@ function ShotCard({
                                             <button
                                                 type="button"
                                                 onClick={() => void save()}
-                                                disabled={!dirty || savingShotSettings || !!expandingField}
+                                                disabled={!dirty || savingShotSettings}
                                                 className="rounded-lg bg-purple-600 px-5 py-2 text-xs font-medium text-white transition-colors hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50">
                                                 {savingShotSettings ? t('保存中...') : savedFlash ? t('✓ 已保存') : t('保存')}
                                             </button>
@@ -5120,9 +4488,6 @@ function ShotCard({
                                     provider={sb.latestErrors?.video?.provider}
                                     onEdit={() => focusEditor('dialogue')}
                                     onRetry={() => generateVideo()}
-                                    onResolve={videoFailureGuidance?.kind === 'dialogue_too_long' ? () => autoSplitDialogue() : undefined}
-                                    resolveLabel={t('自动拆成 {count} 镜', { count: recommendedSplitSegments })}
-                                    resolveDisabled={splittingDialogue}
                                     retryDisabled={submittingVideo}
                                 />
                             )}
@@ -5136,141 +4501,7 @@ function ShotCard({
                                         className="w-full rounded bg-black max-h-48"
                                     />
                                 )}
-                                <div className="rounded-lg border border-indigo-500/25 bg-indigo-500/5 p-2.5 text-[11px]">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowVideoRecommendation(current => !current)}
-                                        className="flex w-full items-center justify-between gap-3 text-start text-indigo-200"
-                                        aria-expanded={showVideoRecommendation}>
-                                        <span className="font-medium">视频生成提示</span>
-                                        {showVideoRecommendation ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                                    </button>
-                                </div>
-                                <div
-                                    hidden={!showVideoRecommendation}
-                                    className="rounded-lg border border-indigo-500/25 bg-indigo-500/5 p-2.5 text-[11px]">
-                                    {SHOW_SHORT_DRAMA_VIDEO_MODEL_CONTROLS && isGenerationModelVisible(videoRecommendation.provider) && (
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div>
-                                                <div className="flex items-center gap-1.5 font-medium text-indigo-200">
-                                                    <span>推荐：{videoRecommendation.label}</span>
-                                                    <ModelSourceBadge model={videoRecommendation.provider} />
-                                                </div>
-                                                <p className="mt-0.5 leading-4 text-gray-400">{videoRecommendation.reason}</p>
-                                            </div>
-                                            {videoProvider !== videoRecommendation.provider && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setShotProviderTouched(true)
-                                                        setVideoProvider(videoRecommendation.provider)
-                                                    }}
-                                                    className="flex-shrink-0 rounded border border-indigo-400/40 px-2 py-1 text-indigo-200 hover:bg-indigo-500/15">
-                                                    采用推荐
-                                                </button>
-                                            )}
-                                        </div>
-                                    )}
-                                    {SHOW_SHORT_DRAMA_VIDEO_MODEL_CONTROLS && isGenerationModelVisible(videoRecommendation.provider) && videoRecommendation.comparisonProvider === 'kling' && (
-                                        <div className="mt-2 border-t border-indigo-500/15 pt-2">
-                                            <div className="flex items-center justify-between gap-2">
-                                                <p className="text-amber-300">Kling 对照候选：{videoRecommendation.comparisonReason}</p>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => void generateKlingComparison()}
-                                                    disabled={!frameReady || submittingKling || klingComparison?.status === 'processing' || klingComparison?.status === 'queued'}
-                                                    className="flex-shrink-0 rounded border border-amber-400/40 px-2 py-1 text-amber-200 hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-50">
-                                                    {submittingKling || klingComparison?.status === 'processing' || klingComparison?.status === 'queued' ? '对照生成中…' : '生成 Kling 对照'}
-                                                </button>
-                                            </div>
-                                            <p className="mt-1 text-gray-500">实验样片独立保存，不会覆盖主视频，也不会改变当前模型选择。</p>
-                                            {klingComparison?.status === 'failed' && <p className="mt-1 text-red-300">{klingComparison.errorMsg ?? 'Kling 对照生成失败'}</p>}
-                                            {klingComparison?.status === 'completed' && klingComparison.resultUrl && (
-                                                <video
-                                                    src={klingComparison.resultUrl}
-                                                    controls
-                                                    preload="metadata"
-                                                    className="mt-2 max-h-48 w-full rounded bg-black"
-                                                />
-                                            )}
-                                        </div>
-                                    )}
-                                    <div className="mt-2 border-t border-indigo-500/15 pt-2">
-                                        <div className="flex items-center gap-2">
-                                            <span
-                                                className={`rounded px-1.5 py-0.5 text-[10px] ${
-                                                    speechCapability.mode === 'native'
-                                                        ? 'bg-emerald-500/15 text-emerald-200'
-                                                        : speechCapability.mode === 'driving'
-                                                          ? 'bg-blue-500/15 text-blue-200'
-                                                          : 'bg-gray-700 text-gray-300'
-                                                }`}>
-                                                {speechCapability.label}
-                                            </span>
-                                        </div>
-                                        <p className="mt-1 leading-4 text-gray-500">{speechCapability.description}</p>
-                                    </div>
-                                    {speechComparisons.length > 0 && (
-                                        <div className="mt-2 border-t border-indigo-500/15 pt-2">
-                                            <p className="font-medium text-indigo-200">历史语音对照样片</p>
-                                            {speechComparisons.length > 0 && (
-                                                <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                                                    {(['seedance', 'wanx'] as const).map(provider => {
-                                                        const item = speechComparisons.find(comparison => comparison.provider === provider)
-                                                        return (
-                                                            <div
-                                                                key={provider}
-                                                                className="rounded border border-gray-800 bg-gray-950/60 p-2">
-                                                                <div className="mb-1 text-[10px] font-medium text-gray-300">
-                                                                    {provider === 'seedance' ? `${SEEDANCE_20_LABEL} · 原生对白` : '历史纯画面对照'}
-                                                                </div>
-                                                                {item?.status === 'completed' && item.resultUrl ? (
-                                                                    <video
-                                                                        src={item.resultUrl}
-                                                                        controls
-                                                                        preload="metadata"
-                                                                        className="max-h-48 w-full rounded bg-black"
-                                                                    />
-                                                                ) : item?.status === 'failed' ? (
-                                                                    <p className="text-red-300">{item.errorMsg ?? '生成失败'}</p>
-                                                                ) : (
-                                                                    <p className="text-gray-500">{item ? '生成中…' : '尚未生成'}</p>
-                                                                )}
-                                                            </div>
-                                                        )
-                                                    })}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                    {shotConstraintAnalysis.warnings.map(warning => (
-                                        <p
-                                            key={warning}
-                                            className="mt-1.5 text-yellow-300">
-                                            {warning}
-                                        </p>
-                                    ))}
-                                    {(shotConstraintAnalysis.dialogueHandling === 'split' || shotConstraintAnalysis.keyframeDialogueConflict) && (
-                                        <button
-                                            type="button"
-                                            onClick={() => void autoSplitDialogue()}
-                                            disabled={splittingDialogue}
-                                            className="mt-2 inline-flex items-center gap-1 rounded border border-yellow-400/40 bg-yellow-500/10 px-2 py-1 text-[10px] font-semibold text-yellow-100 hover:bg-yellow-500/20 disabled:cursor-wait disabled:opacity-50">
-                                            <Wand2 className="h-3 w-3" />
-                                            {splittingDialogue ? t('正在拆镜...') : t('自动拆成 {count} 镜', { count: recommendedSplitSegments })}
-                                        </button>
-                                    )}
-                                    {shotConstraintAnalysis.complexActionDetected && (
-                                        <button
-                                            type="button"
-                                            onClick={() => void autoSplitAction()}
-                                            disabled={splittingAction}
-                                            className="mt-2 ms-2 inline-flex items-center gap-1 rounded border border-orange-400/40 bg-orange-500/10 px-2 py-1 text-[10px] font-semibold text-orange-100 hover:bg-orange-500/20 disabled:cursor-wait disabled:opacity-50">
-                                            <Wand2 className="h-3 w-3" />
-                                            {splittingAction ? '正在拆动作...' : `拆成 ${shotConstraintAnalysis.recommendedActionSegments} 个动作镜头`}
-                                        </button>
-                                    )}
-                                </div>
+
                                 <div
                                     role="group"
                                     aria-label="参考方式"
@@ -5363,76 +4594,32 @@ function ShotCard({
                                         onClick={() => setShowVideoPrompt(v => !v)}
                                         className="flex w-full items-center gap-2 px-3 py-2 text-start text-[11px] text-gray-300 hover:bg-gray-900">
                                         <BookOpen className="w-3.5 h-3.5 text-blue-400" />
-                                        <span className="font-medium">动态镜头计划</span>
-                                        {sb.videoPrompt && !sb.motionOverride && <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] text-emerald-200">自动规划</span>}
-                                        {sb.motionOverride && <span className="rounded bg-blue-500/15 px-1.5 py-0.5 text-[10px] text-blue-200">人工覆盖</span>}
-                                        {sb.fullPromptOverride && <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-200">完整覆盖</span>}
+                                        <span className="font-medium">{t('视频提示词')}</span>
                                         {showVideoPrompt ? <ChevronUp className="ms-auto w-3.5 h-3.5 text-gray-500" /> : <ChevronDown className="ms-auto w-3.5 h-3.5 text-gray-500" />}
                                     </button>
                                     {showVideoPrompt && (
                                         <div className="space-y-3 border-t border-gray-800 px-3 py-3">
                                             <div>
-                                                <div className="mb-2 inline-flex rounded border border-gray-800 bg-black/30 p-0.5 text-[10px]">
-                                                    {(['motion', 'full'] as const).map(mode => (
-                                                        <button
-                                                            key={mode}
-                                                            type="button"
-                                                            onClick={() => {
-                                                                setPromptOverrideMode(mode)
-                                                                setVideoPromptDraft(mode === 'full' ? (sb.fullPromptOverride ?? '') : (sb.motionOverride ?? sb.videoPrompt ?? videoPromptFallback))
-                                                            }}
-                                                            className={`rounded px-2 py-1 ${promptOverrideMode === mode ? 'bg-gray-700 text-white' : 'text-gray-500'}`}>
-                                                            {mode === 'motion' ? '覆盖动态计划（推荐）' : '完整 Prompt 覆盖'}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                                <div className="mb-1 flex items-center justify-between gap-2 text-[10px]">
-                                                    <span className="text-gray-600">根据动作、对白、情绪和转场自动划分可变时长镜头节拍</span>
-                                                    <div className="flex items-center gap-2">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleVideoPromptAction('rewrite')}
-                                                            disabled={!!expandingVideoPrompt || (!localData.actionDesc.trim() && !localData.imagePrompt.trim())}
-                                                            title="根据动作、对白、画面、模型和参考模式重新生成动态镜头计划"
-                                                            className="flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                                                            <RefreshCw className={`w-3 h-3 ${expandingVideoPrompt === 'rewrite' ? 'animate-spin' : ''}`} />
-                                                            {expandingVideoPrompt === 'rewrite' ? '改写中...' : '改写'}
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleVideoPromptAction('expand')}
-                                                            disabled={!!expandingVideoPrompt || !videoPromptDraft.trim()}
-                                                            title="扩写当前 Prompt，补充更多细节"
-                                                            className="flex items-center gap-1 text-[10px] text-purple-400 hover:text-purple-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                                                            <Sparkles className={`w-3 h-3 ${expandingVideoPrompt === 'expand' ? 'animate-pulse' : ''}`} />
-                                                            {expandingVideoPrompt === 'expand' ? '扩写中...' : '扩写'}
-                                                        </button>
-                                                        <span className="text-gray-500">{videoPromptSaved ? '已保存，下次生成生效' : '留空则自动生成'}</span>
-                                                    </div>
-                                                </div>
+                                                <p className="mb-2 text-[10px] text-gray-500">{t('留空则使用分镜动作或画面描述')}</p>
                                                 <AutoGrowTextarea
                                                     value={videoPromptDraft}
                                                     onChange={e => setVideoPromptDraft(e.target.value)}
                                                     onCompositionStart={() => setIsComposing(true)}
                                                     onCompositionEnd={() => setIsComposing(false)}
-                                                    placeholder={
-                                                        promptOverrideMode === 'motion'
-                                                            ? '[起始秒-结束秒] SUBJECT ACTION: ... CAMERA: ... CONTINUITY/TRANSITION: ...；时段数量与长度由内容决定'
-                                                            : '显式覆盖创意正文；Provider、身份、场景、语言硬锁仍由系统追加'
-                                                    }
+                                                    placeholder={t('描述这个镜头中要发生的动作和画面。')}
                                                     minRows={6}
                                                     maxRows={14}
                                                     spellCheck={false}
                                                     className="w-full rounded border border-gray-800 bg-black/40 p-2 font-mono text-[10px] leading-relaxed text-gray-300 focus:border-blue-500 focus:outline-none"
                                                 />
-                                                {videoPromptError && <p className="mt-1 text-[10px] text-red-400">{videoPromptError}</p>}
+
                                                 <div className="mt-2 flex items-center gap-2">
                                                     <button
                                                         type="button"
                                                         onClick={saveVideoPrompt}
                                                         disabled={savingVideoPrompt || !videoPromptDirty}
                                                         className="rounded bg-blue-600 px-2.5 py-1.5 text-[11px] text-white transition-colors hover:bg-blue-700 disabled:opacity-40">
-                                                        {savingVideoPrompt ? '保存中...' : promptOverrideMode === 'motion' ? '保存动态计划覆盖' : '保存完整覆盖'}
+                                                        {savingVideoPrompt ? '保存中...' : '保存'}
                                                     </button>
                                                     <button
                                                         type="button"
@@ -5442,9 +4629,7 @@ function ShotCard({
                                                         清空
                                                     </button>
                                                 </div>
-                                                <p className="mt-1.5 text-[10px] leading-relaxed text-gray-500">
-                                                    每个时间段都应包含主体动作、镜头行为和衔接方式；视觉风格、角色身份、场景、画幅、语言和模型能力约束仍由服务端追加。
-                                                </p>
+                                                <p className="mt-1.5 text-[10px] leading-relaxed text-gray-500">{t('修改提示词后，重新生成视频生效。')}</p>
                                             </div>
                                         </div>
                                     )}

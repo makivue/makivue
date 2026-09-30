@@ -1,18 +1,18 @@
-import { NextRequest } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { apiResponse, apiError } from '@/lib/utils'
-import { genId } from '@/lib/id'
-import { currentUserId } from '@/lib/current-user'
-import { assertProjectOwner } from '@/lib/ownership'
 import { parseApiId } from '@/lib/api-id'
-import { cancelProjectOperations } from '@/lib/operation-cancellation'
-import { markProjectDownstreamStaleInTransaction } from '@/services/content-lineage'
-import { normalizeGenre } from '@/lib/project-metadata'
-import { parseNovelSetup, stringifyNovelSetup } from '@/lib/novel'
-import { syncSetupCharactersInTransaction } from '@/services/setup-characters'
-import { publicationFieldsFromSetup } from '@/lib/project-publication'
 import { isChapterFinalized, isScriptGenerated } from '@/lib/chapter-progress'
+import { currentUserId } from '@/lib/current-user'
+import { genId } from '@/lib/id'
+import { parseNovelSetup, stringifyNovelSetup } from '@/lib/novel'
+import { cancelProjectOperations } from '@/lib/operation-cancellation'
+import { assertProjectOwner } from '@/lib/ownership'
+import { prisma } from '@/lib/prisma'
+import { normalizeGenre } from '@/lib/project-metadata'
 import { getProjectProductionProgress, hasMergedEpisodeVideo } from '@/lib/project-progress'
+import { publicationFieldsFromSetup } from '@/lib/project-publication'
+import { apiError, apiResponse } from '@/lib/utils'
+import { markProjectDownstreamStaleInTransaction } from '@/services/content-lineage'
+import { syncSetupCharactersInTransaction } from '@/services/setup-characters'
+import { NextRequest } from 'next/server'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest, { params }: Params) {
                 omit: { stateTimeline: true },
                 include: {
                     referenceAssetRows: {
-                        where: { deletedAt: null, role: 'turnaround_sheet' },
+                        where: { deletedAt: null, role: 'full_body' },
                         orderBy: { updatedAt: 'desc' }
                     },
                     seedancePortraitAssets: {

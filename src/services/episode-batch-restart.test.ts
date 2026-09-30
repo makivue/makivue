@@ -18,7 +18,7 @@ describe('episode batch restart after page-level pause', () => {
         expect(cancelHelper).toContain('await cancelEpJob(job.id)')
         expect(cancelHelper).toContain("status: 'queued'")
         expect(cancelHelper).toContain("status: 'processing'")
-        expect(cancelHelper).toContain("data: { errorMsg:")
+        expect(cancelHelper).toContain('data: { errorMsg:')
         expect(cancelHelper).toContain('operationVersion: { increment: 1 }')
     })
 
@@ -38,8 +38,8 @@ describe('episode batch restart after page-level pause', () => {
         expect(modal).toContain('body: JSON.stringify({ mode: requestMode')
         expect(modal).toContain("setRequestMode('missing')")
         expect(modal).toContain('重试未完成')
-        expect(generateRoute).toContain('const needFrame = !sb.firstFrameUrl')
-        expect(generateRoute).toContain('const needVideo = !sb.videoUrl')
+        expect(generateRoute).toContain("!sb.firstFrameUrl || !sb.videoUrl || sb.videoStatus !== 'completed'")
+        expect(generateRoute).toContain('!sb.videoUrl')
         expect(generateRoute).toContain("await updateShot(job.id, sb.id.toString(), { status: 'frame_done' })")
     })
 

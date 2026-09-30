@@ -1,6 +1,6 @@
 import type { ImageProviderSwitch } from '@/lib/image-generation-recovery'
 
-export type ReferenceGenerationStage = 'generating' | 'inspecting' | 'uploading' | 'writing_db'
+export type ReferenceGenerationStage = 'generating' | 'uploading' | 'writing_db'
 
 export interface ReferenceGenerationTimings {
     generationMs: number
@@ -28,7 +28,7 @@ export const REF_IMAGE_STALE_WINDOW_MS = 2 * 60_000
 // DateTime heartbeat column directly (which is vulnerable to DB timezone
 // interpretation differences).
 // Leave enough of the 30-minute route lifetime for account-slot queueing. A
-// provider request can still retry and run quality inspection, but one item
+// provider request may retry a transient network error, but one item
 // must not keep an entire batch worker blocked forever.
 export const REF_IMAGE_JOB_MAX_RUNTIME_MS = 8 * 60_000
 

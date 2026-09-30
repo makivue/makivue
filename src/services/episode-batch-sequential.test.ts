@@ -1,6 +1,6 @@
 vi.mock('@/lib/local-store', () => ({ localTransactionLock: async () => [{ acquired: 1 }] }))
-import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { POST } from '@/app/api/episodes/[id]/generate-all/route'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
     after: vi.fn(),
@@ -163,20 +163,20 @@ describe('sequential episode media generation', () => {
             await execution
         }
         expect(events).toEqual(['frame:1', 'video:1:waiting', 'video:1', 'frame:2', 'video:2', 'frame:3', 'video:3'])
-        expect(mocks.generateFrame.mock.calls[1][3]).toMatchObject({ previousShotFrameUrl: 'tail-1', previousContinuityMode: 'stateful' })
+        expect(mocks.generateFrame.mock.calls[1][3]).not.toHaveProperty('previousShotFrameUrl')
         expect(mocks.finalizeEpJob).toHaveBeenCalledWith('batch', 'done')
     })
 
-    it('preserves a strict continuity anchor after the predecessor completes', async () => {
+    it('ignores legacy continuity anchors', async () => {
         shots[1].continuityMode = 'continuous'
         await (
             await startBatch()
         )()
         expect(events).toEqual(['frame:1', 'video:1', 'frame:2', 'video:2', 'frame:3', 'video:3'])
-        expect(mocks.generateFrame.mock.calls[1][3]).toMatchObject({ previousShotFrameUrl: 'tail-1', previousContinuityMode: 'continuous' })
+        expect(mocks.generateFrame.mock.calls[1][3]).not.toHaveProperty('previousContinuityMode')
     })
 
-    it.each(['stateful', 'continuous', 'seamless'])('blocks a %s successor after video failure but can continue an independent shot', async continuityMode => {
+    it.each(['stateful', 'continuous', 'seamless'])('continues a legacy %s successor after video failure', async continuityMode => {
         shots[1].continuityMode = continuityMode
         mocks.generateVideo.mockImplementationOnce(async () => {
             events.push('video:1:failed')
@@ -184,8 +184,8 @@ describe('sequential episode media generation', () => {
         await (
             await startBatch()
         )()
-        expect(events).toEqual(['frame:1', 'video:1:failed', 'frame:3', 'video:3'])
-        expect(mocks.updateShot).toHaveBeenCalledWith('batch', '2', expect.objectContaining({ status: 'skipped', errorMsg: expect.stringContaining('依赖第 1 镜') }))
+        expect(events).toEqual(['frame:1', 'video:1:failed', 'frame:2', 'video:2', 'frame:3', 'video:3'])
+        expect(mocks.updateShot).toHaveBeenCalledWith('batch', '2', expect.objectContaining({ status: 'video_done' }))
     })
 
     it('does not start the next shot after cancellation during a video', async () => {
@@ -200,44 +200,22 @@ describe('sequential episode media generation', () => {
         expect(mocks.updateShot.mock.calls.some(([, , patch]) => patch.status === 'failed')).toBe(false)
     })
 
-    it('blocks the dependent shot after an illustration fails', async () => {
+    it('continues other shots after an illustration fails', async () => {
         mocks.generateFrame.mockResolvedValueOnce(false)
         await (
             await startBatch()
         )()
-        expect(events).toEqual(['frame:3', 'video:3'])
+        expect(events).toEqual(['frame:2', 'video:2', 'frame:3', 'video:3'])
         expect(mocks.updateShot).toHaveBeenCalledWith('batch', '1', expect.objectContaining({ status: 'failed', failedStage: 'frame' }))
-        expect(mocks.updateShot).toHaveBeenCalledWith('batch', '2', expect.objectContaining({ status: 'skipped', errorMsg: expect.stringContaining('依赖第 1 镜') }))
+        expect(mocks.updateShot).toHaveBeenCalledWith('batch', '2', expect.objectContaining({ status: 'video_done' }))
     })
 
-    it('reports one real failure and traces a long blocked chain back to its original failed shot', async () => {
-        shots = [makeShot(1), ...Array.from({ length: 52 }, (_, index) => makeShot(index + 2, 'stateful')), makeShot(54)]
-        mocks.generateVideo.mockImplementationOnce(async () => events.push('video:1:failed'))
-        mocks.generation.findUnique.mockResolvedValue({ errorMsg: 'Wan 3.0 task FAILED: InvalidParameter: Failed to download https://cdn.example/frame.png' })
+    it('finishes with an error when every illustration fails', async () => {
+        mocks.generateFrame.mockResolvedValue(false)
         await (
             await startBatch()
         )()
-
-        expect(events).toEqual(['frame:1', 'video:1:failed', 'frame:54', 'video:54'])
-        const failed = mocks.updateShot.mock.calls.filter(([, , patch]) => patch.status === 'failed')
-        expect(failed).toHaveLength(1)
-        expect(failed[0][2]).toMatchObject({ failedStage: 'video', errorDetail: expect.stringContaining('InvalidParameter: Failed to download') })
-        const skipped = mocks.updateShot.mock.calls.filter(([, , patch]) => patch.status === 'skipped')
-        expect(skipped).toHaveLength(52)
-        for (const [, , patch] of skipped) {
-            expect(patch.errorMsg).toContain('依赖第 1 镜')
-            expect(patch.failedStage).toBeUndefined()
-        }
-        expect(mocks.finalizeEpJob).toHaveBeenCalledWith('batch', 'done')
-    })
-
-    it('finishes with an error when all remaining shots are blocked behind one failed generation', async () => {
-        shots = [makeShot(1), makeShot(2, 'stateful'), makeShot(3, 'stateful')]
-        mocks.generateFrame.mockResolvedValueOnce(false)
-        await (
-            await startBatch()
-        )()
-        expect(mocks.generateFrame).toHaveBeenCalledTimes(1)
+        expect(mocks.generateFrame).toHaveBeenCalledTimes(3)
         expect(mocks.generateVideo).not.toHaveBeenCalled()
         expect(mocks.finalizeEpJob).toHaveBeenCalledWith('batch', 'error')
     })

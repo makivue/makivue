@@ -14,7 +14,7 @@ vi.mock('@/lib/prisma', () => ({ prisma: { episode: { findFirst: mocks.episode }
 vi.mock('@/lib/current-user', () => ({ currentUserId: () => 7n }))
 vi.mock('@/lib/ownership', () => ({ assertEpisodeOwner: vi.fn().mockResolvedValue(null) }))
 vi.mock('@/services/llm', () => ({ assertTextModelConfigured: mocks.configured }))
-vi.mock('@/services/script-generation', () => ({ generateReviewedScript: vi.fn() }))
+vi.mock('@/services/script-generation', () => ({ generateBasicScript: vi.fn() }))
 vi.mock('@/lib/scriptJobStore', () => ({ createJob: mocks.createJob, updateJob: vi.fn() }))
 vi.mock('@/services/billing', () => ({ assertSufficientPoints: mocks.balance, quoteLlmBudgetPoints: () => 1, BillingError: class extends Error {}, chargeLlmUsage: vi.fn() }))
 

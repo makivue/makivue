@@ -4189,5 +4189,19 @@
     "项目记录保存到本地数据目录，素材保存在其中的 media 子目录。无需在线登录，请定期备份这些文件。": "Project records are saved in the local data directory, with media in its media subdirectory. No online sign-in is required. Back up these files regularly.",
     "模型账号额度不足怎么办？": "What if my model account runs out of quota?",
     "请到你使用的模型供应商控制台查看账号额度，或切换到另一个已配置个人密钥的供应商。": "Check your account quota in the selected supplier’s console, or choose another supplier configured with your own key.",
-    "查找创作、模型和导出的常见解答。": "Bantuan untuk pembuatan drama AI lokal, akun model pribadi, penyimpanan proyek, dan ekspor."
+    "查找创作、模型和导出的常见解答。": "Bantuan untuk pembuatan drama AI lokal, akun model pribadi, penyimpanan proyek, dan ekspor.",
+    "保存后，需要重新生成相关图片才能应用修改。": "Buat ulang gambar terkait setelah menyimpan untuk menerapkan perubahan.",
+    "将为 {count} 个角色各生成一张全身角色参考图。生成失败时保留旧图。": "Buat satu referensi seluruh tubuh untuk masing-masing dari {count} karakter. Gambar lama disimpan jika pembuatan gagal.",
+    "角色参考图重新生成完成：已替换 {count} 张定稿图": "Referensi dibuat ulang: {count} gambar yang disetujui diganti",
+    "角色参考图生成完成：{count} 张": "Referensi karakter dibuat: {count}",
+    "角色和场景已更新。请点击“补齐角色参考图”生成所需参考图。": "Karakter dan adegan diperbarui. Klik “Buat referensi karakter yang belum ada” untuk menyiapkan gambar yang diperlukan.",
+    "上次结果因估算时长偏离目标而未保存。现在整集时长仅作提示，可以重新生成并继续。": "Hasil sebelumnya tidak disimpan karena perkiraan durasi berbeda dari target. Durasi kini hanya saran; buat ulang untuk melanjutkan.",
+    "请到项目“角色”页面更换清晰的角色参考图并重新同步；显示可用后再重试视频。": "Ganti referensi dengan gambar jelas di halaman Karakter proyek lalu sinkronkan ulang. Coba lagi video setelah gambar tersedia.",
+    "台词超出模型时长": "Dialog melebihi durasi model",
+    "这段对白超过当前模型的单镜时长限制，请手动调整后再生成。": "Dialog ini melebihi batas durasi per adegan model terpilih. Edit secara manual sebelum membuat ulang.",
+    "请手动缩短台词，或新增分镜后分别生成。": "Persingkat dialog secara manual, atau tambahkan adegan dan buat secara terpisah.",
+    "视频提示词": "Prompt video",
+    "留空则使用分镜动作或画面描述": "Kosongkan untuk memakai deskripsi aksi atau gambar adegan",
+    "描述这个镜头中要发生的动作和画面。": "Jelaskan aksi dan tampilan untuk adegan ini.",
+    "修改提示词后，重新生成视频生效。": "Buat ulang video untuk menerapkan perubahan prompt."
 }

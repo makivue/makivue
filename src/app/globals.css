@@ -2562,7 +2562,7 @@ html:is([data-app-theme='graphite'], [data-app-theme='amber'], [data-app-theme='
 
 .studio-character-sheet,
 .studio-character-sheet-empty {
-    aspect-ratio: 16 / 9;
+    aspect-ratio: 3 / 4;
 }
 
 .studio-character-sheet {

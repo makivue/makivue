@@ -56,19 +56,17 @@ describe('GenerationFailureNotice', () => {
         expect(html).not.toContain('<button')
     })
 
-    it('offers automatic shot splitting without a blind retry for oversized Wan dialogue', () => {
+    it('shows manual editing guidance for oversized dialogue', () => {
         const html = renderToStaticMarkup(
             <GenerationFailureNotice
                 errorMessage="Wan 2.7 单个分镜最多支持 15 秒音频，当前台词为 21.0 秒；自动加速会超过自然语速范围。"
                 provider="wanx"
-                onResolve={vi.fn()}
-                resolveLabel="自动拆成 2 镜"
                 onRetry={vi.fn()}
             />
         )
 
-        expect(html).toContain('台词需要自动拆镜')
-        expect(html).toContain('自动拆成 2 镜')
+        expect(html).toContain('台词超出模型时长')
+        expect(html).toContain('手动缩短台词')
         expect(html).not.toContain('重新生成当前步骤')
     })
 })

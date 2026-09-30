@@ -26,6 +26,18 @@ makivue réunit l’écriture, la gestion des ressources et la production vidéo
 
 **Vos projets et vos médias restent sur votre ordinateur. Les modèles utilisent vos propres comptes fournisseurs.** L’édition locale ne nécessite ni connexion à un compte en ligne, ni service de base de données, ni stockage cloud. Le serveur local envoie les demandes de génération directement au fournisseur choisi.
 
+## Édition de génération de base
+
+Cette édition conserve le parcours de création complet et vous laisse vérifier les résultats :
+
+- **Personnages :** une image de référence en pied par génération, avec sélection des propositions et relance manuelle.
+- **Storyboard :** un premier brouillon tiré du scénario ; les textes longs sont traités par lots. Les actions, dialogues et durées se modifient manuellement.
+- **Illustrations :** une consigne simple et les références des personnages sélectionnés, sans réécriture automatique ni correction de continuité entre les plans.
+- **Vidéos :** chaque plan utilise le modèle choisi, sans recommandation automatique, comparaison de modèles ou assemblage de plusieurs segments générés.
+- **Vérification :** à effectuer vous-même. Aucun score de qualité par IA, contrôle visuel, relecture narrative ou nouvelle génération déclenchée par un contrôle qualité.
+
+La génération par lots, l’annulation, la reprise des tâches, les relances manuelles, la validation des entrées et la protection des modifications récentes restent disponibles. Les exigences de format et de sécurité des fournisseurs s’appliquent toujours. Les images de début et de fin restent utilisables lorsque le modèle les prend en charge nativement.
+
 ## Aperçu de l’interface
 
 ### English

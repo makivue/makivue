@@ -1,28 +1,20 @@
-import { prisma } from '@/lib/prisma'
 import { Prisma } from '@/generated/prisma/client'
-import { genId } from '@/lib/id'
-import { CONTENT_CONTRACT_VERSION, type ContractIssue } from '@/lib/content-contracts'
-import { markFollowingEpisodesStaleInTransaction } from './content-lineage'
-import { mergeObservedFacts, type ObservedEpisodeFacts } from './narrative-facts'
-import { finishEpisodeDownstreamReset, resetEpisodeDownstreamInTransaction } from './episode-downstream-reset'
-import type { NarrativeQualityScores } from './narrative-review'
+import { prisma } from '@/lib/prisma'
 import type { EpisodeScenePlan } from '@/lib/screenplay-plan'
+import { markFollowingEpisodesStaleInTransaction } from './content-lineage'
+import { finishEpisodeDownstreamReset, resetEpisodeDownstreamInTransaction } from './episode-downstream-reset'
+import { mergeObservedFacts, type ObservedEpisodeFacts } from './narrative-facts'
 
-export async function saveReviewedNarrative(params: {
+export async function saveGeneratedNarrative(params: {
     episode: { id: bigint; projectId: bigint; sourceVersion: number; operationVersion: number }
     stage: 'chapter' | 'script'
     content: string
     facts: ObservedEpisodeFacts
-    quality?: NarrativeQualityScores | null
-    issues?: ContractIssue[]
     adaptation?: { title: string; synopsis: string; scenePlan?: EpisodeScenePlan[] }
     settleUsage?: (tx: Prisma.TransactionClient) => Promise<unknown>
 }) {
-    const issues = params.issues ?? []
     const saved = await prisma.$transaction(
         async tx => {
-
-
             const current = await tx.episode.findUnique({ where: { id: params.episode.id } })
             if (!current || current.deletedAt || current.sourceVersion !== params.episode.sourceVersion || current.operationVersion !== params.episode.operationVersion) {
                 throw new Error('生成期间内容已修改，本次结果未覆盖新版本，请基于最新内容重试')
@@ -48,27 +40,6 @@ export async function saveReviewedNarrative(params: {
                     sourceVersion: { increment: 1 },
                     operationVersion: { increment: 1 },
                     staleReason: null
-                }
-            })
-            await tx.qualityReview.create({
-                data: {
-                    id: genId(),
-                    projectId: current.projectId,
-                    episodeId: current.id,
-                    scope: params.stage,
-                    reviewer: CONTENT_CONTRACT_VERSION,
-                    status: issues.length > 0 ? 'needs_review' : 'passed',
-                    score: params.quality?.overall ?? 100,
-                    issueCount: issues.length,
-                    blockerCount: 0,
-                    issues: issues as unknown as Prisma.InputJsonValue,
-                    redoPlan: {
-                        reviewedSourceHash: params.facts.sourceHash,
-                        eventCount: params.facts.events.length,
-                        semanticReview: true,
-                        lengthWarning: issues.some(issue => issue.code === 'too_short'),
-                        ...(params.quality ? { quality: params.quality } : {})
-                    } as unknown as Prisma.InputJsonValue
                 }
             })
             return { updated, reset }

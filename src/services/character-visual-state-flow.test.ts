@@ -21,14 +21,14 @@ describe('character story-state flow', () => {
     })
 
     it('returns only the primary turnaround sheet to the character page', () => {
-        expect(projectRoute).toContain("role: 'turnaround_sheet'")
+        expect(projectRoute).toContain("role: 'full_body'")
         expect(projectRoute).toContain('omit: { stateTimeline: true }')
         expect(projectRoute).not.toContain("role: 'state_reference'")
     })
 
     it('keeps story state as prompt text without using a pose or expression image', () => {
-        expect(ai).toContain('CURRENT TIMELINE STATE: ${currentState}')
-        expect(ai).toContain('primaryUrl: identityUrl')
+        expect(ai).not.toContain('CURRENT TIMELINE STATE:')
+        expect(ai).toContain('character.referenceImageUrl')
         expect(ai).not.toContain('identitySupplementUrl')
         expect(ai).not.toContain('currentState?.assetUrl ?? identityUrl')
     })

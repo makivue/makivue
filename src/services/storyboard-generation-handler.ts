@@ -1,20 +1,6 @@
-import { after, NextRequest } from 'next/server'
-import { withHiModelsUsageScope } from '@/lib/himodels-usage-context.server'
-import { prisma } from '@/lib/prisma'
-import { apiResponse, apiError, apiErrorWithDetails, handleApiError } from '@/lib/utils'
-import { generateFrame, generateVideo, isImageProvider, VIDEO_PROMPT_VERSION } from '@/services/ai'
-import type { ImageProvider, VideoProvider, VideoReferenceMode } from '@/services/ai'
-import { invalidationPatch, resetFollowingContinuousMediaInTransaction, resetStoryboardMediaInTransaction, StaleStoryboardMutationError } from '@/services/artifacts'
-import { normalizeImageQuality } from '@/lib/image-quality'
-import { recommendMiddleFrameCount } from '@/lib/storyboard-timing'
-import { genId } from '@/lib/id'
+import type { Generation } from '@/generated/prisma/client'
+import { parseApiId } from '@/lib/api-id'
 import { currentUserId } from '@/lib/current-user'
-import { assertStoryboardOwner } from '@/lib/ownership'
-import { assertSufficientPoints, BillingError, quoteGenerationPoints } from '@/services/billing'
-import { getVideoProviderRoutingFeedback, reconcileGenerationTelemetry } from '@/services/production-observability'
-import { getConfiguredVideoLanguage, getDialogueSpeakerNames } from '@/services/video-language'
-import { analyzeVideoShotConstraints, assessPreviousEndingFrameAnchor, assessSequentialContinuityDependency, recommendVideoProvider } from '@/lib/video-production-plan'
-import { refreshEpisodeStoryboardContinuity } from '@/services/storyboard-continuity'
 import {
     assertGenerationQueueCapacity,
     cleanupStaleGenerationSlots,
@@ -25,12 +11,23 @@ import {
     tryClaimGenerationSlot,
     waitForGenerationSlot
 } from '@/lib/generation-concurrency'
-import { parseApiId } from '@/lib/api-id'
-import type { Generation } from '@/generated/prisma/client'
+import { resolveGenerationRequestId } from '@/lib/generation-request'
+import { withHiModelsUsageScope } from '@/lib/himodels-usage-context.server'
+import { genId } from '@/lib/id'
+import { normalizeImageQuality } from '@/lib/image-quality'
+import { assertStoryboardOwner } from '@/lib/ownership'
+import { prisma } from '@/lib/prisma'
 import { DEFAULT_VIDEO_PROVIDER, getVideoProviderCapability, isAvailableProductionVideoProvider, supportsVideoReferenceMode } from '@/lib/provider-capabilities'
 import { formatReferenceVideoDurationViolation, getReferenceVideoDurationViolation, parseStoryboardReferenceVideos } from '@/lib/storyboard-reference-videos'
+import { apiError, apiErrorWithDetails, apiResponse, handleApiError } from '@/lib/utils'
 import { hasRequiredReferenceFrames, minimumReferenceImageCount } from '@/lib/video-timeline-plan'
-import { resolveGenerationRequestId } from '@/lib/generation-request'
+import type { ImageProvider, VideoProvider, VideoReferenceMode } from '@/services/ai'
+import { generateFrame, generateVideo, isImageProvider, VIDEO_PROMPT_VERSION } from '@/services/ai'
+import { invalidationPatch, resetFollowingContinuousMediaInTransaction, resetStoryboardMediaInTransaction, StaleStoryboardMutationError } from '@/services/artifacts'
+import { assertSufficientPoints, BillingError, quoteGenerationPoints } from '@/services/billing'
+import { reconcileGenerationTelemetry } from '@/services/production-observability'
+import { getConfiguredVideoLanguage } from '@/services/video-language'
+import { after, NextRequest } from 'next/server'
 
 // Video polling can take many minutes. `after` sends the 202 response first,
 // then keeps the self-hosted Next.js request context alive for the task.
@@ -51,188 +48,9 @@ function resolveMiddleFrameCount(value: unknown, autoCount: number) {
     return Math.min(3, Math.max(0, Math.round(value)))
 }
 
-function resolveIllustrationCount(value: unknown, autoMiddleFrameCount: number) {
-    if (typeof value !== 'number' || !Number.isFinite(value)) return autoMiddleFrameCount + 2
+function resolveIllustrationCount(value: unknown) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return 1
     return Math.min(10, Math.max(1, Math.round(value)))
-}
-
-function parseMiddleFrameIndex(requestBody: string | null | undefined, fallbackIndex: number) {
-    if (!requestBody) return fallbackIndex
-    try {
-        const parsed = JSON.parse(requestBody)
-        const index = Number(parsed?.middleFrameIndex)
-        return Number.isFinite(index) && index > 0 ? Math.round(index) : fallbackIndex
-    } catch {
-        return fallbackIndex
-    }
-}
-
-async function getCompletedMiddleFrameAnchors(storyboardId: bigint) {
-    const rows = await prisma.generation.findMany({
-        where: { storyboardId, type: 'middle_frame', status: 'completed', resultUrl: { not: null } },
-        orderBy: { createdAt: 'asc' },
-        select: { resultUrl: true, requestBody: true, createdAt: true }
-    })
-    return rows
-        .map((row, fallbackIndex) => ({
-            url: row.resultUrl,
-            index: parseMiddleFrameIndex(row.requestBody, fallbackIndex + 1),
-            createdAt: row.createdAt
-        }))
-        .filter((item): item is { url: string; index: number; createdAt: Date } => !!item.url && !!item.createdAt)
-        .sort((a, b) => a.index - b.index || a.createdAt.getTime() - b.createdAt.getTime())
-}
-
-async function getLastMiddleFrameAnchor(storyboardId: bigint) {
-    const anchors = await getCompletedMiddleFrameAnchors(storyboardId)
-    const last = anchors[anchors.length - 1]
-    return last ? { url: last.url, label: `intermediate frame ${last.index}` } : null
-}
-
-async function getNextShotFirstFrameAnchor(storyboard: { episodeId: bigint; order: number }) {
-    const nextShot = await prisma.storyboard.findFirst({
-        where: { episodeId: storyboard.episodeId, order: { gt: storyboard.order }, deletedAt: null, firstFrameUrl: { not: null } },
-        orderBy: { order: 'asc' },
-        select: { order: true, firstFrameUrl: true }
-    })
-    if (nextShot?.firstFrameUrl) return { url: nextShot.firstFrameUrl, label: `next shot ${nextShot.order} opening frame` }
-
-    const episode = await prisma.episode.findFirst({
-        where: { id: storyboard.episodeId, deletedAt: null },
-        select: { projectId: true, episodeNumber: true }
-    })
-    if (!episode) return null
-
-    const nextEpisode = await prisma.episode.findFirst({
-        where: {
-            projectId: episode.projectId,
-            episodeNumber: { gt: episode.episodeNumber },
-            deletedAt: null,
-            storyboards: { some: { deletedAt: null, firstFrameUrl: { not: null } } }
-        },
-        orderBy: { episodeNumber: 'asc' },
-        select: {
-            episodeNumber: true,
-            storyboards: {
-                where: { deletedAt: null, firstFrameUrl: { not: null } },
-                orderBy: { order: 'asc' },
-                take: 1,
-                select: { order: true, firstFrameUrl: true }
-            }
-        }
-    })
-    const first = nextEpisode?.storyboards[0]
-    return nextEpisode && first?.firstFrameUrl ? { url: first.firstFrameUrl, label: `episode ${nextEpisode.episodeNumber} shot ${first.order} opening frame` } : null
-}
-
-async function getPreviousShotEndingFrameAnchor(storyboard: {
-    episodeId: bigint
-    order: number
-    sceneId: bigint | null
-    continuityMode: string
-    continuityGroup: number | null
-    actionDesc: string | null
-    characters: Array<{ characterId: bigint }>
-    scene?: { timeOfDay?: string | null } | null
-}) {
-    if (storyboard.continuityMode !== 'stateful' && storyboard.continuityMode !== 'continuous' && storyboard.continuityMode !== 'seamless') return null
-    let previous = await prisma.storyboard.findFirst({
-        where: {
-            episodeId: storyboard.episodeId,
-            order: { lt: storyboard.order },
-            deletedAt: null
-        },
-        orderBy: { order: 'desc' },
-        select: {
-            id: true,
-            order: true,
-            sceneId: true,
-            actionDesc: true,
-            continuityGroup: true,
-            videoStatus: true,
-            lastFrameUrl: true,
-            plannedLastFrameUrl: true,
-            actualVideoEndFrameUrl: true,
-            characters: { select: { characterId: true } },
-            scene: { select: { timeOfDay: true } }
-        }
-    })
-    let crossEpisode = false
-    if (!previous) {
-        const currentEpisode = await prisma.episode.findUnique({ where: { id: storyboard.episodeId }, select: { projectId: true, episodeNumber: true } })
-        const previousEpisode = currentEpisode
-            ? await prisma.episode.findFirst({
-                  where: { projectId: currentEpisode.projectId, episodeNumber: { lt: currentEpisode.episodeNumber }, deletedAt: null },
-                  orderBy: { episodeNumber: 'desc' },
-                  select: { id: true }
-              })
-            : null
-        if (previousEpisode) {
-            previous = await prisma.storyboard.findFirst({
-                where: { episodeId: previousEpisode.id, deletedAt: null },
-                orderBy: { order: 'desc' },
-                select: {
-                    id: true,
-                    order: true,
-                    sceneId: true,
-                    actionDesc: true,
-                    continuityGroup: true,
-                    videoStatus: true,
-                    lastFrameUrl: true,
-                    plannedLastFrameUrl: true,
-                    actualVideoEndFrameUrl: true,
-                    characters: { select: { characterId: true } },
-                    scene: { select: { timeOfDay: true } }
-                }
-            })
-            crossEpisode = !!previous
-        }
-    }
-    if (!previous) return null
-    const pixelContinuous = storyboard.continuityMode === 'continuous' || storyboard.continuityMode === 'seamless'
-    const previousInput = {
-        order: previous.order,
-        sceneId: previous.sceneId,
-        sceneTimeOfDay: previous.scene?.timeOfDay,
-        continuityGroup: crossEpisode ? storyboard.continuityGroup : previous.continuityGroup,
-        characterIds: previous.characters.map(item => item.characterId),
-        actionDesc: previous.actionDesc
-    }
-    const currentInput = {
-        order: storyboard.order,
-        sceneId: storyboard.sceneId,
-        sceneTimeOfDay: storyboard.scene?.timeOfDay,
-        continuityMode: storyboard.continuityMode,
-        continuityGroup: storyboard.continuityGroup,
-        characterIds: storyboard.characters.map(item => item.characterId),
-        actionDesc: storyboard.actionDesc
-    }
-    const assessment = pixelContinuous ? assessSequentialContinuityDependency(previousInput, currentInput) : assessPreviousEndingFrameAnchor(previousInput, currentInput)
-    const eligible = 'sequential' in assessment ? assessment.sequential : assessment.eligible
-    if (!eligible) {
-        console.info(`[continuity] shot ${storyboard.order} rejected previous ending-frame anchor: ${assessment.issues.join(', ')}`)
-        return null
-    }
-    const endingFrameUrl = pixelContinuous
-        ? previous.videoStatus === 'completed'
-            ? previous.actualVideoEndFrameUrl
-            : null
-        : (previous.actualVideoEndFrameUrl ?? previous.plannedLastFrameUrl ?? previous.lastFrameUrl ?? null)
-    if (!endingFrameUrl) return null
-    return {
-        storyboardId: previous.id,
-        order: previous.order,
-        url: endingFrameUrl,
-        label: pixelContinuous
-            ? crossEpisode
-                ? 'previous episode actual video ending frame'
-                : `shot ${previous.order} actual video ending frame`
-            : crossEpisode
-              ? 'previous episode state reference frame'
-              : `shot ${previous.order} state reference frame`,
-        mode: storyboard.continuityMode as 'stateful' | 'continuous' | 'seamless',
-        anchorKind: pixelContinuous ? ('pixel' as const) : 'anchorKind' in assessment ? assessment.anchorKind : ('state' as const)
-    }
 }
 
 // type: "illustrations" | "first_frame" | "last_frame" | "video"
@@ -260,7 +78,7 @@ async function generateStoryboard(req: NextRequest, { params }: Params) {
         return apiError('Invalid generation type')
     }
 
-    let storyboard = await prisma.storyboard.findFirst({
+    const storyboard = await prisma.storyboard.findFirst({
         where: { id: idNum, deletedAt: null },
         include: {
             episode: { select: { projectId: true } },
@@ -269,17 +87,6 @@ async function generateStoryboard(req: NextRequest, { params }: Params) {
         }
     })
     if (!storyboard) return apiError('Storyboard not found', 404)
-    if (await refreshEpisodeStoryboardContinuity(storyboard.episodeId)) {
-        storyboard = await prisma.storyboard.findFirst({
-            where: { id: idNum, deletedAt: null },
-            include: {
-                episode: { select: { projectId: true } },
-                characters: { include: { character: true } },
-                scene: true
-            }
-        })
-        if (!storyboard) return apiError('Storyboard not found', 404)
-    }
 
     // `provider` remains supported for video-generation clients from older
     // deployments. Image-generation clients now send `videoProvider`
@@ -330,42 +137,6 @@ async function generateStoryboard(req: NextRequest, { params }: Params) {
                 422
             )
         }
-        const constraints = analyzeVideoShotConstraints({
-            provider: videoProvider,
-            shotType: storyboard.shotType,
-            duration: storyboard.duration,
-            dialogue: storyboard.dialogue,
-            actionDesc: storyboard.actionDesc,
-            imagePrompt: storyboard.imagePrompt,
-            continuityMode: storyboard.continuityMode,
-            characterCount: storyboard.characters.length
-        })
-        if (constraints.dialogueHandling === 'split') {
-            return apiErrorWithDetails(
-                `本镜台词预计需要 ${constraints.estimatedDialogueSeconds.toFixed(1)} 秒，超过当前模型单镜 ${constraints.dialogueCapacitySeconds} 秒自然承载上限。请先拆成相邻分镜后再生成视频。`,
-                409,
-                {
-                    code: 'DIALOGUE_SPLIT_REQUIRED',
-                    storyboardId: storyboard.id.toString(),
-                    actualDurationSeconds: constraints.estimatedDialogueSeconds,
-                    durationSource: 'estimated',
-                    recommendedSegments: Math.max(2, Math.ceil(constraints.estimatedDialogueSeconds / (constraints.dialogueCapacitySeconds * 0.9))),
-                    maxNaturalDialogueSeconds: constraints.dialogueCapacitySeconds,
-                    videoProvider,
-                    suggestedAction: 'split_storyboard'
-                }
-            )
-        }
-        if (constraints.complexActionDetected) {
-            return apiErrorWithDetails('本镜包含多个高动态动作阶段，请先拆成连续动作分镜后再生成视频。', 409, {
-                code: 'ACTION_SPLIT_REQUIRED',
-                storyboardId: storyboard.id.toString(),
-                recommendedSegments: constraints.recommendedActionSegments,
-                actionStageCount: constraints.actionStageCount,
-                videoProvider,
-                suggestedAction: 'split_action_storyboard'
-            })
-        }
     }
     const taskProvider: string = type === 'video' ? (videoProvider ?? DEFAULT_VIDEO_PROVIDER) : imageTaskProvider
     const requestId = resolveGenerationRequestId(requestedRequestId)
@@ -401,9 +172,9 @@ async function generateStoryboard(req: NextRequest, { params }: Params) {
             activeGenerationId: existingGeneration.id.toString()
         })
     }
-    const autoMiddleFrameCount = recommendMiddleFrameCount({ ...storyboard, characterCount: storyboard.characters.length })
+    const autoMiddleFrameCount = 0
     const hasRequestedIllustrationCount = typeof requestedIllustrationCount === 'number' && Number.isFinite(requestedIllustrationCount)
-    const illustrationCount = type === 'illustrations' ? resolveIllustrationCount(requestedIllustrationCount, autoMiddleFrameCount) : 0
+    const illustrationCount = type === 'illustrations' ? resolveIllustrationCount(requestedIllustrationCount) : 0
     // Keep accepting the old middle-frame parameter for callers that have not
     // yet refreshed during a rolling deployment.
     const middleFrameCount =
@@ -413,23 +184,6 @@ async function generateStoryboard(req: NextRequest, { params }: Params) {
     const middleFrameMode = hasRequestedIllustrationCount || (typeof requestedMiddleFrameCount === 'number' && Number.isFinite(requestedMiddleFrameCount)) ? 'manual' : 'auto'
     const unitPoints = quoteGenerationPoints(type === 'illustrations' ? 'first_frame' : type, taskProvider, storyboard.duration ?? 0) ?? 0
     const estimatedRequestPoints = type === 'illustrations' ? unitPoints * resolvedIllustrationCount : unitPoints
-    const routingFeedback = type === 'video' ? await getVideoProviderRoutingFeedback() : null
-    const routingRecommendation =
-        type === 'video'
-            ? recommendVideoProvider(
-                  {
-                      shotType: storyboard.shotType,
-                      duration: storyboard.duration,
-                      dialogue: storyboard.dialogue,
-                      actionDesc: storyboard.actionDesc,
-                      imagePrompt: storyboard.imagePrompt,
-                      continuityMode: storyboard.continuityMode,
-                      characterCount: storyboard.characters.length,
-                      speakerCount: getDialogueSpeakerNames(storyboard.dialogue).length
-                  },
-                  routingFeedback?.providers
-              )
-            : null
     try {
         await assertSufficientPoints(userId, estimatedRequestPoints)
     } catch (billingError) {
@@ -481,21 +235,7 @@ async function generateStoryboard(req: NextRequest, { params }: Params) {
                     type === 'video'
                         ? (baseStoryboard.fullPromptOverride ?? baseStoryboard.motionOverride ?? baseStoryboard.videoPrompt ?? baseStoryboard.imagePrompt ?? '')
                         : (baseStoryboard.imagePrompt ?? ''),
-                promptVersion: type === 'video' ? VIDEO_PROMPT_VERSION : undefined,
-                metrics:
-                    type === 'video' && routingRecommendation
-                        ? {
-                              routingDecision: {
-                                  ruleVersion: routingRecommendation.ruleVersion,
-                                  feedbackWindowDays: routingFeedback?.windowDays,
-                                  policyApplied: requestedVideoProvider ? 'explicit_provider_request' : 'global_provider_configuration',
-                                  recommendedProvider: routingRecommendation.provider,
-                                  appliedProvider: taskProvider,
-                                  reason: routingRecommendation.reason,
-                                  feedbackSummary: routingRecommendation.feedbackSummary
-                              }
-                          }
-                        : undefined
+                promptVersion: type === 'video' ? VIDEO_PROMPT_VERSION : undefined
             }
         })
     } catch (error) {
@@ -572,12 +312,6 @@ async function generateStoryboard(req: NextRequest, { params }: Params) {
 
     async function generateIllustrations() {
         if (!(await isGenerationProcessing(generation.id))) return
-
-        // 强连续镜头只能使用上一镜成功视频的真实尾帧。
-        const previousShotAnchor = await getPreviousShotEndingFrameAnchor(baseStoryboard)
-        if ((baseStoryboard.continuityMode === 'continuous' || baseStoryboard.continuityMode === 'seamless') && !previousShotAnchor) {
-            throw new Error(`连续镜头 ${baseStoryboard.order} 缺少上一镜成功视频的真实尾帧，已阻断生成`)
-        }
         const firstFrameGeneration = await prisma.generation.create({
             data: {
                 id: genId(),
@@ -593,15 +327,6 @@ async function generateStoryboard(req: NextRequest, { params }: Params) {
             ...(videoProvider ? { videoProvider } : {}),
             ...(imageProviderOpt ? { provider: imageProviderOpt } : {}),
             imageQuality: imageQualityOpt,
-            ...(previousShotAnchor
-                ? {
-                      previousShotFrameUrl: previousShotAnchor.url,
-                      previousShotFrameLabel: previousShotAnchor.label,
-                      previousContinuityMode: previousShotAnchor.mode,
-                      previousShotStoryboardId: previousShotAnchor.storyboardId,
-                      previousShotOrder: previousShotAnchor.order
-                  }
-                : {}),
             keepFrameGenerating: middleFrameCount > 0 || needsLastFrame
         })
         if (!(await isGenerationProcessing(generation.id))) return
@@ -680,14 +405,12 @@ async function generateStoryboard(req: NextRequest, { params }: Params) {
                     resourceVersion: refreshed.operationVersion
                 }
             })
-            const nextShotAnchor = await getNextShotFirstFrameAnchor(refreshed)
             await generateFrame(lastFrameGeneration.id, refreshed, 'last_frame', {
                 ...(videoProvider ? { videoProvider } : {}),
                 ...(imageProviderOpt ? { provider: imageProviderOpt } : {}),
                 imageQuality: imageQualityOpt,
                 continuityFrameUrl,
-                continuityFrameLabel,
-                ...(nextShotAnchor ? { nextContinuityFrameUrl: nextShotAnchor.url, nextContinuityFrameLabel: nextShotAnchor.label } : {})
+                continuityFrameLabel
             })
         }
         if (!(await isGenerationProcessing(generation.id))) return
@@ -698,7 +421,6 @@ async function generateStoryboard(req: NextRequest, { params }: Params) {
         })
         const complete = !!done?.firstFrameUrl && (!needsLastFrame || !!done?.plannedLastFrameUrl) && generatedExtraCount === middleFrameCount
         await prisma.$transaction(async tx => {
-
             const target = await tx.storyboard.updateMany({
                 where: { id: storyboardId, deletedAt: null, operationVersion: baseStoryboard.operationVersion },
                 data: { frameStatus: complete ? 'completed' : 'failed' }
@@ -742,27 +464,10 @@ async function generateStoryboard(req: NextRequest, { params }: Params) {
 
         const latest = await loadLatestStoryboard()
         const current = latest ?? baseStoryboard
-        const lastMiddleAnchor = type === 'last_frame' ? await getLastMiddleFrameAnchor(storyboardId) : null
-        const nextShotAnchor = type === 'last_frame' ? await getNextShotFirstFrameAnchor(current) : null
-        const previousShotAnchor = type === 'first_frame' ? await getPreviousShotEndingFrameAnchor(current) : null
-        if (type === 'first_frame' && (current.continuityMode === 'continuous' || current.continuityMode === 'seamless') && !previousShotAnchor) {
-            throw new Error(`连续镜头 ${current.order} 缺少上一镜成功视频的真实尾帧，已阻断生成`)
-        }
         const frameOk = await generateFrame(generation.id, current, type as 'first_frame' | 'last_frame', {
             ...(videoProvider ? { videoProvider } : {}),
             ...(imageProviderOpt ? { provider: imageProviderOpt } : {}),
             imageQuality: imageQualityOpt,
-            ...(lastMiddleAnchor ? { continuityFrameUrl: lastMiddleAnchor.url, continuityFrameLabel: lastMiddleAnchor.label } : {}),
-            ...(previousShotAnchor
-                ? {
-                      previousShotFrameUrl: previousShotAnchor.url,
-                      previousShotFrameLabel: previousShotAnchor.label,
-                      previousContinuityMode: previousShotAnchor.mode,
-                      previousShotStoryboardId: previousShotAnchor.storyboardId,
-                      previousShotOrder: previousShotAnchor.order
-                  }
-                : {}),
-            ...(nextShotAnchor ? { nextContinuityFrameUrl: nextShotAnchor.url, nextContinuityFrameLabel: nextShotAnchor.label } : {}),
             keepFrameGenerating: false
         })
         void frameOk

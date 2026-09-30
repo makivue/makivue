@@ -56,7 +56,7 @@ describe('episode regenerate-all UI', () => {
         expect(modal).toContain("const [requestMode, setRequestMode] = useState<'missing' | 'all'>(mode)")
         expect(modal).toContain('body: JSON.stringify({ mode: requestMode')
         expect(modal).toContain("setRequestMode('missing')")
-        expect(route).toContain("if (mode === 'all') return true")
+        expect(route).toContain("mode === 'all' || !sb.firstFrameUrl")
         expect(route).toContain("const shouldGenerateIllustrations = mode === 'all' || !sb.firstFrameUrl")
     })
 })

@@ -1,45 +1,19 @@
-import { describe, expect, it } from 'vitest'
-import { validateEpisodeScenePlan } from './screenplay-plan'
-
-describe('episode scene plan', () => {
-    it('requires every scene to contain goal, conflict, turn, hook and a realistic duration', () => {
-        const issues = validateEpisodeScenePlan(
-            [
-                {
-                    sceneNumber: 1,
-                    slugline: '办公室/日/内',
-                    purpose: '交代危机',
-                    protagonistGoal: '',
-                    conflict: '门外有人逼近',
-                    turn: '证据失踪',
-                    exitHook: '门被推开',
-                    estimatedSeconds: 20,
-                    requiredEvents: ['   ']
-                }
-            ],
-            ['主角拿到账本']
-        )
-        expect(issues.map(issue => issue.code)).toEqual(expect.arrayContaining(['weak_scene_plan', 'missing_scene_events', 'uncovered_required_events']))
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+const { chatGemini } = vi.hoisted(() => ({ chatGemini: vi.fn() }))
+vi.mock('@/services/gemini-text', () => ({ chatGemini }))
+vi.mock('@/lib/prisma', () => ({ prisma: { aiServiceConfig: { findUnique: vi.fn() } } }))
+import { planEpisodeScenes } from '@/services/llm'
+const params = { chapterNumber: 1, chapterContent: 'Amara opens the door.', model: 'gemini:gemini-3.7-flash' }
+beforeEach(() => chatGemini.mockReset())
+describe('basic scene planning', () => {
+    it('accepts a minimal scene without quality checks or a repair request', async () => {
+        chatGemini.mockResolvedValue(JSON.stringify({ scenes: [{ slugline: 'Doorway/day' }] }))
+        await expect(planEpisodeScenes(params)).resolves.toEqual([expect.objectContaining({ sceneNumber: 1, slugline: 'Doorway/day', estimatedSeconds: 30 })])
+        expect(chatGemini).toHaveBeenCalledOnce()
     })
-
-    it.each([20, 194.5, 2000])('accepts a complete scene plan regardless of whole-episode duration (%s seconds)', estimatedSeconds => {
-        expect(
-            validateEpisodeScenePlan(
-                [
-                    {
-                        sceneNumber: 1,
-                        slugline: '办公室/日/内',
-                        purpose: '交代危机',
-                        protagonistGoal: '找到账本',
-                        conflict: '门外有人逼近',
-                        turn: '主角拿到账本',
-                        exitHook: '门被推开',
-                        estimatedSeconds,
-                        requiredEvents: ['主角拿到账本']
-                    }
-                ],
-                ['主角拿到账本']
-            )
-        ).toEqual([])
+    it('rejects empty results without extra calls', async () => {
+        chatGemini.mockResolvedValue(JSON.stringify({ scenes: [] }))
+        await expect(planEpisodeScenes(params)).rejects.toThrow('请手动重试')
+        expect(chatGemini).toHaveBeenCalledOnce()
     })
 })

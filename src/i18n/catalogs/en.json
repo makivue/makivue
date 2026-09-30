@@ -4189,5 +4189,19 @@
     "项目记录保存到本地数据目录，素材保存在其中的 media 子目录。无需在线登录，请定期备份这些文件。": "Project records are saved in the local data directory, with media in its media subdirectory. No online sign-in is required. Back up these files regularly.",
     "模型账号额度不足怎么办？": "What if my model account runs out of quota?",
     "请到你使用的模型供应商控制台查看账号额度，或切换到另一个已配置个人密钥的供应商。": "Check your account quota in the selected supplier’s console, or choose another supplier configured with your own key.",
-    "查找创作、模型和导出的常见解答。": "Help with local AI drama creation, personal model accounts, project storage and exports."
+    "查找创作、模型和导出的常见解答。": "Help with local AI drama creation, personal model accounts, project storage and exports.",
+    "保存后，需要重新生成相关图片才能应用修改。": "Regenerate the relevant images after saving to apply your changes.",
+    "将为 {count} 个角色各生成一张全身角色参考图。生成失败时保留旧图。": "Generate one full-body reference image for each of {count} characters. Existing images are kept if generation fails.",
+    "角色参考图重新生成完成：已替换 {count} 张定稿图": "Character references regenerated: {count} approved images replaced",
+    "角色参考图生成完成：{count} 张": "Character references generated: {count}",
+    "角色和场景已更新。请点击“补齐角色参考图”生成所需参考图。": "Characters and scenes updated. Click “Generate missing character references” to prepare the required images.",
+    "上次结果因估算时长偏离目标而未保存。现在整集时长仅作提示，可以重新生成并继续。": "The previous result was not saved because its estimated duration differed from the target. Duration is now advisory; generate again to continue.",
+    "请到项目“角色”页面更换清晰的角色参考图并重新同步；显示可用后再重试视频。": "Replace the character reference with a clear image on the project’s Characters page and sync again. Retry the video once it is available.",
+    "台词超出模型时长": "Dialogue exceeds the model duration",
+    "这段对白超过当前模型的单镜时长限制，请手动调整后再生成。": "This dialogue exceeds the selected model’s per-shot duration limit. Edit it manually before generating again.",
+    "请手动缩短台词，或新增分镜后分别生成。": "Shorten the dialogue manually, or add shots and generate them separately.",
+    "视频提示词": "Video prompt",
+    "留空则使用分镜动作或画面描述": "Leave empty to use the shot action or image description",
+    "描述这个镜头中要发生的动作和画面。": "Describe the action and visuals for this shot.",
+    "修改提示词后，重新生成视频生效。": "Regenerate the video to apply prompt changes."
 }

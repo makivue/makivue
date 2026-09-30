@@ -1,7 +1,7 @@
-import { createHash } from 'node:crypto'
 import type { EpisodeFactSnapshot } from '@/lib/content-contracts'
 import type { NovelSetup } from '@/lib/novel'
 import type { EpisodeScenePlan } from '@/lib/screenplay-plan'
+import { createHash } from 'node:crypto'
 
 export interface ObservedEpisodeFacts extends EpisodeFactSnapshot {
     kind: 'observed'
@@ -56,5 +56,22 @@ export function mergeObservedFacts(current: unknown, stage: 'chapter' | 'script'
         [stage]: facts,
         ...(stage === 'chapter' ? { script: null, scriptInvalidated: true } : { scriptInvalidated: false }),
         ...(adaptation ? { adaptation } : {})
+    }
+}
+
+/** Store a source excerpt for later context without scoring or reviewing its content. */
+export function createNarrativeSnapshot(content: string, episodeNumber: number, sourceStage: 'chapter' | 'script'): ObservedEpisodeFacts {
+    return {
+        kind: 'observed',
+        sourceStage,
+        sourceHash: narrativeContentHash(content),
+        episodeNumber,
+        summary: content.trim().slice(0, 1200),
+        openingState: '',
+        endingState: '',
+        characterStateChanges: '',
+        continuityBridge: '',
+        sourceVersion: 1,
+        events: []
     }
 }

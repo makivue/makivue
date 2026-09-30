@@ -1,22 +1,22 @@
-import { after, NextRequest } from 'next/server'
-import { withHiModelsUsageScope } from '@/lib/himodels-usage-context.server'
-import { prisma } from '@/lib/prisma'
-import { apiResponse, apiError, apiErrorWithDetails } from '@/lib/utils'
-import { getEpisodeFormatSpec, parseNovelSetup } from '@/lib/novel'
-import { generateReviewedScript } from '@/services/script-generation'
-import { setupWithObservedFacts } from '@/services/narrative-facts'
-import { saveReviewedNarrative } from '@/services/narrative-persistence'
-import { currentUserId } from '@/lib/current-user'
-import { assertEpisodeOwner } from '@/lib/ownership'
 import { parseApiId } from '@/lib/api-id'
+import { currentUserId } from '@/lib/current-user'
+import { GEMINI_FLASH_TEXT_MODEL_ID } from '@/lib/gemini-models'
+import { getGenerationErrorGuidance } from '@/lib/generation-error-guidance'
+import { withHiModelsUsageScope } from '@/lib/himodels-usage-context.server'
+import { getEpisodeFormatSpec, parseNovelSetup } from '@/lib/novel'
+import { assertEpisodeOwner } from '@/lib/ownership'
+import { prisma } from '@/lib/prisma'
+import { deriveScriptCharacterScope } from '@/lib/script-character-scope'
 import { createJob, updateJob } from '@/lib/scriptJobStore'
 import { startTextJobHeartbeat } from '@/lib/text-job-lease'
+import { apiError, apiErrorWithDetails, apiResponse } from '@/lib/utils'
 import { assertSufficientPoints, BillingError, chargeLlmUsage, quoteLlmBudgetPoints } from '@/services/billing'
-import { syncSetupCharacters } from '@/services/setup-characters'
-import { GEMINI_FLASH_TEXT_MODEL_ID } from '@/lib/gemini-models'
-import { deriveScriptCharacterScope } from '@/lib/script-character-scope'
 import { assertTextModelConfigured } from '@/services/llm'
-import { getGenerationErrorGuidance } from '@/lib/generation-error-guidance'
+import { setupWithObservedFacts } from '@/services/narrative-facts'
+import { saveGeneratedNarrative } from '@/services/narrative-persistence'
+import { generateBasicScript } from '@/services/script-generation'
+import { syncSetupCharacters } from '@/services/setup-characters'
+import { after, NextRequest } from 'next/server'
 
 const DEFAULT_SCRIPT_MODEL = GEMINI_FLASH_TEXT_MODEL_ID
 export const maxDuration = 600
@@ -117,7 +117,7 @@ async function runScriptJob(jobId: string, episode: EpisodeWithProject, userId: 
         const nextEpisode = siblingEpisodes.find(e => e.episodeNumber > episode.episodeNumber)
 
         setup = setupWithObservedFacts(setup, siblingEpisodes, episode.episodeNumber, 'script')
-        const result = await generateReviewedScript({
+        const result = await generateBasicScript({
             title: project.title,
             genre: project.genre ?? undefined,
             chapterNumber: episode.episodeNumber,
@@ -159,12 +159,11 @@ async function runScriptJob(jobId: string, episode: EpisodeWithProject, userId: 
         })
         await updateJob(jobId, { phase: 'writing_db' })
 
-        const updated = await saveReviewedNarrative({
+        const updated = await saveGeneratedNarrative({
             episode,
             stage: 'script',
             content: result.script,
             facts: result.facts,
-            quality: result.quality,
             adaptation: { title: result.title, synopsis: result.synopsis, scenePlan: result.scenePlan },
             settleUsage: tx => chargeLlmUsage({ userId, jobId, task: '单集剧本生成', input: billingInput, output: result, model, tx })
         })

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { applyCharacterReferenceResult } from './character-reference-result'
 
-const sheet = (url: string, status = 'candidate') => ({ id: `asset:${url}`, role: 'turnaround_sheet', stateKey: null, url, status, promptVersion: 'turnaround-sheet-v12' })
+const sheet = (url: string, status = 'candidate') => ({ id: `asset:${url}`, role: 'full_body', stateKey: null, url, status, promptVersion: 'turnaround-sheet-v12' })
 const character = {
     id: '101',
     name: '角色 A',
@@ -15,7 +15,7 @@ const result = {
     candidateUrl: '/new.png',
     referenceImageUrl: '/new.png',
     referenceCandidates: ['/new.png'],
-    role: 'turnaround_sheet',
+    role: 'full_body',
     promptVersion: 'turnaround-sheet-v12'
 }
 

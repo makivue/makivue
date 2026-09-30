@@ -1,16 +1,15 @@
-import { prisma } from '@/lib/prisma'
+import { Prisma } from '@/generated/prisma/client'
+import type { Locale } from '@/i18n/config'
+import { buildEpisodeFactSnapshot } from '@/lib/content-contracts'
+import { normalizeContentLanguage } from '@/lib/content-language'
 import { genId } from '@/lib/id'
 import { getVisualStyle, getVisualStyleProfile, parseNovelSetup, stringifyNovelSetup, type NovelEpisodeStatePlan } from '@/lib/novel'
-import type { DetectedScriptEpisode, DetectedScriptResult } from '@/services/script-import'
-import { buildStoryboardContinuityState } from '@/lib/storyboard-state'
+import { prisma } from '@/lib/prisma'
+import { normalizeGenre } from '@/lib/project-metadata'
+import { DEFAULT_SUBTITLE_LANGUAGES, isProjectEpisodeFormat, publicationFieldsFromSetup } from '@/lib/project-publication'
 import { normalizeStoryboardActionPlan } from '@/lib/storyboard-action-plan'
 import { buildStoryboardAudioPlan } from '@/lib/storyboard-audio-plan'
-import { normalizeGenre } from '@/lib/project-metadata'
-import { buildEpisodeFactSnapshot } from '@/lib/content-contracts'
-import { Prisma } from '@/generated/prisma/client'
-import { DEFAULT_SUBTITLE_LANGUAGES, isProjectEpisodeFormat, publicationFieldsFromSetup } from '@/lib/project-publication'
-import { normalizeContentLanguage } from '@/lib/content-language'
-import type { Locale } from '@/i18n/config'
+import type { DetectedScriptEpisode, DetectedScriptResult } from '@/services/script-import'
 
 export type ImportVideoAspectRatio = '9:16' | '16:9' | '1:1'
 
@@ -154,18 +153,6 @@ export async function persistDetectedImport({
                           ...(actionPlan ? { actionPlan: actionPlan as unknown as Prisma.InputJsonValue } : {}),
                           ...(audioPlan ? { audioPlan: audioPlan as unknown as Prisma.InputJsonValue } : {}),
                           imagePrompt: storyboard.imagePrompt ?? null,
-                          continuityState: buildStoryboardContinuityState({
-                              continuityMode: 'independent',
-                              actionDesc: [
-                                  storyboard.actionDesc,
-                                  `Opening state: ${stateByEpisode.get(episode.episodeNumber)?.openingState ?? '待补充'}`,
-                                  `Ending state: ${stateByEpisode.get(episode.episodeNumber)?.endingState ?? '待补充'}`
-                              ]
-                                  .filter(Boolean)
-                                  .join('; '),
-                              shotType: storyboard.shotType ?? null,
-                              characters: []
-                          }),
                           generationStage: 'imported',
                           polishStatus: 'not_required',
                           promptVersion: 'import/storyboard-v1'

@@ -21,7 +21,7 @@ describe('AI video provider lock', () => {
         expect(service).toContain('return await runProvider(provider, referenceMode)')
         expect(service).toContain('createSeedanceTaskWithAssetRecovery({')
         expect(service).toContain('materialRecovery: created.recovery')
-        expect(service.match(/const config = await getSeedanceConfig\(provider\)/g)).toHaveLength(2)
+        expect(service.match(/const config = await getSeedanceConfig\(provider\)/g)).toHaveLength(1)
         expect(service).not.toContain('prepareStoryboardSeedancePortraitAssets')
         expect(service).not.toContain('getStoryboardSeedancePortraitAssetIds')
         expect(service).not.toContain('resolveFictionalVideoFallbackProvider')

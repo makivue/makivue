@@ -1,22 +1,20 @@
-import { after, NextRequest } from 'next/server'
-import { withHiModelsUsageScope } from '@/lib/himodels-usage-context.server'
-import { prisma } from '@/lib/prisma'
-import { apiResponse, apiError } from '@/lib/utils'
-import { getEpisodeFormatSpec, parseNovelSetup } from '@/lib/novel'
-import { correctChapterContent, generateChapter } from '@/services/llm'
-import { currentUserId } from '@/lib/current-user'
-import { assertEpisodeOwner } from '@/lib/ownership'
 import { parseApiId } from '@/lib/api-id'
 import { createJob, updateJob } from '@/lib/chapterJobStore'
-import { startTextJobHeartbeat } from '@/lib/text-job-lease'
-import { assertSufficientPoints, BillingError, chargeLlmUsage, quoteLlmBudgetPoints } from '@/services/billing'
 import { countContentUnits, getChapterMinimumUnits } from '@/lib/content-contracts'
+import { currentUserId } from '@/lib/current-user'
 import { GEMINI_FLASH_TEXT_MODEL_ID } from '@/lib/gemini-models'
-import { setupWithObservedFacts } from '@/services/narrative-facts'
-import { reviewNarrativeContent } from '@/services/narrative-review'
-import { saveReviewedNarrative } from '@/services/narrative-persistence'
 import { createProviderTokenUsageCollector, type ProviderTokenUsageCall } from '@/lib/himodels-token-usage'
-import { repairChapterDraft } from '@/services/chapter-repair'
+import { withHiModelsUsageScope } from '@/lib/himodels-usage-context.server'
+import { getEpisodeFormatSpec, parseNovelSetup } from '@/lib/novel'
+import { assertEpisodeOwner } from '@/lib/ownership'
+import { prisma } from '@/lib/prisma'
+import { startTextJobHeartbeat } from '@/lib/text-job-lease'
+import { apiError, apiResponse } from '@/lib/utils'
+import { assertSufficientPoints, BillingError, chargeLlmUsage, quoteLlmBudgetPoints } from '@/services/billing'
+import { generateChapter } from '@/services/llm'
+import { createNarrativeSnapshot, setupWithObservedFacts } from '@/services/narrative-facts'
+import { saveGeneratedNarrative } from '@/services/narrative-persistence'
+import { after, NextRequest } from 'next/server'
 
 const CHAPTER_GENERATE_RETRIES = 3
 const DEFAULT_CHAPTER_MODEL = GEMINI_FLASH_TEXT_MODEL_ID
@@ -119,7 +117,6 @@ async function runChapterJob(
     try {
         const setup = setupWithObservedFacts(parseNovelSetup(project.novelSetup), allEpisodes, episode.episodeNumber)
         const targetWords = setup.targetWordCount ? Math.round(setup.targetWordCount / Math.max(project.totalEpisodes ?? 1, 1)) : getEpisodeFormatSpec(setup.episodeFormat).chapterWordHint
-        const statePlan = setup.episodeStatePlan?.find(item => item.episodeNumber === episode.episodeNumber) ?? null
         const modelConfig = await prisma.aiServiceConfig.findUnique({ where: { provider: 'chapter_model' }, select: { modelName: true } })
 
         const allOutline = allEpisodes.map(e => ({
@@ -139,18 +136,6 @@ async function runChapterJob(
             }))
 
         const model = modelConfig?.modelName ?? DEFAULT_CHAPTER_MODEL
-        const review = (candidate: string) =>
-            reviewNarrativeContent({
-                stage: 'chapter',
-                episodeNumber: episode.episodeNumber,
-                content: candidate,
-                source: episode.synopsis ?? '',
-                setup,
-                statePlan,
-                previousEnding: previousContext.at(-1)?.content?.slice(-1800),
-                model
-            })
-
         let content = ''
         let lastErr: unknown
 
@@ -194,40 +179,17 @@ async function runChapterJob(
             throw new Error(`章节生成失败，已自动重试 ${CHAPTER_GENERATE_RETRIES} 次：${msg}`)
         }
 
-        const repaired = await repairChapterDraft({
-            content,
-            targetWords,
-            review,
-            repair: (candidate, issues) =>
-                correctChapterContent({
-                    content: candidate,
-                    targetWords,
-                    chapterNumber: episode.episodeNumber,
-                    synopsis: episode.synopsis,
-                    statePlan,
-                    issues,
-                    model
-                })
-        })
-        if (repaired.blockingIssues.length > 0) {
-            throw new Error(`章节合同校验失败：${repaired.blockingIssues.map(issue => issue.message).join('；')}`)
-        }
-        content = repaired.content
-        const reviewed = repaired.review
-        if (!reviewed) throw new Error('正文尚未通过剧情事实复核')
         const actualWords = countContentUnits(content)
         const minimumWords = getChapterMinimumUnits(targetWords)
-        const warning = repaired.warningIssues.length > 0 ? repaired.warningIssues.map(issue => issue.message).join('；') : undefined
+        const facts = createNarrativeSnapshot(content, episode.episodeNumber, 'chapter')
 
         await updateJob(jobId, { phase: 'writing_db' })
 
-        await saveReviewedNarrative({
+        await saveGeneratedNarrative({
             episode,
             stage: 'chapter',
             content,
-            facts: reviewed.facts,
-            quality: reviewed.quality,
-            issues: repaired.warningIssues,
+            facts,
             settleUsage: tx => chargeLlmUsage({ userId, jobId, task: '章节正文生成', input: billingInput, output: content, model, tx })
         })
 
@@ -239,8 +201,7 @@ async function runChapterJob(
                 actualWords,
                 minimumWords,
                 targetWords,
-                repairAttempts: repaired.repairAttempts,
-                warning,
+                repairAttempts: 0,
                 ...usage.snapshot()
             }
         })

@@ -65,10 +65,10 @@ describe('generation error guidance', () => {
         expect(`${guide.summary}${guide.nextStep}`).not.toMatch(/Gemini|GPT|SAFETY/i)
     })
 
-    it('turns an oversized Wan dialogue failure into an automatic split action instead of a retry loop', () => {
+    it('suggests manual editing for oversized dialogue', () => {
         const guide = getGenerationErrorGuidance('Wan 2.7 单个分镜最多支持 15 秒音频，当前台词为 21.0 秒；自动加速会超过自然语速范围。请缩短台词或拆分分镜，系统不会截断对白。')
         expect(guide).toMatchObject({ kind: 'dialogue_too_long', retryable: false, adminRequired: false })
-        expect(guide.nextStep).toContain('自动拆镜')
+        expect(guide.nextStep).toContain('手动缩短台词')
     })
 
     it('explains that an overlong r2v input must be trimmed instead of retried', () => {

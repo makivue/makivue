@@ -1,79 +1,25 @@
-import { localFetch } from '@/lib/local-fetch'
-import { prisma } from '@/lib/prisma'
 import type { Prisma } from '@/generated/prisma/client'
-import path from 'path'
-import fsSync from 'fs'
-import fs from 'fs/promises'
-import { toLocalMediaUrl, saveImmutableLocalImage, saveLocalMediaFile } from './local-media'
-import { BananaImageSafetyError, generateImageWithBanana, inspectCharacterReferenceQuality, inspectImageTextArtifacts, shouldRejectCharacterReferenceImage } from './banana'
-import { decodeVeoInlineVideo, extractVeoVideoResult, type VeoVideoResult } from './veo-video-result'
-import {
-    createHiModelsVideoTask,
-    extractHiModelsUsage,
-    generateHiModelsImage,
-    getHiModelsVideoTask,
-    mergeHiModelsUsage,
-    HIMODELS_VEO_LABEL,
-    type HiModelsUsage,
-    type HiModelsVideoReferenceImage
-} from './himodels'
-import { withHiModelsUsageScope } from '@/lib/himodels-usage-context.server'
-import { generateImageWithQwenImage3Pro, QwenImageRateLimitError, QWEN_IMAGE_3_PRO_MODEL } from './qwen-image'
-import { improveFrameImagePrompt, improveVideoMotionPrompt, rewriteAnimalCharacterAppearance, rewriteImagePromptForSafety } from './llm'
-import { getVisualStyleForSetup, getVisualStyleProfile, parseNovelSetup, stringifyNovelSetup, type NovelSetup } from '@/lib/novel'
-import { formatVisualStyleProfile } from '@/lib/visual-style-profile'
-import { getImageQualityOption, normalizeImageQuality, type ImageQuality } from '@/lib/image-quality'
-import { NANO_BANANA_IMAGE_MODEL } from '@/lib/gemini-models'
-import { clearEpisodeMergedVideoInTransaction, lockStoryboardMediaInTransaction, StaleStoryboardMutationError } from './artifacts'
-import { concatStorageVideos, addContinuousAmbientBedToVideo, extractLastFrameFromVideo, optimizeVideoForStreaming, probeDuration, probeMediaStreams, withFfmpegSlot } from './ffmpeg'
-import { generateStoryboardSubtitles } from './subtitle'
-import { fetchTimeoutSignal } from '@/lib/fetch-timeout'
-import type { VideoLanguage } from '@/lib/video-language'
-import { buildVideoLanguageLock, extractDialogueTurns, getConfiguredVideoLanguage, getDialogueSpeakerNames, localizeStoryboardDialogue } from './video-language'
-import { buildVisualStyleLock, sanitizePromptForVisualStyle } from '@/lib/visual-style-lock'
-import { productionDirection } from '@/lib/production-direction'
-import { getSeedanceConfig } from './seedance-config'
-import { getDashScopeConfig } from './dashscope-config'
-import { prepareWanVideoReferenceImage } from './wan-video-reference-image'
-import { createSeedanceTaskWithAssetRecovery } from './seedance-assets'
-import { fetchMeteredProvider, reportProviderTokenUsage } from '@/lib/provider-token-usage.server'
-import { chargeGenerationUsage } from './billing'
-import { releaseModelReservations } from './wallet-reservations'
 import { BILLING_TRANSACTION_OPTIONS } from '@/lib/billing-transaction'
-import { buildVideoProviderConstraintPackage } from '@/lib/video-production-plan'
-import { resolveStoryboardActionDesc } from '@/lib/storyboard-action-plan'
-import { buildAudioTimelineDirection, buildStoryboardAudioPlan, normalizeStoryboardAudioPlan } from '@/lib/storyboard-audio-plan'
+import { createConcurrencyLimiter } from '@/lib/bounded-concurrency'
+import { fetchTimeoutSignal } from '@/lib/fetch-timeout'
+import { NANO_BANANA_IMAGE_MODEL } from '@/lib/gemini-models'
+import { hasRecoverableVideoCheckpoint } from '@/lib/generation-checkpoint-recovery'
+import { getHiModelsImageModelCapability, isHiModelsImageModel, type HiModelsImageApiModel } from '@/lib/himodels-models'
+import { withHiModelsUsageScope } from '@/lib/himodels-usage-context.server'
 import { ImageProviderTimeoutError, ImageRecoveryExhaustedError, shouldUseAutomaticImageFallback, type ImageGenerationResult, type ImageProviderSwitch } from '@/lib/image-generation-recovery'
-import { buildStoryboardContinuityState, STORYBOARD_CONTINUITY_STATE_VERSION } from '@/lib/storyboard-state'
-import { buildImageReferenceRoleMap, type ImageReferenceRole } from '@/lib/reference-role-map'
-import { type ReferenceGenerationProgress, type ReferenceGenerationStage, type ReferenceGenerationTimings } from '@/lib/reference-generation-progress'
-import { getSeedanceIllustrationSafety } from '@/lib/seedance-illustration-safety'
-import {
-    assessCharacterReferenceQuality,
-    CHARACTER_SINGLE_SUBJECT_NEGATIVE,
-    CHARACTER_TURNAROUND_SHEET_NEGATIVE,
-    CHARACTER_TURNAROUND_ASPECT_RATIO,
-    characterReferenceFramingPrompt,
-    characterReferenceRetryCorrection,
-    characterReferenceAnimalSpecies,
-    characterReferenceSubjectProfile,
-    CHARACTER_TURNAROUND_MIN_FULL_BODY_VIEWS,
-    CHARACTER_TURNAROUND_MAX_FULL_BODY_VIEWS,
-    filterTurnaroundInspectionIssues,
-    sanitizeCharacterReferenceSheetPrompt,
-    summarizeTurnaroundViews
-} from '@/lib/character-reference-retry'
+import { getImageQualityOption, normalizeImageQuality, type ImageQuality } from '@/lib/image-quality'
+import { localFetch } from '@/lib/local-fetch'
+import { getVisualStyleForSetup, getVisualStyleProfile, parseNovelSetup, stringifyNovelSetup, type NovelSetup } from '@/lib/novel'
+import { prisma } from '@/lib/prisma'
 import {
     DEFAULT_VIDEO_PROVIDER,
     getHiModelsVideoApiModel,
     getImageProviderCapability,
     getVideoProviderCapability,
     isAvailableProductionVideoProvider,
-    isHiModelsH3Provider,
     isHiModelsVeoProvider,
     isProductionVideoProvider,
     normalizeVideoDuration,
-    planVideoDuration,
     resolveImagePromptChannels,
     SEEDANCE_20_BASE_URL,
     SEEDANCE_20_ENDPOINT_ID,
@@ -81,28 +27,54 @@ import {
     SEEDANCE_25_BASE_URL,
     SEEDANCE_25_ENDPOINT_ID,
     SEEDANCE_25_LABEL,
+    supportsVideoReferenceMode,
     WAN_3_LABEL,
     WAN_3_MODEL,
     WAN_3_PRIME_LABEL,
     WAN_3_PRIME_MODEL,
     WAN_3_RESOLUTION,
-    supportsVideoReferenceMode,
-    type ProductionVideoProvider,
-    type VideoReferenceMode as CapabilityVideoReferenceMode
+    type VideoReferenceMode as CapabilityVideoReferenceMode,
+    type ProductionVideoProvider
 } from '@/lib/provider-capabilities'
-import { getHiModelsImageModelCapability, isHiModelsImageModel, type HiModelsImageApiModel } from '@/lib/himodels-models'
-import { adaptCharacterReferenceStylePrompt, getCharacterBeautyPrompt, resolveCharacterReferencePolicy, type CharacterReferenceImageProvider } from '@/lib/character-reference-policy'
-import { markProjectVisualsStaleInTransaction } from '@/services/content-lineage'
-import { resolveCharacterStatesForStoryboard } from '@/services/character-state'
-import { createConcurrencyLimiter } from '@/lib/bounded-concurrency'
-import { characterReferenceFallbackRoles, characterReferenceRoleForShot, characterReferenceRoleLabel } from '@/lib/character-reference-selection'
-import { compileSeedance25Prompt, SEEDANCE_25_PROMPT_COMPILER_VERSION, type Seedance25ReferenceAsset } from '@/lib/seedance25-prompt-compiler'
-import { hasRequiredReferenceFrames, isCompleteVideoTimeline, VIDEO_TIMELINE_PLAN_VERSION } from '@/lib/video-timeline-plan'
-import { hasRecoverableVideoCheckpoint } from '@/lib/generation-checkpoint-recovery'
-import { getSelectedSceneReferenceUrls } from '@/lib/scene-reference-selection'
-import { freshGenerationInstruction } from '@/lib/generation-request'
-import { formatReferenceVideoDurationViolation, getReferenceVideoDurationViolation, parseStoryboardReferenceVideos, totalReferenceVideoDuration } from '@/lib/storyboard-reference-videos'
+import { fetchMeteredProvider, reportProviderTokenUsage } from '@/lib/provider-token-usage.server'
+import { type ReferenceGenerationProgress, type ReferenceGenerationStage, type ReferenceGenerationTimings } from '@/lib/reference-generation-progress'
 import { buildSceneReferenceGenerationPrompt } from '@/lib/scene-reference-prompt'
+import { resolveStoryboardActionDesc } from '@/lib/storyboard-action-plan'
+import { buildStoryboardAudioPlan } from '@/lib/storyboard-audio-plan'
+import { formatReferenceVideoDurationViolation, getReferenceVideoDurationViolation, parseStoryboardReferenceVideos, totalReferenceVideoDuration } from '@/lib/storyboard-reference-videos'
+import type { VideoLanguage } from '@/lib/video-language'
+import { hasRequiredReferenceFrames, VIDEO_TIMELINE_PLAN_VERSION } from '@/lib/video-timeline-plan'
+import { buildVisualStyleLock, sanitizePromptForVisualStyle } from '@/lib/visual-style-lock'
+import { formatVisualStyleProfile } from '@/lib/visual-style-profile'
+import { markProjectVisualsStaleInTransaction } from '@/services/content-lineage'
+import fsSync from 'fs'
+import fs from 'fs/promises'
+import path from 'path'
+import { clearEpisodeMergedVideoInTransaction, lockStoryboardMediaInTransaction, StaleStoryboardMutationError } from './artifacts'
+import { BananaImageSafetyError, generateImageWithBanana } from './banana'
+import { chargeGenerationUsage } from './billing'
+import { getDashScopeConfig } from './dashscope-config'
+import { extractLastFrameFromVideo, optimizeVideoForStreaming, probeMediaStreams, withFfmpegSlot } from './ffmpeg'
+import {
+    createHiModelsVideoTask,
+    extractHiModelsUsage,
+    generateHiModelsImage,
+    getHiModelsVideoTask,
+    HIMODELS_VEO_LABEL,
+    mergeHiModelsUsage,
+    type HiModelsUsage,
+    type HiModelsVideoReferenceImage
+} from './himodels'
+import { rewriteImagePromptForSafety } from './llm'
+import { saveImmutableLocalImage, saveLocalMediaFile, toLocalMediaUrl } from './local-media'
+import { generateImageWithQwenImage3Pro, QWEN_IMAGE_3_PRO_MODEL, QwenImageRateLimitError } from './qwen-image'
+import { createSeedanceTaskWithAssetRecovery } from './seedance-assets'
+import { getSeedanceConfig } from './seedance-config'
+import { generateStoryboardSubtitles } from './subtitle'
+import { decodeVeoInlineVideo, extractVeoVideoResult, type VeoVideoResult } from './veo-video-result'
+import { buildVideoLanguageLock, getConfiguredVideoLanguage, localizeStoryboardDialogue } from './video-language'
+import { releaseModelReservations } from './wallet-reservations'
+import { prepareWanVideoReferenceImage } from './wan-video-reference-image'
 
 async function getProjectNovelSetup(projectId: bigint) {
     const project = await prisma.project.findFirst({
@@ -119,9 +91,8 @@ async function getProjectVisualStyle(projectId: bigint) {
     return getVisualStyleForSetup(setup)
 }
 
-export async function resolveCharacterReferenceRuntimePolicy(projectId: bigint, requestedProvider?: ImageProvider) {
-    const style = await getProjectVisualStyle(projectId)
-    return resolveCharacterReferencePolicy(style, (requestedProvider ?? 'banana') as CharacterReferenceImageProvider)
+export async function resolveCharacterReferenceRuntimePolicy(_projectId: bigint, requestedProvider?: ImageProvider) {
+    return { provider: requestedProvider ?? 'banana', promptVersion: 'character-basic-v1' }
 }
 
 type ProjectVideoAspectRatio = '9:16' | '16:9' | '1:1'
@@ -141,17 +112,6 @@ async function getStoryboardVideoAspectRatio(storyboardId: bigint): Promise<Proj
     return projectId ? getProjectVideoAspectRatio(projectId) : '9:16'
 }
 
-function getAspectRatioPrompt(ratio: ProjectVideoAspectRatio): string {
-    if (ratio === '16:9') return 'cinematic composition, 16:9 horizontal landscape frame, high quality'
-    if (ratio === '1:1') return 'cinematic composition, 1:1 square frame, high quality'
-    return 'cinematic composition, 9:16 vertical frame, high quality'
-}
-
-async function getProjectStyleReferenceImages(projectId: bigint): Promise<string[]> {
-    const project = await getProjectNovelSetup(projectId)
-    return (project?.setup.styleReferenceImages ?? []).filter(Boolean).slice(0, 4)
-}
-
 async function getStoryboardVisualStyle(storyboardId: bigint) {
     const row = await prisma.storyboard.findFirst({
         where: { id: storyboardId, deletedAt: null },
@@ -166,11 +126,6 @@ async function getStoryboardProjectId(storyboardId: bigint): Promise<bigint | nu
         select: { episode: { select: { projectId: true } } }
     })
     return row?.episode.projectId ?? null
-}
-
-async function getStoryboardStyleReferenceImages(storyboardId: bigint): Promise<string[]> {
-    const projectId = await getStoryboardProjectId(storyboardId)
-    return projectId ? getProjectStyleReferenceImages(projectId) : []
 }
 
 interface CharacterData {
@@ -213,8 +168,6 @@ interface StoryboardWithRelations {
         timeOfDay?: string | null
     } | null
 }
-
-type StoryboardCharacterRelation = StoryboardWithRelations['characters'][number]
 
 async function getModelPreference(provider: string) {
     return prisma.aiServiceConfig.findUnique({ where: { provider }, select: { modelName: true } })
@@ -300,15 +253,6 @@ function stringifyRequestBodyForRecord(value: unknown) {
     return JSON.stringify(redactDataUrls(value))
 }
 
-function isSuspiciousImageFile(absPath: string) {
-    try {
-        const stat = fsSync.statSync(absPath)
-        return stat.size < 12_000
-    } catch {
-        return true
-    }
-}
-
 async function downloadFile(url: string, destPath: string) {
     const res = await localFetch(url, { signal: fetchTimeoutSignal(120_000) })
     if (!res.ok) throw new Error(`Failed to download ${url}: ${res.status}`)
@@ -318,9 +262,8 @@ async function downloadFile(url: string, destPath: string) {
     return destPath
 }
 
-// 把生成好的本地文件上传到 local storage 并删除本地临时文件，返回 本地素材 URL。
-// 所有分镜产物（首/末/中间帧、视频、音频）落盘后都走这里，避免 pod 磁盘重启丢文件 → 前端 404。
-// 上传失败直接抛错，让上层 generation 记录变成 failed，用户可重试。
+// Persist generated media locally, then remove the processing copy.
+// A failed save keeps the generation retryable.
 async function uploadStoryboardArtifact(storyboardId: bigint, absPath: string, filename: string, kind: 'storyboards' | 'videos'): Promise<string> {
     const sb = await prisma.storyboard.findFirst({ where: { id: storyboardId }, select: { episodeId: true } })
     const subdir = sb?.episodeId ? `${kind}/${sb.episodeId}` : kind
@@ -388,94 +331,6 @@ async function ensureStoryboardFrameProviderUrl(
     }
 }
 
-// 构建视频模型的文本 prompt
-// 注意：由于 Seedance 对真人参考图有严格的隐私审核，生产中最稳定方式是
-// 把角色外貌描述直接拼进 text prompt（而非作为 reference_image 传入）
-function getStoryboardCharacterMatchText(sb: Pick<StoryboardWithRelations, 'dialogue' | 'actionDesc' | 'imagePrompt' | 'videoPrompt'>) {
-    return [sb.dialogue, sb.actionDesc, sb.imagePrompt, sb.videoPrompt].filter(Boolean).join('\n')
-}
-
-async function resolveStoryboardVisibleCharacters(storyboard: StoryboardWithRelations): Promise<StoryboardCharacterRelation[]> {
-    const byId = new Map<bigint, StoryboardCharacterRelation>()
-    for (const item of storyboard.characters) {
-        if (item.character?.id) byId.set(item.character.id, item)
-    }
-
-    const projectId = await getStoryboardProjectId(storyboard.id)
-    const matchText = getStoryboardCharacterMatchText(storyboard)
-    if (!projectId || !matchText.trim()) return Array.from(byId.values())
-
-    const projectCharacters = await prisma.character.findMany({
-        where: { projectId, deletedAt: null },
-        select: {
-            id: true,
-            name: true,
-            appearancePrompt: true,
-            referenceImageUrl: true,
-            seedanceAssetId: true,
-            gender: true
-        }
-    })
-    for (const character of projectCharacters) {
-        const name = character.name?.trim()
-        if (!name || byId.has(character.id)) continue
-        if (matchText.includes(name)) {
-            byId.set(character.id, { character })
-        }
-    }
-
-    return Array.from(byId.values())
-}
-
-function getStoryboardEnvironmentText(sb: Pick<StoryboardWithRelations, 'scene' | 'imagePrompt' | 'actionDesc' | 'videoPrompt'>) {
-    return [sb.scene?.name, sb.scene?.locationPrompt, sb.imagePrompt, sb.actionDesc, sb.videoPrompt].filter(Boolean).join('\n')
-}
-
-function stripCharacterBeautificationFromStylePrompt(prompt: string) {
-    const characterOnlyPatterns = [/characters?/i, /face|facial|cheekbone/i, /waist|posture/i, /idol|portrait/i, /handsome|beautiful|attractive/i]
-    const parts = prompt
-        .split(',')
-        .map(part => part.trim())
-        .filter(Boolean)
-    const kept = parts.filter(part => !characterOnlyPatterns.some(pattern => pattern.test(part)))
-    return kept.length > 0 ? kept.join(', ') : prompt
-}
-
-function stripCharacterWardrobeFromStylePrompt(prompt: string) {
-    const characterWardrobePatterns = [
-        /modern\s+chinese\s+costume\s+details/i,
-        /jade\s+and\s+gold\s+accents/i,
-        /elegant\s+fantasy\s+architecture/i,
-        /ornate\s+(?:costume|robe|clothing|jewelry|accessories)/i,
-        /jewelry|accessories|gold(?:en)?\s+trim/i
-    ]
-    const stripped = stripCharacterBeautificationFromStylePrompt(prompt)
-    const parts = stripped
-        .split(',')
-        .map(part => part.trim())
-        .filter(Boolean)
-    const kept = parts.filter(part => !characterWardrobePatterns.some(pattern => pattern.test(part)))
-    return kept.length > 0 ? kept.join(', ') : stripped
-}
-
-function getStylePromptForCharacterState(prompt: string, hasVisibleCharacters: boolean) {
-    return hasVisibleCharacters ? prompt : stripCharacterBeautificationFromStylePrompt(prompt)
-}
-
-function buildNoVisibleCharacterLock() {
-    return 'NO VISIBLE CHARACTER LOCK: this storyboard has zero visible characters. Do NOT generate any person, humanoid, face, body, hands, clothing, silhouette, statue, portrait, reflection, or extra actor. The subject must be only the described location, object, atmosphere, light, or camera movement.'
-}
-
-function buildCloudEnvironmentLock(sb: Pick<StoryboardWithRelations, 'scene' | 'imagePrompt' | 'actionDesc' | 'videoPrompt'>) {
-    const text = getStoryboardEnvironmentText(sb)
-    if (!/(云|云雾|云层|白云|雾|烟霞|mist|cloud|fog|haze)/i.test(text)) return ''
-    return (
-        'CLOUD / MIST CONTINUITY LOCK: clouds or mist are a low, semi-transparent atmospheric layer, not an opaque foreground wall. ' +
-        'Keep the garden/plaza/path/flower beds/architecture/main subject readable; clouds must not cover the center action, faces, hands, key object, or more than the lower foreground edge. ' +
-        'Across frames and video, keep the cloud density, height, color and direction consistent; do not let clouds suddenly disappear or flood the whole frame.'
-    )
-}
-
 function isBroadSceneLocation(scene: Pick<NonNullable<StoryboardWithRelations['scene']>, 'name' | 'locationPrompt'> | null | undefined) {
     const text = [scene?.name, scene?.locationPrompt].filter(Boolean).join(' ')
     if (!text.trim()) return false
@@ -511,533 +366,10 @@ export function buildSceneReferenceGenerationPlan(
     return { ...prompts, styleReferences, aspectRatio }
 }
 
-function getSceneReferenceMode(scene: StoryboardWithRelations['scene']): 'exact' | 'identity' {
-    return isBroadSceneLocation(scene) ? 'identity' : 'exact'
-}
-
-function buildScenePromptLock(scene: StoryboardWithRelations['scene'], hasSceneReference: boolean) {
-    if (!scene) return ''
-    const mode = getSceneReferenceMode(scene)
-    if (hasSceneReference) {
-        return mode === 'identity'
-            ? 'SCENE IDENTITY LOCK: use the scene reference for the main location style, architecture/material language, color palette, atmosphere and light direction, but follow this storyboard imagePrompt/actionDesc for the specific sub-location and background. Do NOT force every shot into the exact same reference-image corner. CAMERA ANGLE FREEDOM: each shot can have completely different camera angles (wide/medium/close-up, eye-level/low-angle/high-angle, front/side/back) as long as the overall scene style/materials/colors remain consistent.'
-            : 'SCENE LOCK: walls/floor color, room layout, light source direction and palette MUST match the scene reference image IDENTICALLY'
-    }
-    if (!scene.locationPrompt) return ''
-    return mode === 'identity'
-        ? `main scene identity (allow storyboard-specific sub-location/background): ${scene.locationPrompt}`
-        : `scene (lock layout, walls/floor color, light direction verbatim): ${scene.locationPrompt}`
-}
-
-function buildVisualStateLock(params: {
-    type: 'first_frame' | 'middle_frame' | 'last_frame'
-    storyboard: StoryboardWithRelations
-    charNames: string[]
-    charAppearances: string[]
-    frameActionDesc: string | null
-    hasStateContinuityAnchor: boolean
-    hasPreviousCharacterContinuity: boolean
-    hasPreviousShotFrame: boolean
-    ownFirstFrame: boolean
-    continuityFrameLabel: string
-    hasOpeningFrameBackup: boolean
-    nextContinuityReferenceNumber: number | null
-    nextContinuityFrameLabel: string
-    scenePromptLock: string
-    isDetailShot: boolean
-}) {
-    const anchors: string[] = []
-    if (params.hasPreviousCharacterContinuity) {
-        anchors.push('reference image #1 is the previous shot ending frame and locks current character state')
-    } else if (params.hasPreviousShotFrame) {
-        anchors.push('reference image #1 is the previous shot/environment anchor')
-    } else if (params.ownFirstFrame) {
-        anchors.push(`reference image #1 is the same-shot ${params.continuityFrameLabel}`)
-    }
-    if (params.hasOpeningFrameBackup) anchors.push('the opening-frame backup reference must remain consistent')
-    if (params.nextContinuityReferenceNumber) {
-        anchors.push(`reference image #${params.nextContinuityReferenceNumber} is the next confirmed ${params.nextContinuityFrameLabel}`)
-    }
-    if (anchors.length === 0) anchors.push('no prior frame anchor; use storyboard and character state exactly')
-
-    const names = params.charNames.length ? params.charNames.join(', ') : 'no named visible character'
-    const characterState = params.charAppearances.length ? params.charAppearances.join('; ') : 'use only explicitly listed visible subjects'
-    const action = params.frameActionDesc || params.storyboard.actionDesc || 'a single readable visual beat'
-    const scene = [params.storyboard.scene?.name, params.storyboard.scene?.locationPrompt, params.scenePromptLock].filter(Boolean).join(' — ') || 'current storyboard scene'
-    const detail = params.isDetailShot
-        ? ' Detail frame rule: this is a crop/push-in from the anchored character or object; keep the same sleeve, skin tone, dirt/blood, prop angle, light direction, and background palette.'
-        : ''
-    const wardrobeSource = params.hasStateContinuityAnchor
-        ? 'copy wardrobe/body state from frame anchors, including exact garment colors, materials, silhouette, damage, dirt, blood, footwear and accessories'
-        : 'copy wardrobe/body state from the character/storyboard text exactly; do not let style wording invent cleaner or more ornate clothing'
-
-    return [
-        `VISUAL STATE LOCK: Anchors: ${anchors.join('; ')}.`,
-        `Characters: ${names}. Identity/state text: ${characterState}.`,
-        `Wardrobe/body: ${wardrobeSource}; allowed wardrobe change: none unless the script explicitly says changing clothes, cleaning up, adding/removing jewelry, or losing/gaining a prop.`,
-        `Expression/emotion: follow only this frame action (${action}); emotional intensity may progress gradually, but must not reset to calm/heroic/beautified if the previous state is painful, fearful, exhausted, dirty, or injured.`,
-        `Pose/action: only pose, gaze, hands, body weight, step, hair/fabric motion and action progress may change for this ${params.type}; identity, age, wardrobe, props, lighting and scene state stay locked.${detail}`,
-        `Scene/atmosphere: ${scene}; keep time of day, light direction/color, weather, fog/dust/cloud density, color palette, foreground/background anchors and character blocking compatible across adjacent frames.`,
-        'Forbidden changes: wardrobe swap, new jewelry, clean makeup, beauty upgrade, face/age/body drift, changed hair, prop disappearance, new prop, extra people, scene reset, lighting/time jump, new architecture, text, subtitles, logos, watermark.'
-    ].join(' ')
-}
-
-function buildVideoMotionPlan(sb: StoryboardWithRelations, visibleCharacters: StoryboardCharacterRelation[]) {
-    const actionDesc = sb.actionDesc?.trim()
-    const names = visibleCharacters.map(item => item.character.name).filter(Boolean)
-    const hasVisibleCharacters = names.length > 0
-    const subject = hasVisibleCharacters ? names.join(', ') : 'the explicit non-human subject, atmosphere, light, and camera'
-    const labeled = actionDesc ? parseLabeledActionStates(actionDesc) : { opening: null, ending: null, middles: [] as Array<{ index: number; text: string }> }
-    const performanceRule =
-        'Give every gaze a named physical target from the shot (another character, a prop, a screen, a doorway, the floor or the event source); never default to the camera lens or vacant forward staring. Use motivated facial, finger, hand, shoulder and body-weight changes to reveal intention, not idle swaying.'
-
-    if (!hasVisibleCharacters) {
-        if (labeled.opening && labeled.ending) {
-            const middleHint = labeled.middles.length > 0 ? ` Mid-shot must pass through: ${labeled.middles.map(m => m.text).join(' -> ')}.` : ''
-            return [
-                `MANDATORY MOTION ARC: begin exactly from opening state (${labeled.opening}).`,
-                `During the shot, animate only ${subject}: slow cloud drift, petals, light shimmer, object bloom, or a gentle camera move. Do NOT add any people or humanoid figures.`,
-                `${middleHint} End exactly at ending state (${labeled.ending}).`,
-                'The semantic-beat director plan must derive variable-duration action phases, motivated framing, camera behavior and visual handoffs from this environment/object action.'
-            ].join(' ')
-        }
-
-        if (actionDesc) {
-            return [
-                `MANDATORY MOTION ARC: animate this environment/object action visibly: ${actionDesc}.`,
-                'No people may appear. Use readable object, atmosphere or light changes across the full duration; derive each variable-duration beat and its camera behavior from the visible progression.'
-            ].join(' ')
-        }
-
-        return 'MANDATORY MOTION ARC: create subtle but visible environment/object progression with no people or humanoid figures. Derive variable-duration semantic beats and motivated camera behavior from that progression.'
-    }
-
-    if (labeled.opening && labeled.ending) {
-        const middleHint = labeled.middles.length > 0 ? ` Mid-shot must pass through: ${labeled.middles.map(m => m.text).join(' -> ')}.` : ''
-        return [
-            `MANDATORY MOTION ARC: begin exactly from opening state (${labeled.opening}).`,
-            `During the shot, ${subject} must visibly transition with clear head, gaze, hand, arm, torso, step, clothing or hair motion; do not hold the body centered and frozen.`,
-            performanceRule,
-            `${middleHint} End exactly at ending state (${labeled.ending}).`,
-            'Derive variable-duration semantic beats, framing, camera direction, speed and visual handoffs from the subject action.'
-        ].join(' ')
-    }
-
-    if (actionDesc) {
-        return [
-            `MANDATORY MOTION ARC: animate this action visibly: ${actionDesc}.`,
-            `${subject} must not stand still in the center; show a readable pose, gaze, hand, body-weight, clothing, hair or step change across the full duration.`,
-            performanceRule,
-            'Derive variable-duration semantic beats, framing, camera direction, speed and visual handoffs from the subject action.'
-        ].join(' ')
-    }
-
-    return `MANDATORY MOTION ARC: create a subtle but visible performance for ${subject}; establish an intention, a visible trigger, two motivated micro-actions and a changed ending emotion. ${performanceRule} Do not output a still image or a center-locked standing pose. Derive variable-duration semantic beats, motivated camera behavior and handoffs from the performance.`
-}
-
-function buildSeedanceNativeSpeechDirection(sb: StoryboardWithRelations) {
-    const dialogue = sb.dialogue?.trim()
-    const narration = sb.narration?.trim()
-    if (!dialogue && !narration) return ''
-    const turns = dialogue ? extractDialogueTurns(dialogue) : []
-    const exactTurns = turns.map((turn, index) => `${index + 1}. ${turn.speakerName ? `${turn.speakerName} says` : 'The visible speaker says'} exactly: "${turn.text}"`).join(' ')
-    const speakerRule = dialogue
-        ? getDialogueSpeakerNames(dialogue).length > 1
-            ? 'Only the named visible speaker talks during each dialogue turn; alternate speakers in the written order, with no shared voice, overlap, or reassigned lines.'
-            : 'The visible speaking character performs the dialogue line; do not turn it into off-screen narration or add a competing visible speaker.'
-        : ''
-    const voiceOverTurns = narration ? extractDialogueTurns(narration) : []
-    const exactVoiceOver = voiceOverTurns
-        .map((turn, index) => `${index + 1}. Off-screen voice-over${turn.speakerName ? ` identified as ${turn.speakerName}` : ''} says exactly: "${turn.text}"`)
-        .join(' ')
-    const narrationRule = narration
-        ? 'VOICE-OVER LOCK: narration remains off-screen. No visible character mouths, whispers, or appears to speak these words; use the visible performance only as a reaction or counterpoint.'
-        : ''
-    const actingContext = sb.actionDesc?.trim()
-        ? `Acting and emotional source of truth: ${sb.actionDesc}. Preserve its intention, trigger, prop interaction and emotional change.`
-        : 'Use natural short-drama emotion, motivated pauses and restrained gestures. Keep the speaker looking at a named person, prop or scene target rather than the camera lens.'
-    return [
-        'NATIVE DIALOGUE AND PERFORMANCE — HIGHEST PRIORITY:',
-        exactTurns,
-        speakerRule,
-        exactVoiceOver,
-        narrationRule,
-        actingContext,
-        'Generate spoken audio, facial expression, mouth articulation, breathing, pauses and matching ambient sound together in this one pass.'
-    ]
-        .filter(Boolean)
-        .join(' ')
-}
-
-type VideoPromptCompileContext = {
-    referenceAssets?: Seedance25ReferenceAsset[]
-    referenceMode?: VideoReferenceMode
-    generationNonce?: string
-}
-
-function extractExplicitEndingState(actionDesc: string | null | undefined) {
-    if (!actionDesc?.trim()) return null
-    const match = actionDesc.match(/(?:Ending state|Final state)\s*[:：]\s*([^\n]+)/i) ?? actionDesc.match(/(?:结束时|结束状态|最终状态)\s*[:：]\s*([^\n]+)/)
-    return match?.[1]?.trim() || null
-}
-
-async function buildVideoText(
-    sb: StoryboardWithRelations,
-    videoLanguage: VideoLanguage,
-    provider: VideoProvider,
-    plannedDuration = normalizeVideoDuration(provider, sb.duration),
-    compileContext: VideoPromptCompileContext = {}
-): Promise<string> {
-    const motionOverride = sb.motionOverride?.trim() || sb.videoPrompt?.trim()
-    const fullPromptOverride = sb.fullPromptOverride?.trim()
-    const referenceMode = compileContext.referenceMode ?? (isHiModelsVeoProvider(provider) ? 'text' : 'single')
-    const languageLock = buildVideoLanguageLock(videoLanguage, sb.dialogue, sb.narration)
-    const nativeSpeechDirection = provider === 'seedance' || provider === 'seedance25' || isHiModelsH3Provider(provider) ? buildSeedanceNativeSpeechDirection(sb) : ''
-    const audioTimelineDirection = buildAudioTimelineDirection(normalizeStoryboardAudioPlan(sb.audioPlan, { duration: plannedDuration, dialogue: sb.dialogue, narration: sb.narration }))
-    const providerConstraints = buildVideoProviderConstraintPackage(provider, {
-        shotType: sb.shotType,
-        duration: plannedDuration,
-        dialogue: sb.dialogue,
-        actionDesc: sb.actionDesc,
-        imagePrompt: sb.imagePrompt,
-        continuityMode: sb.continuityMode,
-        characterCount: sb.characters.length
-    })
-    const style = await getStoryboardVisualStyle(sb.id)
-    const aspectRatio = await getStoryboardVideoAspectRatio(sb.id)
-    const visibleCharacters = await resolveStoryboardVisibleCharacters(sb)
-    const characterStates = await resolveCharacterStatesForStoryboard(
-        sb.id,
-        visibleCharacters.map(item => item.character.id)
-    )
-    const hasVisibleCharacters = visibleCharacters.length > 0
-    const motionPlan = buildVideoMotionPlan(sb, visibleCharacters)
-    const cloudEnvironmentLock = buildCloudEnvironmentLock(sb)
-    const hardLocks: string[] = []
-    if (compileContext.referenceAssets?.some(asset => asset.purpose === 'character_turnaround')) {
-        hardLocks.push(
-            'CHARACTER TURNAROUND REFERENCE RULE: a supplied multi-view sheet shows repeated depictions of one identity. Reconstruct one coherent character from all angles, render that character only once per intended story occurrence, and never copy the sheet layout, white background, panels or duplicate bodies into the video.'
-        )
-    }
-
-    // These slots are assembled after any LLM rewrite and cannot be deleted by
-    // a custom motion instruction or a full-prompt override.
-    if (nativeSpeechDirection && provider !== 'seedance25') hardLocks.push(nativeSpeechDirection)
-    if (audioTimelineDirection && provider !== 'seedance25') hardLocks.push(audioTimelineDirection)
-    if (provider !== 'seedance25') {
-        hardLocks.push(getStylePromptForCharacterState(style.videoPromptPrefix, hasVisibleCharacters))
-        hardLocks.push(getAspectRatioPrompt(aspectRatio))
-        hardLocks.push(
-            'the video MUST start identical to the first frame and end identical to the last frame if both are provided. ' +
-                'preserve character identity, exact wardrobe colors and silhouettes, hair, scene layout, light direction, color palette, time of day across all frames. ' +
-                'one continuous shot, no cuts, no scene transitions, no rapid wardrobe changes, no extra limbs, no face morphing'
-        )
-    }
-    hardLocks.push(providerConstraints)
-    hardLocks.push(productionDirection('video'))
-    if (compileContext.generationNonce) hardLocks.push(freshGenerationInstruction(compileContext.generationNonce))
-    if (hasVisibleCharacters) {
-        hardLocks.push(
-            'motion requirement: this must be a real moving video, not a still image. At least one visible character must clearly move through the described action with readable head, gaze, hand, arm, body-weight, clothing or hair motion while keeping identity stable'
-        )
-    } else {
-        hardLocks.push(
-            'motion requirement: this must be a real moving video with zero people. Animate only the environment, object, atmosphere, lighting, petals, clouds, or camera movement; do not invent any human figure.'
-        )
-        hardLocks.push(buildNoVisibleCharacterLock())
-    }
-    if (cloudEnvironmentLock) hardLocks.push(cloudEnvironmentLock)
-
-    if (sb.actionDesc?.trim()) {
-        hardLocks.push(
-            `ACTING SOURCE OF TRUTH: ${sb.actionDesc.trim()} Preserve the described intention, trigger, prop interaction, gaze direction and emotional change; do not replace them with generic idle motion.`
-        )
-    }
-    if (hasVisibleCharacters) {
-        hardLocks.push(
-            'PERFORMANCE LOCK: every gaze has a named physical target in the scene. Unless the storyboard explicitly addresses the viewer, never stare into the camera. Avoid vacant eyes, idle swaying, mannequin-like stillness, frozen opening holds, and generic breathing/blinking/hair motion as the main action.'
-        )
-    }
-
-    if (sb.imagePrompt && provider !== 'seedance25') hardLocks.push(`visual subject and composition lock: ${sb.imagePrompt}`)
-
-    // 把所有出场角色的外貌描述拼进去（最关键的一致性保证）
-    const charDescs = visibleCharacters
-        .map(c => {
-            const name = c.character.name?.trim()
-            const baseAppearance = c.character.appearancePrompt?.trim()
-            const currentState = characterStates.get(c.character.id.toString())?.statePrompt
-            const appearance = [baseAppearance, currentState ? `CURRENT TIMELINE STATE: ${currentState}` : null].filter(Boolean).join('; ')
-            if (name && appearance) return `${name}: ${appearance}`
-            return name || appearance || null
-        })
-        .filter(Boolean)
-    if (charDescs.length > 0 && provider !== 'seedance25') {
-        hardLocks.push(`characters (must be visible; lock identity & wardrobe verbatim): ${charDescs.join('; ')}`)
-    }
-
-    const scenePromptLock = buildScenePromptLock(sb.scene, false)
-    if (scenePromptLock && provider !== 'seedance25') hardLocks.push(scenePromptLock)
-    if (sb.dialogue && provider !== 'seedance25') hardLocks.push(`character speaks (lip-sync required): "${sb.dialogue}"`)
-    if (sb.narration && provider !== 'seedance25') {
-        hardLocks.push(`off-screen voice-over (never lip-sync to a visible character): "${sb.narration}"`)
-    }
-    if (provider !== 'seedance25') {
-        hardLocks.push(languageLock)
-        hardLocks.push(
-            `opening composition: ${sb.shotType ?? 'medium'}. Follow the content-adaptive semantic-beat CAMERA and CONTINUITY/TRANSITION instructions exactly; do not replace them with one fixed movement for the whole video.`
-        )
-    }
-
-    const compileFinalPrompt = (motionBody: string) => {
-        if (provider !== 'seedance25') return [motionBody, ...hardLocks].filter(Boolean).join(', ')
-        return compileSeedance25Prompt({
-            duration: plannedDuration,
-            generationGoal: sb.imagePrompt?.trim() || sb.actionDesc?.trim() || motionPlan,
-            motionPlan: motionBody,
-            endingState: extractExplicitEndingState(sb.actionDesc),
-            characters: charDescs as string[],
-            scene: sb.scene?.locationPrompt,
-            visualStyle: `${style.label}; ${getStylePromptForCharacterState(style.videoPromptPrefix, hasVisibleCharacters)}`,
-            shotType: sb.shotType ?? 'medium',
-            referenceAssets: compileContext.referenceAssets,
-            audioDirection: [nativeSpeechDirection, audioTimelineDirection].filter(Boolean).join(' '),
-            languageDirection: languageLock,
-            immutableConstraints: hardLocks
-        })
-    }
-
-    if (fullPromptOverride) {
-        return compileFinalPrompt(`FULL PROMPT OVERRIDE (user-authored creative body): ${fullPromptOverride}`)
-    }
-    if (motionOverride && isCompleteVideoTimeline(motionOverride, plannedDuration)) {
-        return compileFinalPrompt(`SEMANTIC-BEAT ACTION/CAMERA/TRANSITION PLAN: ${motionOverride}`)
-    }
-
-    try {
-        const improvedMotion = await improveVideoMotionPrompt({
-            basePrompt: motionOverride || motionPlan,
-            imagePrompt: sb.imagePrompt,
-            actionDesc: sb.actionDesc,
-            dialogue: sb.dialogue,
-            shotType: sb.shotType,
-            duration: plannedDuration,
-            visualStyleLabel: style.label,
-            visualStyleHint: style.hint,
-            scenePrompt: sb.scene?.locationPrompt,
-            characterDescriptions: charDescs as string[],
-            hasFirstFrame: provider === 'seedance25' ? compileContext.referenceAssets?.some(asset => asset.purpose === 'opening_frame') === true : !!sb.firstFrameUrl,
-            hasLastFrame: provider === 'seedance25' ? compileContext.referenceAssets?.some(asset => asset.purpose === 'ending_frame') === true : !!(sb.plannedLastFrameUrl ?? sb.lastFrameUrl),
-            motionPlan,
-            provider,
-            referenceMode
-        })
-        return compileFinalPrompt(`SEMANTIC-BEAT ACTION/CAMERA/TRANSITION PLAN: ${improvedMotion}`)
-    } catch (err) {
-        console.warn('[Prompt] video motion rewrite failed, using deterministic motion slot:', err)
-        return compileFinalPrompt(`SEMANTIC-BEAT ACTION/CAMERA/TRANSITION PLAN: ${motionPlan}`)
-    }
-}
-
-function middleProgressPercent(index: number, count: number): number {
-    return Math.round((index / (count + 1)) * 100)
-}
-
-function cleanActionStateText(value: string | undefined): string | null {
-    const cleaned = value
-        ?.replace(/\s+/g, ' ')
-        .replace(/^[;；,，\s]+|[;；,，\s]+$/g, '')
-        .trim()
-    return cleaned || null
-}
-
-function parseLabeledActionStates(desc: string) {
-    const labelPattern = [
-        'Opening state',
-        'Beginning state',
-        'Start state',
-        'Opening',
-        'Middle state\\s*\\d+',
-        'Middle\\s*\\d+',
-        'Mid state\\s*\\d+',
-        'Mid\\s*\\d+',
-        'Ending state',
-        'End state',
-        'Ending',
-        '开场状态',
-        '首帧状态',
-        '开始状态',
-        '中间状态\\s*\\d+',
-        '中间帧\\s*\\d+',
-        '过渡状态\\s*\\d+',
-        '过渡帧\\s*\\d+',
-        '结束状态',
-        '尾帧状态',
-        '结尾状态'
-    ].join('|')
-    const stateRe = new RegExp(`(${labelPattern})\\s*[:：]\\s*([\\s\\S]*?)(?=(?:[;；\\n\\s]*)?(?:${labelPattern})\\s*[:：]|$)`, 'gi')
-    const states: {
-        opening: string | null
-        ending: string | null
-        middles: Array<{ index: number; text: string }>
-    } = { opening: null, ending: null, middles: [] }
-
-    let match: RegExpExecArray | null
-    while ((match = stateRe.exec(desc))) {
-        const label = match[1]
-        const text = cleanActionStateText(match[2])
-        if (!text) continue
-
-        if (/^(opening|beginning|start)/i.test(label) || /^(开场状态|首帧状态|开始状态)$/.test(label)) {
-            states.opening = text
-            continue
-        }
-        if (/^(ending|end)/i.test(label) || /^(结束状态|尾帧状态|结尾状态)$/.test(label)) {
-            states.ending = text
-            continue
-        }
-
-        const index = Number(label.match(/\d+/)?.[0] ?? states.middles.length + 1)
-        states.middles.push({ index: Number.isFinite(index) && index > 0 ? index : states.middles.length + 1, text })
-    }
-
-    states.middles.sort((a, b) => a.index - b.index)
-    return states
-}
-
-function getExplicitMiddleState(middles: Array<{ index: number; text: string }>, index: number) {
-    return middles.find(m => m.index === index)?.text ?? middles[index - 1]?.text ?? null
-}
-
-function buildMiddleFrameAction(params: { index: number; count: number; opening?: string | null; ending?: string | null; explicitMiddle?: string | null; rawAction?: string | null }) {
-    const progress = middleProgressPercent(params.index, params.count)
-    const movementRequirement =
-        `This keyframe is about ${progress}% through the action and MUST be visibly different from reference image #1 / the previous frame: ` +
-        'advance the active head, gaze, hands, arms, torso, step, clothing or hair motion; do not keep the same pose.'
-
-    if (params.explicitMiddle) {
-        const endingHint = params.ending ? ` It should still be moving toward the ending state (${params.ending}).` : ''
-        return `middle state ${params.index}/${params.count} (${progress}% action progress): ${params.explicitMiddle}. ${movementRequirement}${endingHint}`
-    }
-
-    if (params.opening && params.ending) {
-        return `intermediate action state ${params.index}/${params.count} (${progress}% action progress) between opening state (${params.opening}) and ending state (${params.ending}). ${movementRequirement}`
-    }
-
-    if (params.rawAction) {
-        return `middle action state ${params.index}/${params.count} (${progress}% action progress): ${params.rawAction}. ${movementRequirement}`
-    }
-
-    return null
-}
-
-function getFrameActionDesc(actionDesc: string | null, type: 'first_frame' | 'middle_frame' | 'last_frame', opts: { middleFrameIndex?: number; middleFrameCount?: number } = {}): string | null {
-    const desc = actionDesc?.trim()
-    if (!desc) return null
-
-    const middleIndex = Math.max(1, opts.middleFrameIndex ?? 1)
-    const middleCount = Math.max(1, opts.middleFrameCount ?? 1)
-    const labeled = parseLabeledActionStates(desc)
-    if (labeled.opening || labeled.ending || labeled.middles.length > 0) {
-        if (type === 'first_frame') {
-            return labeled.opening ? `opening state: ${labeled.opening}` : `opening beat before the action progresses: ${desc}`
-        }
-        if (type === 'last_frame') {
-            const ending = labeled.ending ?? labeled.middles[labeled.middles.length - 1]?.text
-            return ending
-                ? `ending state after the action completes: ${ending}. This final frame must be visibly different from the previous frame and show the completed action.`
-                : `ending beat after this action completes: ${desc}`
-        }
-        return buildMiddleFrameAction({
-            index: middleIndex,
-            count: middleCount,
-            opening: labeled.opening,
-            ending: labeled.ending,
-            explicitMiddle: getExplicitMiddleState(labeled.middles, middleIndex),
-            rawAction: desc
-        })
-    }
-
-    const structured = desc
-        .replace(/\s+/g, ' ')
-        .match(/(?:Opening state|Opening|开场状态|首帧状态|开始状态)\s*[:：]\s*([\s\S]*?)[;；]\s*(?:Ending state|Ending|结束状态|尾帧状态|结尾状态)\s*[:：]\s*([\s\S]+)/i)
-    if (structured) {
-        const opening = structured[1].trim()
-        const ending = structured[2].trim()
-        if (type === 'middle_frame') {
-            return buildMiddleFrameAction({ index: middleIndex, count: middleCount, opening, ending })
-        }
-        return type === 'first_frame' ? `opening state: ${opening}` : `ending state after the action completes: ${ending}`
-    }
-
-    const arrow = desc.match(/^([\s\S]+?)\s*(?:->|→|=>)\s*([\s\S]+)$/)
-    if (arrow) {
-        const opening = arrow[1].trim()
-        const ending = arrow[2].trim()
-        if (type === 'middle_frame') {
-            return buildMiddleFrameAction({ index: middleIndex, count: middleCount, opening, ending })
-        }
-        return type === 'first_frame' ? `opening state: ${opening}` : `ending state after the action completes: ${ending}`
-    }
-
-    if (type === 'last_frame') return `after this action completes: ${desc}. This final frame must be visibly different from the previous frame and show the completed action.`
-    if (type === 'middle_frame') return buildMiddleFrameAction({ index: middleIndex, count: middleCount, rawAction: desc })
-    return `action: ${desc}`
-}
-
-function pushUniqueReference(refs: string[], src: string | null | undefined) {
-    if (src && !refs.includes(src)) refs.push(src)
-}
-
-function extractStoryboardAgeHint(storyboard: Pick<StoryboardWithRelations, 'imagePrompt' | 'actionDesc' | 'dialogue'>): string | null {
-    const text = [storyboard.imagePrompt, storyboard.actionDesc, storyboard.dialogue].filter(Boolean).join(' ')
-    const range = text.match(/\b(\d{1,2})\s*(?:-|~|–|—|to)\s*(\d{1,2})\s*(?:years?\s*old|year-old|岁)\b/i) ?? text.match(/(\d{1,2})\s*[、到至]\s*(\d{1,2})\s*岁/)
-    if (range) return `${range[1]}-${range[2]} years old`
-
-    const numeric = text.match(/\b(\d{1,2})\s*(?:years?\s*old|year-old)\b/i) ?? text.match(/(\d{1,2})\s*岁/)
-    if (numeric) return `${numeric[1]} years old`
-
-    const chineseAgeMap: Array<[RegExp, string]> = [
-        [/十五六岁|十五、六岁|十五到十六岁|十五至十六岁/, '15-16 years old'],
-        [/十四五岁|十四、五岁|十四到十五岁|十四至十五岁/, '14-15 years old'],
-        [/十六七岁|十六、七岁|十六到十七岁|十六至十七岁/, '16-17 years old'],
-        [/十七八岁|十七、八岁|十七到十八岁|十七至十八岁/, '17-18 years old'],
-        [/十五岁/, '15 years old'],
-        [/十六岁/, '16 years old'],
-        [/十七岁/, '17 years old'],
-        [/十八岁/, '18 years old'],
-        [/十九岁/, '19 years old'],
-        [/二十岁/, '20 years old']
-    ]
-    return chineseAgeMap.find(([pattern]) => pattern.test(text))?.[1] ?? null
-}
-
-function sanitizeCharacterAppearanceForFrame(
-    appearance: string | null | undefined,
-    storyboard: Pick<StoryboardWithRelations, 'imagePrompt' | 'actionDesc' | 'dialogue'>,
-    hasSameShotFrameAnchor: boolean
-) {
-    const raw = appearance?.replace(/\s+/g, ' ').trim()
-    if (!raw) return null
-
-    const storyboardAge = extractStoryboardAgeHint(storyboard)
-    let cleaned = raw
-    if (storyboardAge) {
-        cleaned = cleaned.replace(/\bage\s*(?:about\s*)?(?:\d{1,2}|unknown|adult|成年|未知)\b/gi, `age ${storyboardAge}`).replace(/\b\d{1,2}\s*岁\b/g, storyboardAge)
-    } else {
-        // Tiny ages are often extraction mistakes from episode numbers. Avoid forcing baby/toddler features
-        // unless the storyboard itself explicitly says this character is a baby or toddler.
-        cleaned = cleaned
-            .replace(/,\s*age\s*[0-2]\b/gi, '')
-            .replace(/\bage\s*[0-2]\s*,?\s*/gi, '')
-            .replace(/,\s*[0-2]\s*岁\b/g, '')
-            .replace(/\b[0-2]\s*岁\s*,?\s*/g, '')
-    }
-
-    if (hasSameShotFrameAnchor && /consistent wardrobe colors and silhouette/i.test(cleaned)) {
-        cleaned = cleaned.replace(/consistent wardrobe colors and silhouette/gi, 'wardrobe copied exactly from the same-shot frame anchor')
-    }
-    return cleaned.replace(/\s+,/g, ',').replace(/,\s*,/g, ',').trim()
+async function buildVideoText(sb: StoryboardWithRelations, videoLanguage: VideoLanguage, provider: VideoProvider, plannedDuration = normalizeVideoDuration(provider, sb.duration)): Promise<string> {
+    const body = sb.fullPromptOverride?.trim() || sb.motionOverride?.trim() || sb.videoPrompt?.trim() || sb.actionDesc?.trim() || sb.imagePrompt?.trim()
+    if (!body) throw new Error('请先填写视频提示词或分镜动作')
+    return [body, `Duration: ${plannedDuration} seconds.`, buildVideoLanguageLock(videoLanguage, sb.dialogue, sb.narration)].filter(Boolean).join('\n')
 }
 
 // =================== 角色参考图生成（文生图） ===================
@@ -1508,7 +840,7 @@ export async function generateProjectStyleReference(
     return { url: mediaUrl, generation }
 }
 
-export type CharacterReferenceRole = 'turnaround_sheet' | 'full_body' | 'three_quarter_view' | 'profile' | 'back' | 'face'
+export type CharacterReferenceRole = 'full_body'
 export type GeneratedReferenceImage = { url: string; generation: ImageGenerationResult }
 
 export async function generateCharacterReference(
@@ -1522,405 +854,42 @@ export async function generateCharacterReference(
         onProgress?: (progress: ReferenceGenerationProgress) => void | Promise<void>
     } = {}
 ): Promise<GeneratedReferenceImage> {
-    // One initial generation and at most one quality-triggered retry.
-    const maxAttempts = 2
-    const startedAt = Date.now()
-    let providerSwitch: ImageProviderSwitch | undefined
-    const timings: ReferenceGenerationTimings = {
-        generationMs: 0,
-        inspectionMs: 0,
-        uploadMs: 0,
-        totalMs: 0,
-        retryCount: 0
-    }
-    const reportProgress = async (stage: ReferenceGenerationStage, attempt: number) => {
-        if (!opts.onProgress) return
-        await opts.onProgress({
-            stage,
-            attempt,
-            maxAttempts,
-            timings: { ...timings, totalMs: Date.now() - startedAt },
-            providerSwitch
-        })
-    }
+    if (opts.role && opts.role !== 'full_body') throw new Error('基础版支持单张全身角色参考图')
     const character = await prisma.character.findFirst({ where: { id: characterId, deletedAt: null } })
     if (!character) throw new Error('Character not found')
-
-    const role = opts.role ?? 'turnaround_sheet'
-    const generationQuality: ImageQuality = role === 'turnaround_sheet' ? 'ultra' : normalizeImageQuality(opts.quality)
-    const generationSuffix = opts.generationNonce?.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 36) || String(Date.now())
-    const filename = `char_ref_${characterId}_${role}_${Date.now()}_${generationSuffix}.png`
-    const absPath = storageAbsPath(filename)
-
+    if (!character.appearancePrompt?.trim()) throw new Error('Character has no appearance prompt')
+    const startedAt = Date.now()
+    const timings: ReferenceGenerationTimings = { generationMs: 0, inspectionMs: 0, uploadMs: 0, totalMs: 0, retryCount: 0 }
+    const reportProgress = async (stage: ReferenceGenerationStage) => {
+        await opts.onProgress?.({ stage, attempt: 1, maxAttempts: 1, timings: { ...timings, totalMs: Date.now() - startedAt } })
+    }
     const style = await getProjectVisualStyle(character.projectId)
-    const styleLock = buildVisualStyleLock(style)
-    const project = await getProjectNovelSetup(character.projectId)
-    const styleRefs = await getProjectStyleReferenceImages(character.projectId)
-    // Character references need one clear style signal. Feeding several style
-    // boards alongside the identity image encourages image models to compose a
-    // collage or reproduce several subjects.
-    const characterStyleRefs = styleRefs.slice(0, 1)
-    const styleContext = [style.label, style.hint, style.imagePromptPrefix, style.videoPromptPrefix, style.negativePrompt].filter(Boolean).join('\n')
-    const animalOnlyStyle = /(?:animal characters?|animal animation|animal adventure|lion|lioness|hyena|dinosaur|dolphin|whale|no humans?|动物动画|动物王国|狮王|恐龙|海洋动物)/i.test(styleContext)
-    const characterIdentityContext = [character.name, character.canonicalName, character.role, character.personality, character.appearancePrompt].filter(Boolean).join('\n')
-    const explicitAnimalSpecies = characterReferenceAnimalSpecies(characterIdentityContext)
-    const appearanceAnimalSpecies = characterReferenceAnimalSpecies(character.appearancePrompt)
-    const animalIdentity = animalOnlyStyle || Boolean(explicitAnimalSpecies)
-    const conflictingHumanCasting = /(?:\b(?:human|person|actor|actress|man|woman)\b|chinese drama casting|human face|human skin|human hairstyle|真人|人类|演员)/i.test(
-        character.appearancePrompt ?? ''
-    )
-    let appearancePrompt = character.appearancePrompt?.trim() ?? ''
-    if (animalIdentity && (!appearanceAnimalSpecies || conflictingHumanCasting)) {
-        const storyContext = [project?.description, project?.setup.coreSeed, project?.setup.worldBible, project?.setup.characterArcs].filter(Boolean).join('\n')
-        try {
-            appearancePrompt = await rewriteAnimalCharacterAppearance({
-                character,
-                visualStyleContext: styleContext,
-                storyContext
-            })
-        } catch (error) {
-            console.warn('[Character] animal appearance rewrite failed, using deterministic fallback:', error instanceof Error ? error.message : error)
-            appearancePrompt = `${explicitAnimalSpecies ?? 'story-accurate animal species'}, ${character.gender === '男' ? 'male' : character.gender === '女' ? 'female' : 'story-appropriate sex'}, species-accurate animal character named ${character.name}, ${character.role ?? 'supporting'} role, rendered in the selected ${style.label} style, distinctive species-appropriate colors and markings, authentic animal head and body anatomy, stable animal silhouette, original character design, no human, no humanoid body, no human face, no human skin, no human hairstyle, no human clothing`
-        }
-        await prisma.character.update({ where: { id: characterId }, data: { appearancePrompt } })
-    }
-    if (!appearancePrompt) throw new Error('Character has no appearance prompt')
-    const resolvedAnimalSpecies = characterReferenceAnimalSpecies(appearancePrompt) ?? explicitAnimalSpecies
-    const referencePolicy = resolveCharacterReferencePolicy(style, (opts.provider ?? 'banana') as CharacterReferenceImageProvider)
-    const subjectProfile = characterReferenceSubjectProfile([resolvedAnimalSpecies, character.name, appearancePrompt].filter(Boolean).join(', '))
-    const stableAppearancePrompt = sanitizeCharacterReferenceSheetPrompt(sanitizePromptForVisualStyle(appearancePrompt, style)) || sanitizePromptForVisualStyle(appearancePrompt, style)
-    const referenceStylePrompt = sanitizeCharacterReferenceSheetPrompt(adaptCharacterReferenceStylePrompt(referencePolicy.stylePromptPrefix, referencePolicy.liveAction, animalIdentity))
-    const referenceStyleLock =
-        role === 'turnaround_sheet'
-            ? `AUTHORITATIVE PROJECT CHARACTER STYLE: ${style.label} (${style.hint}). Apply this only to the character design, rendering medium, palette and material treatment; never add architecture, scenery, cinematic lighting, depth of field or a non-white background.`
-            : styleLock.positive
-    // 真人写实族使用自然妆容与真实皮肤锚；动漫/3D/插画和动物项目保留原有审美语义。
-    const beauty =
-        animalIdentity || subjectProfile === 'humanoid'
-            ? getCharacterBeautyPrompt(character.gender, referencePolicy.liveAction, animalIdentity)
-            : 'production-ready original character design, stable anatomy and silhouette, precise material construction, no human beauty reinterpretation'
-    const subjectTypeLock = animalIdentity
-        ? `ABSOLUTE SUBJECT TYPE: ${resolvedAnimalSpecies ?? 'the story-defined animal species'}, with authentic species anatomy. This character is not a human, actor or generic humanoid. Never render a human face, human skin, human hairstyle, human hands, human body proportions or human wardrobe.`
-        : null
-    const subjectTypeNegative = animalIdentity
-        ? 'human, person, actor, actress, man, woman, human face, human skin, human hair, human hands, human body, human clothing, business suit, generic humanoid'
-        : null
-    const noTextPrompt =
-        role === 'turnaround_sheet'
-            ? 'Render character artwork only, with no typography or written glyphs anywhere on the canvas. Do not print titles, headings, module names, view names, angle names, words, letters, numbers, annotations, captions, measurement marks, footer text, signatures, logos or watermarks. The layout instructions must be expressed only through character placement and pose.'
-            : 'PURE CHARACTER IMAGE ONLY. No overlaid captions, subtitles, title cards, corner marks, UI, signatures, or watermarks. In-world costume details such as nameplates, badges, insignia, emblems, and armbands are allowed and must be treated as part of the wardrobe, not as overlays.'
-    const noTextNegative =
-        role === 'turnaround_sheet'
-            ? 'text, typography, written words, letters, numbers, headings, module labels, view labels, angle labels, annotations, captions, measurement marks, footer text, signature, watermark, logo, UI overlay, panel border, divider line'
-            : 'overlaid caption, subtitle, title card, corner mark, signature, watermark, UI overlay, decorative border text'
-    const identityReferenceRoleOrder: CharacterReferenceRole[] =
-        role === 'back' ? ['profile', 'turnaround_sheet', 'full_body'] : role === 'profile' ? ['turnaround_sheet', 'full_body'] : ['turnaround_sheet', 'full_body']
-    const selectedIdentityRows =
-        role === 'turnaround_sheet'
-            ? []
-            : await prisma.characterReferenceAsset.findMany({
-                  where: { characterId, role: { in: identityReferenceRoleOrder }, status: 'selected', deletedAt: null },
-                  orderBy: { updatedAt: 'desc' },
-                  select: { role: true, url: true }
-              })
-    const identityReferenceByRole = new Map<string, string>()
-    for (const row of selectedIdentityRows) {
-        if (!identityReferenceByRole.has(row.role)) identityReferenceByRole.set(row.role, row.url)
-    }
-    const selectedIdentityReferences =
-        role === 'turnaround_sheet'
-            ? []
-            : Array.from(
-                  new Set(
-                      identityReferenceRoleOrder
-                          .map(referenceRole =>
-                              referenceRole === 'turnaround_sheet' ? (identityReferenceByRole.get(referenceRole) ?? character.referenceImageUrl) : identityReferenceByRole.get(referenceRole)
-                          )
-                          .filter((value): value is string => Boolean(value))
-                  )
-              )
-    if (role !== 'turnaround_sheet' && !selectedIdentityReferences.length) throw new Error('请先定稿多视图角色设定板，再生成同一角色的单角度参考图')
-    const framingPrompt = characterReferenceFramingPrompt(role, subjectProfile)
-    const stylizedPrompt = [
-        role === 'turnaround_sheet'
-            ? 'TASK PRIORITY: create a neutral production identity sheet. Reference-sheet composition, neutral lighting and white-background rules override every conflicting cinematic, scene, action, pose, expression, depth-of-field or temporary prop instruction.'
-            : 'TASK PRIORITY: create a neutral production identity reference. The requested reference angle, neutral lighting and white-background rules override conflicting cinematic or scene instructions.',
-        `RENDERING STYLE ONLY: ${referenceStylePrompt || style.label}. ${referenceStyleLock}`,
-        characterStyleRefs.length
-            ? 'STYLE REFERENCE SCOPE: match only the art medium, rendering technique, palette, linework and material texture of the supplied style reference. Do not copy its subject, composition, pose, camera, depth of field, lighting, shadows or background.'
-            : null,
-        `STABLE CHARACTER IDENTITY: ${stableAppearancePrompt}`,
-        subjectTypeLock,
-        `IDENTITY PRESENTATION: ${beauty}`,
-        selectedIdentityReferences.length
-            ? 'IMPORTANT: supplied character references are identity, hairstyle, body-proportion and wardrobe evidence only; do not copy their pose or camera angle. The requested target view below has absolute priority.'
-            : null,
-        `COMPOSITION: ${framingPrompt}`,
-        selectedIdentityReferences.length
-            ? `${selectedIdentityReferences.length === 1 ? 'reference #1 is an approved view' : `references #1 through #${selectedIdentityReferences.length} are approved views`} of the SAME character; preserve the exact same face identity where visible, apparent age, hair shape and color, body proportions, skin tone, every garment color, material, seam, layer, accessory and footwear; infer only geometry hidden by the approved views, never redesign the character or wardrobe`
-            : null,
-        noTextPrompt,
-        opts.generationNonce ? freshGenerationInstruction(opts.generationNonce) : null
-    ]
-        .filter(Boolean)
-        .join('\n\n')
-
-    let retryCorrection = ''
-    let completedAttempt = 1
-    let imageGenerationResult: ImageGenerationResult | null = null
-    let activeGenerationProvider = referencePolicy.provider
-    let retryingIdentityOrAngleMismatch = false
-    let qualityProviderSwitch: ImageProviderSwitch | undefined
-    let inspectionWarning: string | undefined
-    let bestTurnaroundCandidate:
-        | {
-              bytes: Buffer
-              generation: ImageGenerationResult
-              score: number
-              distinctViewCount: number
-              duplicateViewCount: number
-              warning: string
-          }
-        | undefined
-    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-        completedAttempt = attempt + 1
-        providerSwitch = qualityProviderSwitch
-        await reportProgress('generating', completedAttempt)
-        const generationStartedAt = Date.now()
-        try {
-            // A style board can pull an image model toward its human subject or
-            // original pose. On a subject-type or angle retry, retain only the
-            // approved identity evidence and remove that competing composition.
-            const generationIdentityReferences = selectedIdentityReferences
-            const generationStyleReferences = retryingIdentityOrAngleMismatch ? [] : characterStyleRefs
-            imageGenerationResult = await generateImageUnified({
-                prompt: [stylizedPrompt, retryCorrection].filter(Boolean).join(', '),
-                negativePrompt: [
-                    styleLock.negative,
-                    noTextNegative,
-                    role === 'turnaround_sheet' ? CHARACTER_TURNAROUND_SHEET_NEGATIVE : CHARACTER_SINGLE_SUBJECT_NEGATIVE,
-                    subjectTypeNegative,
-                    referencePolicy.negativePrompt
-                ]
-                    .filter(Boolean)
-                    .join(', '),
-                referenceImages: [...generationIdentityReferences, ...generationStyleReferences],
-                outputAbsPath: absPath,
-                aspectRatio: role === 'turnaround_sheet' ? CHARACTER_TURNAROUND_ASPECT_RATIO : role === 'face' ? '1:1' : '3:4',
-                provider: activeGenerationProvider,
-                quality: generationQuality,
-                // Batch-created turnaround sheets have no established face anchor yet,
-                // so they may use the existing provider fallback after Banana recovery is exhausted.
-                // Face and three-quarter roles must preserve the selected identity reference and never fall back to text-only generation.
-                automaticFallback: role === 'turnaround_sheet',
-                contentLabel: `角色“${character.name}”参考图`,
-                onProviderSwitch: async nextProviderSwitch => {
-                    providerSwitch = nextProviderSwitch
-                    await reportProgress('generating', completedAttempt)
-                }
-            })
-            if (imageGenerationResult.providerSwitch && [408, 429].includes(imageGenerationResult.providerSwitch.status ?? 0)) {
-                activeGenerationProvider = imageGenerationResult.actualProvider
-            }
-        } finally {
-            timings.generationMs += Date.now() - generationStartedAt
-        }
-
-        await reportProgress('inspecting', completedAttempt)
-        const inspectionStartedAt = Date.now()
-        try {
-            // Only overlays/watermarks block an otherwise usable sheet. Small
-            // wardrobe glyphs are advisory and must not spend another full
-            // image generation attempt.
-            const strictNoText = false
-            const [inspection, qualityInspection] = await Promise.all([
-                inspectImageTextArtifacts(absPath, { strictNoText }),
-                inspectCharacterReferenceQuality(absPath, role, subjectProfile, resolvedAnimalSpecies)
-            ])
-            const textArtifacts = Array.from(new Set([...inspection.blockingRegions, ...(strictNoText ? inspection.regions : [])]))
-            if (strictNoText && inspection.hasText && textArtifacts.length === 0) textArtifacts.push('visible typography or annotation text')
-            const turnaroundViewSummary = summarizeTurnaroundViews(qualityInspection)
-            const turnaroundFullBodyViewCount = turnaroundViewSummary.totalViewCount
-            const turnaroundDistinctViewCount = turnaroundViewSummary.distinctViewCount
-            const duplicateViewPairs = turnaroundViewSummary.duplicateViewPairs
-            const duplicateViews = turnaroundViewSummary.duplicateViewDetected
-            const duplicateViewCount = turnaroundViewSummary.redundantViewCount
-            const framingReady =
-                role === 'turnaround_sheet'
-                    ? qualityInspection.faceVisible &&
-                      qualityInspection.fullBodyVisible &&
-                      turnaroundFullBodyViewCount >= CHARACTER_TURNAROUND_MIN_FULL_BODY_VIEWS &&
-                      turnaroundFullBodyViewCount <= CHARACTER_TURNAROUND_MAX_FULL_BODY_VIEWS &&
-                      turnaroundDistinctViewCount >= CHARACTER_TURNAROUND_MIN_FULL_BODY_VIEWS &&
-                      qualityInspection.angleMatch &&
-                      qualityInspection.faceCloseupVisible &&
-                      qualityInspection.identityConsistentAcrossViews
-                    : role === 'face'
-                      ? qualityInspection.faceVisible
-                      : qualityInspection.fullBodyVisible && (role === 'back' || qualityInspection.faceVisible)
-            const rejectedByText = shouldRejectCharacterReferenceImage(inspection, { strictNoText })
-            const qualityDecision = assessCharacterReferenceQuality(role, qualityInspection, rejectedByText)
-            // Turnaround sheets must satisfy the same four-view contract
-            // used by generation and inspection. Single-view roles keep their
-            // existing strict behavior because hardRejected mirrors it there.
-            const qualityRejected = qualityDecision.hardRejected
-            if (!rejectedByText && !qualityRejected) {
-                if (role === 'turnaround_sheet' && qualityDecision.advisoryIssues.length > 0) {
-                    inspectionWarning = `多视图角色设定板已满足核心门槛，附加建议：${qualityDecision.advisoryIssues.join('、')}`
-                }
-                break
-            }
-
-            const duplicateReason = duplicateViews
-                ? `turnaround_sheet 存在重复或近重复角度${duplicateViewPairs.length ? `（全身视图 ${duplicateViewPairs.join('、')}）` : ''}，${turnaroundFullBodyViewCount} 张全身图中仅有 ${turnaroundDistinctViewCount} 个有效不同角度`
-                : ''
-            const rejectionReasons = Array.from(
-                new Set(
-                    [
-                        ...textArtifacts,
-                        ...(role === 'turnaround_sheet' ? filterTurnaroundInspectionIssues(qualityInspection.issues) : qualityInspection.issues),
-                        !qualityInspection.singleCharacter ? '不是同一角色身份' : '',
-                        !qualityInspection.subjectTypeMatch ? `角色物种或身体结构不正确，应为 ${resolvedAnimalSpecies ?? subjectProfile}` : '',
-                        role !== 'turnaround_sheet' && !qualityInspection.angleMatch ? `${role} 角度不正确` : '',
-                        role === 'turnaround_sheet' && turnaroundDistinctViewCount < CHARACTER_TURNAROUND_MIN_FULL_BODY_VIEWS
-                            ? `turnaround_sheet 至少需要 ${CHARACTER_TURNAROUND_MIN_FULL_BODY_VIEWS} 个真实不同的全身角度（检测到 ${turnaroundDistinctViewCount} 个）`
-                            : '',
-                        role === 'turnaround_sheet' && turnaroundFullBodyViewCount > CHARACTER_TURNAROUND_MAX_FULL_BODY_VIEWS
-                            ? `turnaround_sheet 最多保留 ${CHARACTER_TURNAROUND_MAX_FULL_BODY_VIEWS} 张全身视图（检测到 ${turnaroundFullBodyViewCount} 张）`
-                            : '',
-                        role === 'turnaround_sheet' ? duplicateReason : '',
-                        !qualityInspection.whiteBackground ? '背景不是纯白' : '',
-                        !framingReady ? `${role} 构图或视图覆盖不完整` : ''
-                    ].filter(Boolean)
-                )
-            )
-            const betterTurnaroundCandidate =
-                !bestTurnaroundCandidate ||
-                qualityDecision.candidateScore > bestTurnaroundCandidate.score ||
-                (qualityDecision.candidateScore === bestTurnaroundCandidate.score && turnaroundDistinctViewCount > bestTurnaroundCandidate.distinctViewCount) ||
-                (qualityDecision.candidateScore === bestTurnaroundCandidate.score &&
-                    turnaroundDistinctViewCount === bestTurnaroundCandidate.distinctViewCount &&
-                    duplicateViewCount < bestTurnaroundCandidate.duplicateViewCount)
-            if (
-                role === 'turnaround_sheet' &&
-                qualityDecision.fallbackEligible &&
-                turnaroundDistinctViewCount >= CHARACTER_TURNAROUND_MIN_FULL_BODY_VIEWS &&
-                imageGenerationResult &&
-                betterTurnaroundCandidate
-            ) {
-                bestTurnaroundCandidate = {
-                    bytes: await fs.readFile(/* turbopackIgnore: true */ absPath),
-                    generation: imageGenerationResult,
-                    score: qualityDecision.candidateScore,
-                    distinctViewCount: turnaroundDistinctViewCount,
-                    duplicateViewCount,
-                    warning: duplicateViews
-                        ? `多视图角色设定板重试后仍有重复或近重复角度${duplicateViewPairs.length ? `（全身视图 ${duplicateViewPairs.join('、')}）` : ''}，但保留了 ${turnaroundDistinctViewCount} 个有效不同角度；已选用重试中的最佳可用结果。${rejectionReasons.join('、')}`
-                        : `多视图角色设定板未完全满足推荐构图，但保留了 ${turnaroundDistinctViewCount} 个有效不同角度；已选用重试中的最佳可用结果：${rejectionReasons.join('、') || '视图覆盖不完整'}`
-                }
-            }
-            retryCorrection = characterReferenceRetryCorrection(role, qualityInspection, textArtifacts)
-            retryingIdentityOrAngleMismatch = !qualityInspection.subjectTypeMatch || (!qualityInspection.angleMatch && ['turnaround_sheet', 'three_quarter_view', 'profile', 'back'].includes(role))
-            if (retryingIdentityOrAngleMismatch && attempt + 1 < maxAttempts && !qualityProviderSwitch) {
-                const nextProvider: ImageProvider = activeGenerationProvider === 'qwen-image-3.0-pro' ? 'banana' : 'qwen-image-3.0-pro'
-                qualityProviderSwitch = {
-                    from: activeGenerationProvider,
-                    to: nextProvider,
-                    reason: `${role} subject-type or fixed-angle gate failed; retrying the same reference with another model and targeted correction`,
-                    status: 422,
-                    attempts: attempt + 1,
-                    contentLabel: `角色“${character.name}”${role}参考图`
-                }
-                activeGenerationProvider = nextProvider
-                providerSwitch = qualityProviderSwitch
-                await reportProgress('inspecting', completedAttempt)
-                console.warn(`[Character] ${role} subject type or angle remained incorrect; switching only the current reference image to ${imageProviderLabel(nextProvider)}`)
-            }
-            console.warn(`[Character] rejected reference image (${attempt + 1}/${maxAttempts}), applying targeted composition correction:`, {
-                textArtifacts,
-                qualityIssues: qualityInspection.issues,
-                singleCharacter: qualityInspection.singleCharacter,
-                subjectTypeMatch: qualityInspection.subjectTypeMatch,
-                fullBodyVisible: qualityInspection.fullBodyVisible,
-                identityReady: qualityInspection.identityReady,
-                angleMatch: qualityInspection.angleMatch,
-                whiteBackground: qualityInspection.whiteBackground,
-                frontViewVisible: qualityInspection.frontViewVisible,
-                leftThreeQuarterViewVisible: qualityInspection.leftThreeQuarterViewVisible,
-                leftProfileViewVisible: qualityInspection.leftProfileViewVisible,
-                rearLeftThreeQuarterViewVisible: qualityInspection.rearLeftThreeQuarterViewVisible,
-                backViewVisible: qualityInspection.backViewVisible,
-                rearRightThreeQuarterViewVisible: qualityInspection.rearRightThreeQuarterViewVisible,
-                rightProfileViewVisible: qualityInspection.rightProfileViewVisible,
-                rightThreeQuarterViewVisible: qualityInspection.rightThreeQuarterViewVisible,
-                faceCloseupVisible: qualityInspection.faceCloseupVisible,
-                identityConsistentAcrossViews: qualityInspection.identityConsistentAcrossViews,
-                fullBodyViewCount: turnaroundFullBodyViewCount,
-                distinctFullBodyViewCount: turnaroundDistinctViewCount,
-                duplicateViewDetected: duplicateViews,
-                duplicateViewPairs
-            })
-            if (attempt + 1 === maxAttempts) {
-                if (role === 'turnaround_sheet' && bestTurnaroundCandidate && bestTurnaroundCandidate.distinctViewCount >= CHARACTER_TURNAROUND_MIN_FULL_BODY_VIEWS) {
-                    await fs.writeFile(absPath, bestTurnaroundCandidate.bytes)
-                    imageGenerationResult = bestTurnaroundCandidate.generation
-                    inspectionWarning = bestTurnaroundCandidate.warning
-                    console.warn('[Character] turnaround sheet missed advisory composition gates after retries; keeping the best usable candidate:', inspectionWarning)
-                    break
-                }
-                throw new Error(`角色参考图连续 ${maxAttempts} 次未通过身份/构图门禁（${rejectionReasons.join('、') || '质量分不足'}），已停止使用该图片。`)
-            }
-            timings.retryCount += 1
-        } catch (error) {
-            if (error instanceof Error && error.message.startsWith('角色参考图连续')) throw error
-            inspectionWarning = error instanceof Error ? error.message : String(error)
-            if (role === 'turnaround_sheet') {
-                if (bestTurnaroundCandidate) {
-                    await fs.writeFile(absPath, bestTurnaroundCandidate.bytes)
-                    imageGenerationResult = bestTurnaroundCandidate.generation
-                    inspectionWarning = `最新图片质检不可用，已恢复此前通过基本门禁的最佳候选：${inspectionWarning}`
-                    console.warn('[Character] turnaround inspection failed; restoring the last verified usable candidate:', inspectionWarning)
-                    break
-                }
-                throw new Error(`角色参考图质检失败，无法确认是否按顺序包含 ${CHARACTER_TURNAROUND_MIN_FULL_BODY_VIEWS} 个指定的真实不同角度：${inspectionWarning}`)
-            }
-            console.warn('[Character] reference inspection unavailable after retries; keeping the generated image:', inspectionWarning)
-            break
-        } finally {
-            timings.inspectionMs += Date.now() - inspectionStartedAt
-        }
-    }
-
-    if (imageGenerationResult && qualityProviderSwitch && !imageGenerationResult.providerSwitch) {
-        imageGenerationResult = {
-            ...imageGenerationResult,
-            recovery: 'fallback_provider',
-            fallbackReason: qualityProviderSwitch.reason,
-            providerSwitch: qualityProviderSwitch
-        }
-    }
-    if (imageGenerationResult && inspectionWarning) imageGenerationResult = { ...imageGenerationResult, inspectionWarning }
-
-    await reportProgress('uploading', completedAttempt)
-    let mediaUrl: string
+    const generationSuffix = opts.generationNonce?.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 36) || String(Date.now())
+    const filename = `char_ref_${characterId}_${Date.now()}_${generationSuffix}.png`
+    const absPath = storageAbsPath(filename)
+    await reportProgress('generating')
+    const generation = await generateImageUnified({
+        prompt: `Single full-body character reference, front view, plain background. ${character.appearancePrompt}. Style: ${style.label}.`,
+        negativePrompt: 'text, watermark',
+        referenceImages: [],
+        outputAbsPath: absPath,
+        aspectRatio: '3:4',
+        provider: opts.provider,
+        quality: normalizeImageQuality(opts.quality),
+        automaticFallback: false,
+        allowProviderSwitch: false,
+        contentLabel: `角色“${character.name}”参考图`
+    })
+    timings.generationMs = Date.now() - startedAt
+    await reportProgress('uploading')
     const uploadStartedAt = Date.now()
-    try {
-        mediaUrl = await saveImmutableLocalImage(absPath, `characters/${character.projectId}`, filename)
-    } catch (err) {
-        throw new Error(`角色参考图保存本地素材 失败：${err instanceof Error ? err.message : String(err)}`)
-    } finally {
-        timings.uploadMs += Date.now() - uploadStartedAt
+    const mediaUrl = await saveImmutableLocalImage(absPath, `characters/${character.projectId}`, filename)
+    timings.uploadMs = Date.now() - uploadStartedAt
+    await reportProgress('writing_db')
+    if (opts.commit ?? true) {
+        await prisma.character.update({ where: { id: characterId }, data: { referenceImageUrl: mediaUrl } })
     }
-
-    await reportProgress('writing_db', completedAttempt)
-    if ((opts.commit ?? true) && role === 'turnaround_sheet') {
-        await prisma.character.update({
-            where: { id: characterId },
-            data: { referenceImageUrl: mediaUrl }
-        })
-    }
-    if (!imageGenerationResult) throw new Error('角色参考图生成完成但缺少模型结果')
-    return { url: mediaUrl, generation: imageGenerationResult }
+    return { url: mediaUrl, generation }
 }
 
 /**
@@ -2018,7 +987,7 @@ export async function generateSceneReference(
 // 文本 + 角色参考图 → 带音效的视频（一步到位）
 export type VideoProvider = ProductionVideoProvider
 export type VideoReferenceMode = CapabilityVideoReferenceMode
-export const VIDEO_PROMPT_VERSION = 'video-semantic-beats-v4'
+export const VIDEO_PROMPT_VERSION = 'video-basic-v1'
 
 /**
  * 选择视频 provider：优先 opts，其次项目/全局默认（settings 里 provider="video" 的 modelName）
@@ -2132,115 +1101,6 @@ async function createDashScopeVideoTask(baseUrl: string, apiKey: string, request
     throw new Error(normalizeDashScopeError(lastBody, label))
 }
 
-type VideoPathFrame = {
-    label: string
-    providerUrl: string
-    sourceUrl: string
-}
-
-type VideoSegmentResult = {
-    relPath: string
-    taskId: string
-    requestBody: Record<string, unknown>
-}
-
-function parseMiddleFrameIndex(requestBody: string | null, fallback: number) {
-    if (!requestBody) return fallback
-    try {
-        const parsed = JSON.parse(requestBody)
-        const index = parsed?.middleFrameIndex
-        return typeof index === 'number' && Number.isFinite(index) ? index : fallback
-    } catch {
-        return fallback
-    }
-}
-
-async function ensureGenerationResultProviderUrl(generationId: bigint, src: string | null | undefined, provider?: VideoProvider): Promise<string | null> {
-    if (provider === 'wan3' || provider === 'wan3prime') {
-        return toDashScopeImageSource(src, 'middle_frame')
-    }
-
-    const direct = toProviderImageUrl(src, provider)
-    if (direct) return direct
-
-    if (!src) return null
-    const rel = src.startsWith('/') ? src : `/${src}`
-    if (!rel.startsWith('/storage/')) return null
-
-    const filename = path.basename(rel)
-    const absPath = storageAbsPath(filename)
-    if (!fsSync.existsSync(absPath)) {
-        throw new Error(`middle_frame 本地文件不存在，无法保存本地素材：${absPath}`)
-    }
-
-    try {
-        const gen = await prisma.generation.findFirst({ where: { id: generationId }, select: { storyboard: { select: { episodeId: true } } } })
-        const subdir = gen?.storyboard?.episodeId ? `storyboards/${gen.storyboard.episodeId}` : 'storyboards'
-        const mediaUrl = await saveImmutableLocalImage(absPath, subdir, filename)
-        await prisma.generation.update({
-            where: { id: generationId },
-            data: { resultUrl: mediaUrl }
-        })
-        return toLocalMediaUrl(mediaUrl)
-    } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err)
-        throw new Error(`middle_frame 保存本地素材 失败：${msg}`)
-    }
-}
-
-async function getSegmentVideoPathFrames(storyboard: StoryboardWithRelations, provider: VideoProvider): Promise<VideoPathFrame[]> {
-    const middleRows = await prisma.generation.findMany({
-        where: {
-            storyboardId: storyboard.id,
-            type: 'middle_frame',
-            status: 'completed',
-            resultUrl: { not: null }
-        },
-        select: { id: true, resultUrl: true, requestBody: true, createdAt: true },
-        orderBy: { createdAt: 'asc' }
-    })
-    if (middleRows.length === 0) return []
-
-    const plannedLastFrameUrl = storyboard.plannedLastFrameUrl ?? storyboard.lastFrameUrl
-    const firstFrameUrl = await ensureStoryboardFrameProviderUrl(storyboard.id, 'firstFrameUrl', storyboard.firstFrameUrl, provider)
-    const lastFrameUrl = await ensureStoryboardFrameProviderUrl(storyboard.id, 'plannedLastFrameUrl', plannedLastFrameUrl, provider)
-    if (!firstFrameUrl || !lastFrameUrl) return []
-
-    const sortedMiddleRows = middleRows
-        .map((row, index) => ({ ...row, frameIndex: parseMiddleFrameIndex(row.requestBody, index + 1) }))
-        .sort((a, b) => a.frameIndex - b.frameIndex || (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0))
-
-    const middleFrames: VideoPathFrame[] = []
-    for (const row of sortedMiddleRows) {
-        const providerUrl = await ensureGenerationResultProviderUrl(row.id, row.resultUrl, provider)
-        if (!providerUrl || !row.resultUrl) continue
-        middleFrames.push({
-            label: `intermediate frame ${middleFrames.length + 1}`,
-            providerUrl,
-            sourceUrl: row.resultUrl
-        })
-    }
-
-    if (middleFrames.length === 0) return []
-    return [
-        { label: 'opening frame', providerUrl: firstFrameUrl, sourceUrl: storyboard.firstFrameUrl ?? firstFrameUrl },
-        ...middleFrames,
-        { label: 'ending frame', providerUrl: lastFrameUrl, sourceUrl: plannedLastFrameUrl ?? lastFrameUrl }
-    ]
-}
-
-function buildSegmentVideoPrompt(basePrompt: string, from: VideoPathFrame, to: VideoPathFrame, index: number, total: number) {
-    return [
-        `SEGMENT ${index}/${total} of one continuous shot.`,
-        `[Image 1] is the exact ${from.label}; [Image 2] is the exact ${to.label}.`,
-        'Generate visible character motion from Image 1 to Image 2; do not output a still image.',
-        'Characters must visibly move through the pose change: head, eyes, hands, arms, torso, body weight, steps, clothing and hair can move naturally.',
-        'Do not keep the character standing in the center with only background movement.',
-        'Keep identity, wardrobe, camera framing, lighting, scene layout and color palette stable. No cuts, no scene transition, no extra people.',
-        basePrompt
-    ].join(' ')
-}
-
 async function completeVideoGeneration(
     generationId: bigint,
     storyboardId: bigint,
@@ -2292,7 +1152,7 @@ async function completeVideoGeneration(
     // 抽帧本身失败不阻塞主流程，只是丢锚点。
     const localEndFrameRelPath = comparisonOnly ? null : await withFfmpegSlot(() => extractLastFrameFromVideo(relPath)).catch(() => null)
 
-    // 上传到 local storage，DB 里存 local storage URL 而非本地相对路径，避免 pod 重启丢文件 → 前端 404
+    // Persist the generated file before atomically completing the task.
     const finalUrl = await uploadStoryboardArtifact(storyboardId, absPath, filename, 'videos')
 
     // Subtitle generation is part of this operation and must finish before its
@@ -2434,16 +1294,6 @@ async function generateVideoWithUsage(
             if (activeProvider === 'wan3' || activeProvider === 'wan3prime') {
                 return generateVideoWan3(generationId, localizedStoryboard, referenceMode, activeProvider, videoLanguage, opts?.signal, opts?.comparisonOnly)
             }
-            // 原生对白必须在一次生成中完成。把多张中间帧拆成多个 Seedance
-            // 子任务会让每段重复说整句、声音漂移，最后拼接的对白不可用。
-            if (referenceMode === 'first_last' && !localizedStoryboard.dialogue?.trim() && !localizedStoryboard.narration?.trim()) {
-                const segmentFrames = await getSegmentVideoPathFrames(localizedStoryboard, activeProvider)
-                if (segmentFrames.length >= 3) {
-                    if (activeProvider === 'seedance' || activeProvider === 'seedance25') {
-                        return generateSegmentedVideoSeedance(generationId, localizedStoryboard, segmentFrames, activeProvider, videoLanguage, opts?.signal, opts?.comparisonOnly)
-                    }
-                }
-            }
             if (activeProvider === 'seedance' || activeProvider === 'seedance25') {
                 return generateVideoSeedance(generationId, localizedStoryboard, referenceMode, activeProvider, videoLanguage, opts?.signal, opts?.comparisonOnly)
             }
@@ -2531,166 +1381,6 @@ async function resumeVideoGenerationWithUsage(generationId: bigint) {
     return true
 }
 
-async function generateSegmentedVideoSeedance(
-    generationId: bigint,
-    storyboard: StoryboardWithRelations,
-    frames: VideoPathFrame[],
-    provider: 'seedance' | 'seedance25',
-    videoLanguage: VideoLanguage,
-    signal?: AbortSignal,
-    comparisonOnly = false
-) {
-    try {
-        const config = await getSeedanceConfig(provider)
-        if (!config?.apiKey) throw new Error('Seedance API key not configured')
-
-        const baseUrl = config.baseUrl ?? (provider === 'seedance25' ? SEEDANCE_25_BASE_URL : SEEDANCE_20_BASE_URL)
-        const model = config.modelName ?? (provider === 'seedance25' ? SEEDANCE_25_ENDPOINT_ID : SEEDANCE_20_ENDPOINT_ID)
-        const segmentCount = frames.length - 1
-        const durationPlan = planVideoDuration(provider, storyboard.duration, segmentCount)
-        const referenceVideos = getStoryboardReferenceVideos(storyboard)
-        const basePrompt = await buildVideoText(storyboard, videoLanguage, provider, durationPlan.plannedDuration, {
-            referenceMode: 'first_last',
-            generationNonce: generationId.toString(),
-            referenceAssets:
-                provider === 'seedance25'
-                    ? [
-                          { index: 1, purpose: 'opening_frame' },
-                          { index: 2, purpose: 'ending_frame' }
-                      ]
-                    : undefined
-        })
-        const ratio = await getStoryboardVideoAspectRatio(storyboard.id)
-        const segmentResults: VideoSegmentResult[] = []
-        const targetDuration = durationPlan.requestedDuration
-        const segmentDurations = durationPlan.segmentDurations
-        await prisma.generation.update({
-            where: { id: generationId },
-            data: {
-                plannedDuration: durationPlan.plannedDuration,
-                inputAssets: [
-                    ...frames.map(frame => ({ type: 'image', role: frame.label, url: frame.sourceUrl })),
-                    ...referenceVideos.map(video => ({ type: 'video', role: 'reference_video', ...video }))
-                ],
-                requestBody: JSON.stringify({
-                    mode: 'segmented_i2v',
-                    provider,
-                    videoLanguage,
-                    targetDuration,
-                    segmentDurations,
-                    segmentCount,
-                    timelinePlanVersion: VIDEO_TIMELINE_PLAN_VERSION,
-                    promptCompiler: provider === 'seedance25' ? SEEDANCE_25_PROMPT_COMPILER_VERSION : 'default',
-                    frames: frames.map(f => ({ label: f.label, sourceUrl: f.sourceUrl }))
-                })
-            }
-        })
-
-        for (let index = 0; index < segmentCount; index += 1) {
-            const from = frames[index]
-            const to = frames[index + 1]
-            const segmentPrompt = buildSegmentVideoPrompt(basePrompt, from, to, index + 1, segmentCount)
-            const text = [
-                referenceVideoPrompt(referenceVideos),
-                provider === 'seedance25' ? segmentPrompt : `Use Image 1 as the exact opening frame and Image 2 as the exact final frame. ${segmentPrompt}`
-            ]
-                .filter(Boolean)
-                .join(' ')
-            const duration = segmentDurations[index] ?? 5
-            const requestBody = {
-                model,
-                content: [
-                    { type: 'text', text },
-                    { type: 'image_url', image_url: { url: from.providerUrl }, role: provider === 'seedance25' ? 'reference_image' : 'first_frame' },
-                    { type: 'image_url', image_url: { url: to.providerUrl }, role: provider === 'seedance25' ? 'reference_image' : 'last_frame' },
-                    ...referenceVideos.map(video => ({ type: 'video_url', video_url: { url: video.url }, role: 'reference_video' }))
-                ],
-                ratio,
-                duration,
-                generate_audio: false,
-                watermark: false
-            }
-
-            const created = await createSeedanceTaskWithAssetRecovery({
-                baseUrl,
-                apiKey: config.apiKey,
-                requestBody,
-                seedanceConfig: config,
-                errorLabel: `Seedance segment ${index + 1} create error`,
-                signal
-            })
-            const taskId = created.taskId
-
-            await prisma.generation.update({
-                where: { id: generationId },
-                data: {
-                    taskId: [...segmentResults.map(r => r.taskId), taskId].join(','),
-                    requestBody: JSON.stringify({
-                        mode: 'segmented_i2v',
-                        provider,
-                        videoLanguage,
-                        targetDuration,
-                        segmentDurations,
-                        segmentCount,
-                        promptCompiler: provider === 'seedance25' ? SEEDANCE_25_PROMPT_COMPILER_VERSION : 'default',
-                        frames: frames.map(f => ({ label: f.label, sourceUrl: f.sourceUrl })),
-                        activeSegment: index + 1,
-                        ...(created.recovery ? { materialRecovery: created.recovery } : {})
-                    })
-                }
-            })
-
-            const videoUrl = await pollSeedanceTask(baseUrl, config.apiKey, taskId, undefined, signal)
-            const segmentFilename = `video_${generationId}_seg${index + 1}.mp4`
-            const segmentAbsPath = storageAbsPath(segmentFilename)
-            await downloadFile(videoUrl, segmentAbsPath)
-            const segmentDuration = await probeDuration(segmentAbsPath)
-            if (!Number.isFinite(segmentDuration) || segmentDuration <= 0.05) {
-                throw new Error(`Seedance segment ${index + 1} 视频无效：下载文件时长为 0`)
-            }
-            segmentResults.push({
-                relPath: storageRelPath(segmentFilename),
-                taskId,
-                requestBody: {
-                    ...created.requestBody,
-                    ...(created.recovery ? { materialRecovery: created.recovery } : {})
-                }
-            })
-        }
-
-        const concatenatedRelPath = await concatStorageVideos(
-            segmentResults.map(result => result.relPath),
-            `video_${generationId}.mp4`
-        )
-        const finalRelPath = await withFfmpegSlot(() => addContinuousAmbientBedToVideo(concatenatedRelPath, storageRelPath(`video_${generationId}_ambient.mp4`)))
-        await fs.unlink(storageAbsPath(path.basename(concatenatedRelPath))).catch(() => undefined)
-        await completeVideoGeneration(generationId, storyboard.id, finalRelPath, {
-            taskId: segmentResults.map(result => result.taskId).join(','),
-            comparisonOnly,
-            requestBody: JSON.stringify({
-                mode: 'segmented_i2v',
-                provider,
-                audioPolicy: 'segment_audio_disabled_then_continuous_ambient_bed',
-                videoLanguage,
-                targetDuration,
-                segmentDurations,
-                segmentCount,
-                promptCompiler: provider === 'seedance25' ? SEEDANCE_25_PROMPT_COMPILER_VERSION : 'default',
-                frames: frames.map(f => ({ label: f.label, sourceUrl: f.sourceUrl })),
-                segments: segmentResults.map((result, index) => ({
-                    index: index + 1,
-                    from: frames[index].label,
-                    to: frames[index + 1].label,
-                    taskId: result.taskId,
-                    requestBody: result.requestBody
-                }))
-            })
-        })
-    } catch (err) {
-        await failVideoGeneration(generationId, storyboard.id, err, `${provider === 'seedance25' ? SEEDANCE_25_LABEL : SEEDANCE_20_LABEL} segmented`, comparisonOnly)
-    }
-}
-
 async function generateVideoSeedance(
     generationId: bigint,
     storyboard: StoryboardWithRelations,
@@ -2714,69 +1404,20 @@ async function generateVideoSeedance(
         const plannedLastFrameUrl = storyboard.plannedLastFrameUrl ?? storyboard.lastFrameUrl
         const firstFrameUrl = toProviderImageUrl(storyboard.firstFrameUrl) ?? (referenceMode === 'single' ? toProviderImageUrl(plannedLastFrameUrl) : null)
 
-        const config2 = await getSeedanceConfig(provider)
-        let useRefImages = false
-        if (config2?.extra) {
-            try {
-                useRefImages = !!JSON.parse(config2.extra).useRefImages
-            } catch {}
-        }
-
         const imageContent: Array<Record<string, unknown>> = []
-        const referenceAssets: Seedance25ReferenceAsset[] = []
         let frameReferenceCount = 0
-
         if (referenceMode !== 'text' && firstFrameUrl) {
-            // i2v 模式：首帧 + 尾帧（如果有）一起传，让视频从 first 平滑过渡到 last
-            imageContent.push({
-                type: 'image_url',
-                image_url: { url: firstFrameUrl },
-                role: provider === 'seedance25' ? 'reference_image' : 'first_frame'
-            })
-            referenceAssets.push({ index: 1, purpose: 'opening_frame' })
+            imageContent.push({ type: 'image_url', image_url: { url: firstFrameUrl }, role: provider === 'seedance25' ? 'reference_image' : 'first_frame' })
             frameReferenceCount = 1
             const lastFrameUrl = toProviderImageUrl(plannedLastFrameUrl)
             if (referenceMode === 'first_last' && lastFrameUrl) {
-                imageContent.push({
-                    type: 'image_url',
-                    image_url: { url: lastFrameUrl },
-                    role: provider === 'seedance25' ? 'reference_image' : 'last_frame'
-                })
-                referenceAssets.push({ index: 2, purpose: 'ending_frame' })
+                imageContent.push({ type: 'image_url', image_url: { url: lastFrameUrl }, role: provider === 'seedance25' ? 'reference_image' : 'last_frame' })
                 frameReferenceCount = 2
-            }
-        } else if (useRefImages) {
-            // 回退：文生视频 + 风格/角色参考
-            const refImages: Array<{ url: string; purpose: Seedance25ReferenceAsset['purpose']; subject?: string }> = []
-            const styleRefs = await getStoryboardStyleReferenceImages(storyboard.id)
-            for (const url of styleRefs) {
-                const refUrl = toProviderImageUrl(url)
-                if (refUrl) refImages.push({ url: refUrl, purpose: 'visual_style' })
-                if (refImages.length >= 2) break
-            }
-            for (const c of storyboard.characters) {
-                const refUrl = toProviderImageUrl(c.character.referenceImageUrl)
-                if (refUrl) {
-                    refImages.push({ url: refUrl, purpose: 'character_turnaround', subject: c.character.name ?? undefined })
-                }
-                if (refImages.length >= 3) break
-            }
-            for (const reference of refImages) {
-                imageContent.push({
-                    type: 'image_url',
-                    image_url: { url: reference.url },
-                    role: 'reference_image'
-                })
-                referenceAssets.push({ index: referenceAssets.length + 1, purpose: reference.purpose, subject: reference.subject })
             }
         }
 
         const referenceVideos = getStoryboardReferenceVideos(storyboard)
-        const baseText = await buildVideoText(storyboard, videoLanguage, provider, duration, {
-            referenceMode,
-            generationNonce: generationId.toString(),
-            referenceAssets
-        })
+        const baseText = await buildVideoText(storyboard, videoLanguage, provider, duration)
         const text = [referenceVideoPrompt(referenceVideos), baseText].filter(Boolean).join(' ')
         const videoContent = referenceVideos.map(video => ({ type: 'video_url', video_url: { url: video.url }, role: 'reference_video' }))
         const content: Array<Record<string, unknown>> = [{ type: 'text', text }, ...imageContent, ...videoContent]
@@ -2807,7 +1448,7 @@ async function generateVideoSeedance(
                     referenceMode,
                     videoLanguage,
                     timelinePlanVersion: VIDEO_TIMELINE_PLAN_VERSION,
-                    promptCompiler: provider === 'seedance25' ? SEEDANCE_25_PROMPT_COMPILER_VERSION : 'default'
+                    promptCompiler: 'basic-v1'
                 }),
                 plannedDuration: duration,
                 inputAssets: JSON.parse(JSON.stringify(content.filter(item => item.type === 'image_url' || item.type === 'video_url')))
@@ -2833,7 +1474,7 @@ async function generateVideoSeedance(
                     referenceMode,
                     videoLanguage,
                     timelinePlanVersion: VIDEO_TIMELINE_PLAN_VERSION,
-                    promptCompiler: provider === 'seedance25' ? SEEDANCE_25_PROMPT_COMPILER_VERSION : 'default',
+                    promptCompiler: 'basic-v1',
                     ...(created.recovery ? { materialRecovery: created.recovery } : {})
                 })
             }
@@ -2874,7 +1515,7 @@ async function generateVideoWan3(
     try {
         const { apiKey, baseUrl } = await getDashScopeRuntimeConfig()
         const duration = normalizeVideoDuration(provider, storyboard.duration)
-        const prompt = await buildVideoText(storyboard, videoLanguage, provider, duration, { referenceMode, generationNonce: generationId.toString() })
+        const prompt = await buildVideoText(storyboard, videoLanguage, provider, duration)
         const ratio = await getStoryboardVideoAspectRatio(storyboard.id)
         const endpointPath = '/api/v1/services/aigc/video-generation/video-synthesis'
         const media: Array<{ type: 'reference_image' | 'reference_video'; url: string }> = []
@@ -3013,7 +1654,7 @@ async function generateVideoHiModels(
     const label = provider === 'veo3' ? HIMODELS_VEO_LABEL : provider
     try {
         const plannedDuration = normalizeVideoDuration(provider, storyboard.duration)
-        const text = await buildVideoText(storyboard, videoLanguage, provider, plannedDuration, { referenceMode, generationNonce: generationId.toString() })
+        const text = await buildVideoText(storyboard, videoLanguage, provider, plannedDuration)
         const ratio = await getStoryboardVideoAspectRatio(storyboard.id)
         const aspectRatio = ratio === '9:16' ? '9:16' : ratio === '1:1' ? '1:1' : '16:9'
         const referenceVideos = getStoryboardReferenceVideos(storyboard)
@@ -3024,12 +1665,12 @@ async function generateVideoHiModels(
                 (await ensureStoryboardFrameProviderUrl(storyboard.id, 'firstFrameUrl', storyboard.firstFrameUrl, provider)) ??
                 (referenceMode === 'single' ? await ensureStoryboardFrameProviderUrl(storyboard.id, 'plannedLastFrameUrl', storyboard.plannedLastFrameUrl ?? storyboard.lastFrameUrl, provider) : null)
             if (!firstFrameUrl) throw new Error(`${label} 图生视频需要至少一张插图：请先生成插图后再生成视频`)
-            referenceImages.push({ url: firstFrameUrl, role: 'first_frame' })
+            referenceImages.push({ url: firstFrameUrl, role: provider === 'seedance25' ? 'reference_image' : 'first_frame' })
 
             if (referenceMode === 'first_last') {
                 const lastFrameUrl = await ensureStoryboardFrameProviderUrl(storyboard.id, 'plannedLastFrameUrl', storyboard.plannedLastFrameUrl ?? storyboard.lastFrameUrl, provider)
                 if (!lastFrameUrl) throw new Error('首尾帧模式至少需要两张插图，并且必须包含首图和末图')
-                referenceImages.push({ url: lastFrameUrl, role: 'last_frame' })
+                referenceImages.push({ url: lastFrameUrl, role: provider === 'seedance25' ? 'reference_image' : 'last_frame' })
             }
         }
 
@@ -3251,454 +1892,50 @@ async function generateFrameWithUsage(
 ) {
     try {
         if (!(await isGenerationProcessing(generationId))) return false
-        storyboard = { ...storyboard, actionDesc: resolveStoryboardActionDesc(storyboard.actionPlan, storyboard.actionDesc) }
         const imageQuality = normalizeImageQuality(opts?.imageQuality)
-        const visibleCharacters = await resolveStoryboardVisibleCharacters(storyboard)
-        const characterStates = await resolveCharacterStatesForStoryboard(
-            storyboard.id,
-            visibleCharacters.map(item => item.character.id)
-        )
-        // === 收集参考图 ===
-        const preferredIdentityRole = characterReferenceRoleForShot({
-            shotType: storyboard.shotType,
-            actionDesc: storyboard.actionDesc,
-            imagePrompt: storyboard.imagePrompt
-        })
-        const characterIds = visibleCharacters.map(item => item.character.id)
-        const identityAssetRows = characterIds.length
-            ? await prisma.characterReferenceAsset.findMany({
-                  where: {
-                      characterId: { in: characterIds },
-                      role: 'turnaround_sheet',
-                      status: 'selected',
-                      deletedAt: null
-                  },
-                  orderBy: { updatedAt: 'desc' },
-                  select: { characterId: true, role: true, url: true }
-              })
-            : []
-        const identityAssetsByCharacter = new Map<string, string>()
-        for (const asset of identityAssetRows) {
-            const key = `${asset.characterId}:${asset.role}`
-            if (!identityAssetsByCharacter.has(key)) identityAssetsByCharacter.set(key, asset.url)
-        }
-        const characterReferenceSelections = visibleCharacters.map(({ character }) => {
-            const currentState = characterStates.get(character.id.toString())
-            const primarySheetUrl = identityAssetsByCharacter.get(`${character.id}:turnaround_sheet`) ?? character.referenceImageUrl
-            const selectedIdentityRole = characterReferenceFallbackRoles(preferredIdentityRole).find(role => identityAssetsByCharacter.has(`${character.id}:${role}`)) ?? 'turnaround_sheet'
-            const identityUrl = identityAssetsByCharacter.get(`${character.id}:${selectedIdentityRole}`) ?? primarySheetUrl ?? null
-            return {
-                character,
-                currentState,
-                preferredIdentityRole,
-                selectedIdentityRole,
-                primaryUrl: identityUrl
-            }
-        })
-        const charRefs: string[] = []
-        for (const selection of characterReferenceSelections) pushUniqueReference(charRefs, selection.primaryUrl)
-        const hasTurnaroundSheetReference = characterReferenceSelections.some(selection => selection.selectedIdentityRole === 'turnaround_sheet')
-        const sceneReferenceRow = storyboard.scene?.id
-            ? await prisma.scene.findFirst({
-                  where: { id: storyboard.scene.id, deletedAt: null },
-                  select: { referenceImageUrl: true, referenceAssets: true }
-              })
-            : null
-        const selectedSceneReferences = getSelectedSceneReferenceUrls(sceneReferenceRow?.referenceAssets, sceneReferenceRow?.referenceImageUrl)
-
-        // 独立镜头自己建立画面；只有通过连续性门禁的 continuous/seamless
-        // 镜头，首帧才继承上一镜的规划末图（旧数据才回退实际末帧）。
         const generationSnapshot = await prisma.generation.findUnique({ where: { id: generationId }, select: { resourceVersion: true } })
         const sbRow = await prisma.storyboard.findFirst({
             where: { id: storyboard.id, deletedAt: null },
-            select: { episodeId: true, order: true, firstFrameUrl: true, sceneId: true, operationVersion: true }
+            select: { episodeId: true, order: true, operationVersion: true }
         })
         if (!generationSnapshot || !sbRow || generationSnapshot.resourceVersion !== sbRow.operationVersion) {
             await cancelStaleGeneration(generationId)
             return false
         }
-        const ownFirstFrame = type !== 'first_frame' ? (opts?.continuityFrameUrl ?? sbRow?.firstFrameUrl ?? null) : null
-        const previousShotFrame = type === 'first_frame' ? (opts?.previousShotFrameUrl ?? null) : null
-        const previousContinuityMode = previousShotFrame ? (opts?.previousContinuityMode ?? 'continuous') : null
-        const hasNarrativeStateAnchor = previousContinuityMode === 'stateful'
-        const previousShotFrameLabel = opts?.previousShotFrameLabel ?? 'previous shot ending frame'
-        const openingFrameAnchor = type !== 'first_frame' ? (sbRow?.firstFrameUrl ?? null) : null
-        const hasOpeningFrameBackup = !!ownFirstFrame && !!openingFrameAnchor && ownFirstFrame !== openingFrameAnchor
-        const continuityFrameLabel = opts?.continuityFrameLabel ?? 'opening frame'
-        const nextContinuityFrameUrl = type !== 'first_frame' ? (opts?.nextContinuityFrameUrl ?? null) : null
-        const nextContinuityFrameLabel = opts?.nextContinuityFrameLabel ?? 'next frame'
-        let nextContinuityReferenceNumber: number | null = null
-        const hasPreviousCharacterContinuity = !!previousShotFrame && visibleCharacters.length > 0
-        const hasStateContinuityAnchor = !!ownFirstFrame || !!previousShotFrame
-
-        // 上一镜末帧或同一镜头的上一张关键帧始终作为 reference image #1。
-        const requestedImageProvider = opts?.provider ?? (await getImageProvider())
-        // Text-only providers are routed to Banana for reference-bearing requests.
-        // Budget against the effective provider so this list is never silently truncated later.
-        const referenceBudgetProvider = resolveImageProviderForReferences(requestedImageProvider, Math.max(1, selectedSceneReferences.length))
-        const referenceImageBudget = getImageProviderCapability(referenceBudgetProvider)?.maxImageReferences ?? 0
-        const referenceImages: string[] = []
-        const pushBudgetedReference = (url: string | null | undefined) => {
-            if (!url || referenceImages.includes(url) || referenceImages.length >= referenceImageBudget) return false
-            referenceImages.push(url)
-            return true
-        }
-        pushBudgetedReference(previousShotFrame)
-        pushBudgetedReference(ownFirstFrame)
-        // 中间帧/末帧如果以上一张中间帧为 #1，也把本镜首帧作为 #2 备份锚点，
-        // 防止动作越生成越漂，尤其是年龄、服装和角色轮廓。
-        if (hasOpeningFrameBackup) pushBudgetedReference(openingFrameAnchor)
-        pushBudgetedReference(nextContinuityFrameUrl)
-        if (nextContinuityFrameUrl) {
-            const index = referenceImages.indexOf(nextContinuityFrameUrl)
-            nextContinuityReferenceNumber = index >= 0 ? index + 1 : null
-        }
-
-        // === 构造 prompt ===
-        const charNames = visibleCharacters.map(c => c.character.name).filter(Boolean)
-        const hasVisibleCharacters = visibleCharacters.length > 0
-        let charAppearances = visibleCharacters
-            .map(c => {
-                const name = c.character.name?.trim()
-                const baseAppearance = sanitizeCharacterAppearanceForFrame(c.character.appearancePrompt, storyboard, !!ownFirstFrame)
-                const currentState = characterStates.get(c.character.id.toString())?.statePrompt
-                const appearance = [baseAppearance, currentState ? `CURRENT TIMELINE STATE: ${currentState}` : null].filter(Boolean).join('; ')
-                if (name && appearance) return `${name}: ${appearance}`
-                return name || appearance || null
-            })
-            .filter((value): value is string => !!value)
-        const isDetailShot = !!(
-            charNames.length > 0 &&
-            storyboard.imagePrompt &&
-            /\bclose[-\s]?up\b|\bextreme[-\s]?close\b|\bdetail\s+shot\b|\bfeet\b|\bhands?\b|\bfingers?\b|\bfoot\b|\bankle\b|\bwrist\b/i.test(storyboard.imagePrompt) &&
-            !/\bfull\s+body\b|\bmedium\s+shot\b|\bwide\s+shot\b/i.test(storyboard.imagePrompt)
-        )
-        const characterPresenceLock =
-            charNames.length > 0
-                ? isDetailShot
-                    ? `CHARACTER OWNERSHIP LOCK: this is a detail/close-up shot belonging to ${charNames.join(', ')}. The body part, skin tone, garment fabric and accessories shown MUST match ${charNames.join(', ')}'s appearance. Do NOT substitute with a different person, servant, background character, or unidentified extra. The visible detail (feet, hands, clothing fragment, etc.) must visually belong to ${charNames.join(', ')}.`
-                    : `MANDATORY CHARACTER PRESENCE LOCK: exactly these ${charNames.length} named character(s) must be visible in this frame: ${charNames.join(', ')}. Do NOT let any listed character disappear, be replaced, be hidden behind objects, be cropped out, or turn into an unrecognizable extra. Do NOT add new people.`
-                : ''
-        const characterDetailLock =
-            charAppearances.length > 0
-                ? `VISIBLE CHARACTER DETAILS LOCK: ${charAppearances.join('; ')}. Keep these face, hair, age and body silhouette explicit in the image prompt. ${
-                      hasStateContinuityAnchor
-                          ? `For this ${previousShotFrame ? 'cross-shot' : 'same-shot'} continuation, wardrobe colors, garment materials and silhouette must come from reference image #1; if an opening-frame backup or next-frame anchor exists, it must remain consistent too.`
-                          : 'Keep wardrobe colors and materials explicit in the image prompt.'
-                  }`
-                : ''
-        const previousShotContinuityLock =
-            previousShotFrame && type === 'first_frame'
-                ? hasNarrativeStateAnchor
-                    ? `PREVIOUS SHOT STORY-STATE LOCK: reference image #1 is the ${previousShotFrameLabel}, used as a STATE reference rather than a composition template. Preserve the same story moment, shared character identity, current wardrobe colors/materials/silhouette, dirt/injuries, persistent props, scene identity, time of day, light direction and color palette. Follow the current shot's named-character list as the source of truth: allow the requested reverse shot, new crop/angle, and characters entering or leaving; do not copy a person who is absent from the current list. The result must feel like another camera in the same scene, not a redesigned world.`
-                    : `PREVIOUS SHOT CONTINUITY LOCK: reference image #1 is the ${previousShotFrameLabel}. Carry over the exact visible character identities and count, apparent age, hair, wardrobe colors/materials/silhouette, dirt/injuries, props, time of day, light direction and color palette. This new opening frame may change only camera distance/angle and advance to the explicitly described opening pose. It must look like the immediate next shot, not a redesigned scene or reset character state.`
-                : ''
-        const frameContinuityLock =
-            ownFirstFrame && type !== 'first_frame'
-                ? `FRAME CONTINUITY LOCK: reference image #1 is the ${continuityFrameLabel} of this same shot. Treat it as the highest-priority visual anchor: same visible characters, same character count, same apparent age, same body proportions, same face identity, same hair, exact same wardrobe colors/materials/silhouette, same camera/framing, same scene layout and same lighting. ${
-                      hasOpeningFrameBackup ? 'Reference image #2 is the opening frame of this same shot; use it as the original age/wardrobe backup anchor and keep #1 and #2 consistent. ' : ''
-                  }Character reference images are identity references only here; never copy a conflicting age or outfit from them over the same-shot frame anchors. Change only the pose/expression/hand/body movement needed for this ${type === 'middle_frame' ? 'intermediate frame' : 'ending frame'}, but make that movement clearly visible.`
-                : ''
-        const nextFrameContinuityLock =
-            nextContinuityFrameUrl && nextContinuityReferenceNumber && type !== 'first_frame'
-                ? `NEXT FRAME CONTINUITY LOCK: reference image #${nextContinuityReferenceNumber} is the ${nextContinuityFrameLabel}. This generated ${type === 'middle_frame' ? 'intermediate frame' : 'ending frame'} must cut smoothly from reference image #1 into reference image #${nextContinuityReferenceNumber}. Preserve visible character count, identity, apparent age, hair, wardrobe colors/materials/silhouette, dirt/injuries, props, scene layout, camera language and lighting across both anchors; interpolate only the pose, expression, gaze, hand/body motion and action progress. Do NOT introduce wardrobe, jewelry, props, people, lighting or background elements that are absent from both continuity anchors, and do NOT contradict the next confirmed frame.`
-                : ''
-        const noVisibleCharacterLock = hasVisibleCharacters ? '' : buildNoVisibleCharacterLock()
-        const cloudEnvironmentLock = buildCloudEnvironmentLock(storyboard)
-        const sceneReferenceMode = getSceneReferenceMode(storyboard.scene)
-        const shouldUseSceneImageReferences = selectedSceneReferences.length > 0 && (sceneReferenceMode === 'exact' || selectedSceneReferences.length > 1)
-        const activeSceneReferences = shouldUseSceneImageReferences ? selectedSceneReferences : []
-        let scenePromptLock = buildScenePromptLock(storyboard.scene, shouldUseSceneImageReferences)
-
-        const ep = sbRow ? await prisma.episode.findFirst({ where: { id: sbRow.episodeId }, select: { projectId: true } }) : null
-        const frameStyle = ep ? await getProjectVisualStyle(ep.projectId) : getVisualStyleForSetup(undefined)
-        const frameStyleLock = buildVisualStyleLock(frameStyle)
-        const seedanceIllustrationSafety = getSeedanceIllustrationSafety(opts?.videoProvider, hasVisibleCharacters)
-        const imageNegativePrompt = [frameStyleLock.negative, seedanceIllustrationSafety?.negative].filter(Boolean).join(', ')
-        charAppearances = charAppearances.map(appearance => sanitizePromptForVisualStyle(appearance, frameStyle))
-        scenePromptLock = sanitizePromptForVisualStyle(scenePromptLock, frameStyle)
-        const aspectRatio = ep ? await getProjectVideoAspectRatio(ep.projectId) : '9:16'
-        const styleRefs = ep ? await getProjectStyleReferenceImages(ep.projectId) : []
-
-        // 强连续镜头只信任上一帧，避免参考卡把衣服拉回初始设定。
-        // 剧情连续镜头允许换机位/人物进出，因此同时补充少量标准身份参考；
-        // 服装和场景状态仍由 reference #1 决定，身份参考只负责抑制逐镜脸部漂移。
-        if (!hasStateContinuityAnchor || hasNarrativeStateAnchor) {
-            // Every visible character receives one primary slot before any
-            // scene or style slot. Story state stays in the text prompt instead
-            // of becoming a pose/expression image that can conflict with the
-            // current storyboard action.
-            for (const selection of characterReferenceSelections) pushBudgetedReference(selection.primaryUrl)
-        }
-        for (const sceneReference of activeSceneReferences) pushBudgetedReference(sceneReference)
-        if (!hasStateContinuityAnchor || hasNarrativeStateAnchor) {
-            for (const ref of styleRefs.slice(0, hasNarrativeStateAnchor ? 1 : 2)) pushBudgetedReference(ref)
-        }
-
-        const referenceRoles: ImageReferenceRole[] = [
-            {
-                url: previousShotFrame,
-                description: hasNarrativeStateAnchor
-                    ? 'the previous shot planned ending frame; authoritative for current wardrobe/body state, persistent props, scene identity, time of day and lighting, but not the new camera composition or current named-character list'
-                    : 'the previous shot planned ending frame; authoritative pixel-continuity anchor for visible identities, character count, wardrobe/body state, props, scene and lighting'
-            },
-            {
-                url: ownFirstFrame,
-                description: `the same-shot ${continuityFrameLabel}; authoritative for identity, age, wardrobe/body state, character count, camera, scene and lighting`
-            },
-            {
-                url: hasOpeningFrameBackup ? openingFrameAnchor : null,
-                description: 'the original opening-frame backup for this shot; prevents accumulated age, face, wardrobe, camera and scene drift'
-            },
-            {
-                url: nextContinuityFrameUrl,
-                description: `the next confirmed ${nextContinuityFrameLabel}; an ending boundary to approach without copying it prematurely`
-            },
-            ...characterReferenceSelections.map(selection => ({
-                url: selection.primaryUrl,
-                description: hasStateContinuityAnchor
-                    ? `selected ${characterReferenceRoleLabel(selection.selectedIdentityRole)} identity reference for named character "${selection.character.name}"; preferred angle was ${characterReferenceRoleLabel(selection.preferredIdentityRole)}; use all depicted angles only to reconstruct one identity, never copy a multi-view sheet layout or duplicate the person; current wardrobe/body state and props stay controlled by the frame anchor and text state: ${selection.currentState?.statePrompt ?? ''}`
-                    : `selected ${characterReferenceRoleLabel(selection.selectedIdentityRole)} identity reference for named character "${selection.character.name}"; preferred angle was ${characterReferenceRoleLabel(selection.preferredIdentityRole)} for shot "${storyboard.shotType ?? 'medium'}"; use all depicted angles only to reconstruct one authoritative face, hair, age and body identity, never copy a multi-view sheet layout or duplicate the person; current story state comes from text: ${selection.currentState?.statePrompt ?? ''}`
-            })),
-            ...activeSceneReferences.map((url, index) => ({
-                url,
-                description: `${sceneReferenceMode} scene reference view ${index + 1} of ${activeSceneReferences.length}; use the selected views together to reconstruct one coherent location, preserve architecture, persistent furnishings, materials, palette and base light direction, never copy people or force the current shot to duplicate one reference composition`
-            })),
-            ...styleRefs.slice(0, !hasStateContinuityAnchor || hasNarrativeStateAnchor ? (hasNarrativeStateAnchor ? 1 : 2) : 0).map(url => ({
-                url,
-                description: 'project art-direction reference only; copy rendering style, palette and material language, never its people, clothing, objects, pose, layout or composition'
-            }))
-        ]
-        const referenceRoleMap = buildImageReferenceRoleMap(referenceImages, referenceRoles)
-
-        const promptParts: string[] = []
-        promptParts.push(
-            hasStateContinuityAnchor ? stripCharacterWardrobeFromStylePrompt(frameStyle.imagePromptPrefix) : getStylePromptForCharacterState(frameStyle.imagePromptPrefix, hasVisibleCharacters)
-        )
-        // 硬锚（fallback 也带这些）
-        promptParts.push(
-            `style anchors: ${frameStyle.hint}, consistent art style, cinematic quality, no text, no subtitles, no watermark, no logos, no extra limbs, no distorted hands, no face morphing`,
-            frameStyleLock.positive
-        )
-        if (seedanceIllustrationSafety) promptParts.push(seedanceIllustrationSafety.positive)
-        promptParts.push(
-            'OBJECT SOURCE LOCK: only include props, monuments, stones, tablets, altars, weapons, signs, inscriptions, and symbolic objects that are explicitly named in this storyboard or scene. Do not invent testing stones, soul stones, black stone monuments, carved labels, readable Chinese characters, or written object names.'
-        )
-        if (noVisibleCharacterLock) promptParts.push(noVisibleCharacterLock)
-        if (cloudEnvironmentLock) promptParts.push(cloudEnvironmentLock)
-        if (styleRefs.length > 0 && (!hasStateContinuityAnchor || hasNarrativeStateAnchor)) {
-            promptParts.push('match the EXACT art direction, rendering style, color palette, linework/material texture and lighting of the provided style reference image')
-        }
-        const frameActionDesc = storyboard.actionDesc
-            ? getFrameActionDesc(storyboard.actionDesc, type, {
-                  middleFrameIndex: opts?.middleFrameIndex,
-                  middleFrameCount: opts?.middleFrameCount
-              })
-            : null
-        if (charRefs.length > 0 && (!hasStateContinuityAnchor || hasNarrativeStateAnchor)) {
-            if (hasTurnaroundSheetReference) {
-                promptParts.push(
-                    'TURNAROUND SHEET USAGE LOCK: the reference sheet repeats one character across front, 45-degree, side, back and face-detail views. Use it only to reconstruct the requested angle and stable identity. Render each named character once; never output a contact sheet, white studio background, repeated bodies or multiple views.'
-                )
-            }
-            promptParts.push(
-                hasNarrativeStateAnchor
-                    ? 'CANONICAL IDENTITY RE-ANCHOR: character reference images after reference #1 lock face structure, age, hair and body identity only. Current wardrobe, dirt/injuries, props, scene and lighting MUST continue from reference image #1 and the current shot state; never reset them to an older character-card outfit.'
-                    : 'IDENTITY LOCK: face structure, hair color and length, every wardrobe garment color and silhouette MUST match the character reference image(s) IDENTICALLY (do not paraphrase wardrobe colors)'
-            )
-        }
-        const visualStateLock = buildVisualStateLock({
-            type,
-            storyboard,
-            charNames,
-            charAppearances,
-            frameActionDesc,
-            hasStateContinuityAnchor,
-            hasPreviousCharacterContinuity,
-            hasPreviousShotFrame: !!previousShotFrame,
-            ownFirstFrame: !!ownFirstFrame,
-            continuityFrameLabel,
-            hasOpeningFrameBackup,
-            nextContinuityReferenceNumber,
-            nextContinuityFrameLabel,
-            scenePromptLock,
-            isDetailShot
-        })
-        if (visualStateLock) promptParts.push(visualStateLock)
-        promptParts.push(productionDirection('image'))
-        if (characterPresenceLock) promptParts.push(characterPresenceLock)
-        if (characterDetailLock) promptParts.push(characterDetailLock)
-        if (frameContinuityLock) promptParts.push(frameContinuityLock)
-        if (nextFrameContinuityLock) promptParts.push(nextFrameContinuityLock)
-        if (scenePromptLock) promptParts.push(scenePromptLock)
-
-        if (type === 'last_frame' && ownFirstFrame) {
-            promptParts.push(
-                'DELTA-ONLY: this is the ENDING frame of the same shot. ' +
-                    `Reference image #1 is the ${continuityFrameLabel}. ` +
-                    (hasOpeningFrameBackup ? 'Reference image #2 is the original opening frame and must keep the same age and wardrobe. ' : '') +
-                    'Output must look like a CONTROLLED EDIT of reference #1, not a new scene. ' +
-                    'CHANGED (clear visible movement only): describe the single pose/expression/hand/body difference required by the action below. ' +
-                    'UNCHANGED (verbatim, do not regenerate): apparent age, body proportions, facial structure, hair, every wardrobe garment color and silhouette, camera angle, lens, light source direction and color, shadow direction, background composition, props position, time of day. ' +
-                    'Do NOT introduce new objects, wardrobe items, lighting setups, camera angles, backgrounds, or changes in character count.'
-            )
-        } else if (type === 'middle_frame' && ownFirstFrame) {
-            const index = opts?.middleFrameIndex ?? 1
-            const count = opts?.middleFrameCount ?? 1
-            const progress = middleProgressPercent(index, count)
-            promptParts.push(
-                `INTERMEDIATE ${index}/${count}: this keyframe is about ${progress}% through the action, continue directly from reference image #1 (${continuityFrameLabel}) toward the ending state. ` +
-                    (hasOpeningFrameBackup ? 'Reference image #2 is the original opening frame and must keep the same age and wardrobe. ' : '') +
-                    (nextContinuityReferenceNumber
-                        ? `It must also lead cleanly into reference image #${nextContinuityReferenceNumber} (${nextContinuityFrameLabel}); make the pose/expression/action a believable in-between state between the previous and next anchors. `
-                        : '') +
-                    'Same apparent age, same body proportions, same identity, same wardrobe (verbatim colors), same lighting, same camera, same scene. ' +
-                    'Show a visibly different in-between beat of the action progression; the active head, gaze, hands, arms, torso, step, clothing or hair motion must be more advanced than reference image #1. Keep every listed character visible and recognizable.'
-            )
-        }
-
-        // When the imagePrompt describes a partial/detail shot (feet, hands, close-up of object),
-        // prepend the character's name as explicit subject so the model knows whose body part this is.
-        if (storyboard.imagePrompt) {
-            const styleSafeImagePrompt = sanitizePromptForVisualStyle(storyboard.imagePrompt, frameStyle)
-            promptParts.push(isDetailShot && charNames.length > 0 ? `${charNames.join(' and ')}'s — ${styleSafeImagePrompt}` : styleSafeImagePrompt)
-        }
-        const shotCharacterVisualLock =
-            charNames.length > 0
-                ? `SHOT CHARACTER VISUAL LOCK: for ${charNames.join(', ')}, preserve the specific age, identity, pose and action clues from this storyboard, but never preserve era, costume or genre clues that conflict with the authoritative project style: ${sanitizePromptForVisualStyle([storyboard.imagePrompt, frameActionDesc].filter(Boolean).join(' '), frameStyle)}`
-                : ''
-        if (shotCharacterVisualLock) promptParts.push(shotCharacterVisualLock)
-        if (storyboard.actionDesc) {
-            if (frameActionDesc) promptParts.push(frameActionDesc)
-        }
-        promptParts.push(`fresh variation id: ${generationId}`)
-        if (charNames.length > 0 && hasStateContinuityAnchor) {
-            promptParts.push(
-                `featuring ${charNames.join(', ')} — preserve face, hair, apparent age, body, wardrobe, dirt, injuries, props, lighting and scene state from the VISUAL STATE LOCK and frame continuity anchors; character cards/style wording must not override current state`
-            )
-        } else if (charNames.length > 0 && charRefs.length > 0) {
-            promptParts.push(
-                `featuring ${charNames.join(', ')} — preserve face structure, hair color & length, EVERY wardrobe garment color and silhouette IDENTICALLY from the character reference image(s); do not paraphrase any wardrobe color`
-            )
-        } else if (charAppearances.length > 0) {
-            promptParts.push(`characters (lock identity & wardrobe verbatim): ${charAppearances.join('; ')}`)
-        }
-        const avoid = [storyboard.negativePrompt, imageNegativePrompt].filter(Boolean).join(', ')
-        if (avoid) promptParts.push(`avoid: ${avoid}`)
-        promptParts.push(getAspectRatioPrompt(aspectRatio))
-        const basePrompt = promptParts.join(', ')
-        let prompt = basePrompt
-        try {
-            prompt = await improveFrameImagePrompt({
-                frameType: type,
-                basePrompt,
-                frameAction: frameActionDesc,
-                dialogue: storyboard.dialogue,
-                shotType: storyboard.shotType,
-                duration: storyboard.duration,
-                visualStyleLabel: frameStyle.label,
-                visualStyleHint: frameStyle.hint,
-                scenePrompt: storyboard.scene?.locationPrompt,
-                sceneReferenceMode,
-                characterDescriptions: charAppearances as string[],
-                hasStyleReference: styleRefs.length > 0 && !hasStateContinuityAnchor,
-                hasCharacterReference: charRefs.length > 0 && !hasStateContinuityAnchor,
-                hasSceneReference: shouldUseSceneImageReferences,
-                hasPreviousShotEndingFrame: !!previousShotFrame,
-                hasOwnFirstFrame: !!ownFirstFrame,
-                continuityFrameLabel,
-                hasOpeningFrameBackup,
-                nextContinuityFrameLabel,
-                nextContinuityReferenceNumber,
-                middleFrameIndex: opts?.middleFrameIndex,
-                middleFrameCount: opts?.middleFrameCount
-            })
-        } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err)
-            console.warn(`[Prompt] frame rewrite failed, fallback to base prompt: ${msg}`)
-        }
-        const hardLocks = [
-            freshGenerationInstruction(generationId.toString()),
-            referenceRoleMap,
-            productionDirection('image'),
-            frameStyleLock.positive,
-            seedanceIllustrationSafety?.positive,
-            visualStateLock,
-            characterPresenceLock,
-            characterDetailLock,
-            shotCharacterVisualLock,
-            previousShotContinuityLock,
-            frameContinuityLock,
-            nextFrameContinuityLock,
-            scenePromptLock,
-            noVisibleCharacterLock,
-            cloudEnvironmentLock
+        const style = await getStoryboardVisualStyle(storyboard.id)
+        const aspectRatio = await getStoryboardVideoAspectRatio(storyboard.id)
+        const referenceImages = [...new Set(storyboard.characters.map(({ character }) => character.referenceImageUrl).filter((url): url is string => Boolean(url)))]
+        const prompt = [
+            storyboard.imagePrompt,
+            storyboard.actionDesc,
+            storyboard.scene?.locationPrompt,
+            ...storyboard.characters.map(({ character }) => `${character.name}: ${character.appearancePrompt ?? ''}`),
+            `Style: ${style.label}. Shot: ${storyboard.shotType ?? 'medium'}.`,
+            referenceImages.length ? 'Use the supplied character references.' : null
         ]
             .filter(Boolean)
-            .join(', ')
-        if (hardLocks) prompt = `${prompt}, ${hardLocks}`
-
-        if (type === 'first_frame') {
-            const continuityState = buildStoryboardContinuityState({
-                continuityMode: storyboard.continuityMode,
-                continuityGroup: storyboard.continuityGroup,
-                actionDesc: storyboard.actionDesc,
-                shotType: storyboard.shotType,
-                scene: storyboard.scene,
-                characters: visibleCharacters.map(item => item.character),
-                inheritedFrom:
-                    previousShotFrame && previousContinuityMode && opts?.previousShotStoryboardId != null
-                        ? {
-                              storyboardId: String(opts.previousShotStoryboardId),
-                              order: opts.previousShotOrder ?? Math.max(1, (sbRow?.order ?? 1) - 1),
-                              frameUrl: previousShotFrame,
-                              mode: previousContinuityMode,
-                              anchorKind: hasNarrativeStateAnchor ? 'state' : 'pixel'
-                          }
-                        : null
-            })
-            await prisma.storyboard.updateMany({
-                where: { id: storyboard.id, deletedAt: null, operationVersion: sbRow.operationVersion },
-                data: {
-                    continuityState: continuityState as unknown as object,
-                    continuityStateVersion: STORYBOARD_CONTINUITY_STATE_VERSION
-                }
-            })
-        }
-
+            .join('\n')
+        if (!storyboard.imagePrompt?.trim() && !storyboard.actionDesc?.trim()) throw new Error('请先填写分镜插图提示词或动作描述')
         const middleSuffix = type === 'middle_frame' ? `_${opts?.middleFrameIndex ?? 1}` : ''
         const filename = `frame_${type}${middleSuffix}_${generationId}.png`
         const absPath = storageAbsPath(filename)
+        const finalPrompt = prompt
+        const imageGenerationResult = await generateImageUnified({
+            prompt,
+            negativePrompt: storyboard.negativePrompt ?? undefined,
+            referenceImages,
+            outputAbsPath: absPath,
+            aspectRatio,
+            provider: opts?.provider,
+            quality: imageQuality,
+            automaticFallback: false,
+            allowProviderSwitch: false,
+            contentLabel: `分镜 ${sbRow.order} · 插图`,
+            signal: opts?.signal
+        })
+        if (!(await isGenerationProcessing(generationId))) return false
 
-        let finalPrompt = prompt
-        let imageGenerationResult: ImageGenerationResult | null = null
-        for (let attempt = 0; attempt < 2; attempt += 1) {
-            if (!(await isGenerationProcessing(generationId))) return false
-            finalPrompt =
-                attempt === 0
-                    ? prompt
-                    : `${prompt}, regenerate as a clearly different premium composition, keep the same story moment and references, sharper face, cleaner hands, stronger lighting, no artifacts, quality retry ${attempt + 1}`
-            imageGenerationResult = await generateImageUnified({
-                prompt: finalPrompt,
-                negativePrompt: imageNegativePrompt,
-                referenceImages,
-                outputAbsPath: absPath,
-                aspectRatio,
-                provider: opts?.provider,
-                quality: imageQuality,
-                automaticFallback: false,
-                allowProviderSwitch: false,
-                contentLabel: `分镜 ${sbRow.order} · ${type === 'first_frame' ? '主插图' : type === 'middle_frame' ? `插图 ${Number(opts?.middleFrameIndex ?? 1) + 1}` : '规划末图'}`,
-                signal: opts?.signal
-            })
-            if (!(await isGenerationProcessing(generationId))) return false
-            if (!isSuspiciousImageFile(absPath)) break
-        }
-        if (isSuspiciousImageFile(absPath)) {
-            throw new Error('生成图片文件异常偏小，疑似坏图，请重试或检查图片模型配置')
-        }
-
-        // 上传到 local storage，DB 里存 local storage URL 而非本地相对路径，避免 pod 重启丢文件 → 前端 404
+        // Persist the generated file before atomically completing the task.
         const finalUrl = await uploadStoryboardArtifact(storyboard.id, absPath, filename, 'storyboards')
 
         let frameData: Record<string, string | null> | null = null
@@ -3769,24 +2006,9 @@ async function generateFrameWithUsage(
                     requestBody: stringifyRequestBodyForRecord({
                         prompt,
                         finalPrompt,
-                        basePrompt,
                         imageQuality,
                         imageGeneration: imageGenerationResult,
                         referenceImageCount: referenceImages.length,
-                        referenceRoleMap: referenceRoleMap || null,
-                        continuityFrameLabel: ownFirstFrame ? continuityFrameLabel : null,
-                        previousShotFrameLabel: previousShotFrame ? previousShotFrameLabel : null,
-                        hasOpeningFrameBackup,
-                        nextContinuityFrameLabel: nextContinuityFrameUrl ? nextContinuityFrameLabel : null,
-                        nextContinuityReferenceNumber,
-                        previousContinuityMode: previousShotFrame ? (opts?.previousContinuityMode ?? 'continuous') : null,
-                        continuityStateVersion: STORYBOARD_CONTINUITY_STATE_VERSION,
-                        previousCharacterContinuityFrameCount: previousShotFrame ? visibleCharacters.length : 0,
-                        hasVisualStateLock: !!visualStateLock,
-                        hasStateContinuityAnchor,
-                        hasCharacterPresenceLock: !!characterPresenceLock,
-                        hasNoVisibleCharacterLock: !!noVisibleCharacterLock,
-                        characterStateKeys: [...characterStates.values()].map(state => state.stateKey),
                         ...(type === 'middle_frame' ? { middleFrameIndex: opts?.middleFrameIndex ?? 1, middleFrameCount: opts?.middleFrameCount ?? 1 } : {})
                     })
                 }

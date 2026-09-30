@@ -1,9 +1,9 @@
+import { generationModelSource } from '@/lib/model-display'
+import { IMAGE_PROVIDER_CAPABILITIES, VIDEO_PROVIDER_CAPABILITIES } from '@/lib/provider-capabilities'
+import { TEXT_MODEL_OPTIONS } from '@/lib/text-model-options'
 import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { IMAGE_PROVIDER_CAPABILITIES, VIDEO_PROVIDER_CAPABILITIES } from '@/lib/provider-capabilities'
-import { generationModelSource } from '@/lib/model-display'
-import { TEXT_MODEL_OPTIONS } from '@/lib/text-model-options'
 
 const source = (file: string) => fs.readFileSync(path.join(process.cwd(), file), 'utf8')
 
@@ -45,6 +45,5 @@ describe('global model source visibility', () => {
 
     it('puts the source before the model in standalone status displays', () => {
         expect(source('src/components/GenerationFailureNotice.tsx')).toContain('<ModelSourceBadge model={provider} />')
-        expect(source('src/app/projects/[id]/ProductionInsightsPanel.tsx')).toContain('<ModelSourceBadge model={group.provider} />')
     })
 })

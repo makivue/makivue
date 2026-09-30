@@ -1,8 +1,7 @@
-import { prisma } from '@/lib/prisma'
-import type { StoryboardProductionIssue } from '@/lib/script-production'
+import { parseApiId } from '@/lib/api-id'
 import { genId } from '@/lib/id'
 import { retryP2002 } from '@/lib/jobStoreRetry'
-import { parseApiId } from '@/lib/api-id'
+import { prisma } from '@/lib/prisma'
 import { expiredTextJobLease, heartbeatTextJobLease, isTextJobLeaseExpired, isUniqueConstraintError, newTextJobLease } from '@/lib/text-job-lease'
 
 type StoryboardJobPhase = 'generating' | 'writing_db' | 'done' | 'error' | 'cancelled'
@@ -11,7 +10,6 @@ interface StoryboardJobResult {
     episodeId: string
     count: number
     cancelled: boolean
-    validationIssues?: StoryboardProductionIssue[]
 }
 
 export interface StoryboardJob {

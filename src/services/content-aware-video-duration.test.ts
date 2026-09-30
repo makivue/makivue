@@ -14,21 +14,14 @@ describe('content-aware video duration workflow', () => {
         expect(page).not.toContain('默认按镜头内容建议 4-15 秒')
         expect(page).not.toContain('AI 会按台词长度、动作复杂度和镜头节奏分别推荐时长')
         expect(page).not.toContain('globalVideoCapability?.duration.max')
-        expect(page).toContain('recommendStoryboardDuration')
-        expect(page).toContain('getVideoProviderCapability(globalVideoProvider)?.duration.max')
     })
-
-    it('plans storyboards against the selected video model capability', () => {
+    it('passes the selected model duration limit to basic storyboard generation', () => {
         expect(page).toContain('videoProvider: globalVideoProvider')
         expect(storyboardRoute).toContain('maxShotDuration: getVideoProviderCapability(videoProvider)?.duration.max')
-        expect(llm).toContain('duration: normalizeStoryboardDuration(sb.duration, normalized, maxShotDuration)')
-        expect(llm).toContain('当前视频模型单镜上限为 ${maxShotDuration} 秒')
+        expect(llm).toContain('Math.min(maximumDuration, Math.round(shot.duration))')
     })
-
-    it('does not use planned duration as a middle-performance requirement', () => {
-        expect(productionValidation).not.toContain("shot.duration === 'number' && shot.duration >= 6")
-        expect(productionValidation).toContain('const needsMiddleState = hasDialogue || hasNarration')
-        expect(productionValidation).not.toContain('6 秒以上或含对白/旁白')
-        expect(llm).not.toContain('时长达到 6 秒或含 dialogue/narration')
+    it('does not gate generation on middle-performance quality', () => {
+        expect(productionValidation).not.toContain('needsMiddleState')
+        expect(productionValidation).not.toContain('validateStoryboardProduction')
     })
 })

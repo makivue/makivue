@@ -1,19 +1,19 @@
-import { after, NextRequest } from 'next/server'
-import { withHiModelsUsageScope } from '@/lib/himodels-usage-context.server'
-import { prisma } from '@/lib/prisma'
-import { BILLING_TRANSACTION_OPTIONS } from '@/lib/billing-transaction'
-import { apiError, apiResponse } from '@/lib/utils'
-import { parseNovelSetup, stringifyNovelSetup, type NovelSetup } from '@/lib/novel'
-import { generateNovelSetup, repairNovelSetupStatePlan } from '@/services/llm'
-import { currentUserId } from '@/lib/current-user'
-import { assertProjectOwner } from '@/lib/ownership'
-import { parseApiId } from '@/lib/api-id'
-import { createJob, updateJob } from '@/lib/projectAiJobStore'
-import { assertSufficientPoints, BillingError, chargeLlmUsage, quoteLlmBudgetPoints } from '@/services/billing'
-import { buildEpisodeFactSnapshot, CONTENT_CONTRACT_VERSION, validateEpisodeStatePlan } from '@/lib/content-contracts'
-import { syncSetupCharactersInTransaction } from '@/services/setup-characters'
-import { presentSetupJobError } from '@/lib/setup-job-error'
 import type { Prisma } from '@/generated/prisma/client'
+import { parseApiId } from '@/lib/api-id'
+import { BILLING_TRANSACTION_OPTIONS } from '@/lib/billing-transaction'
+import { buildEpisodeFactSnapshot, CONTENT_CONTRACT_VERSION } from '@/lib/content-contracts'
+import { currentUserId } from '@/lib/current-user'
+import { withHiModelsUsageScope } from '@/lib/himodels-usage-context.server'
+import { parseNovelSetup, stringifyNovelSetup, type NovelSetup } from '@/lib/novel'
+import { assertProjectOwner } from '@/lib/ownership'
+import { prisma } from '@/lib/prisma'
+import { createJob, updateJob } from '@/lib/projectAiJobStore'
+import { presentSetupJobError } from '@/lib/setup-job-error'
+import { apiError, apiResponse } from '@/lib/utils'
+import { assertSufficientPoints, BillingError, chargeLlmUsage, quoteLlmBudgetPoints } from '@/services/billing'
+import { generateNovelSetup } from '@/services/llm'
+import { syncSetupCharactersInTransaction } from '@/services/setup-characters'
+import { after, NextRequest } from 'next/server'
 
 // 生成小说 setup：立即返回 jobId，后台跑 LLM。前端轮询 /api/ai/setup/status/[jobId]。
 export const maxDuration = 300
@@ -97,21 +97,6 @@ async function runSetupJob(jobId: string, project: Project, baseSetup: NovelSetu
             styleReferencePrompt: baseSetup.styleReferencePrompt,
             contentLanguage: baseSetup.contentLanguage
         }
-        let stateIssues = validateEpisodeStatePlan(nextSetup.episodeStatePlan, project.totalEpisodes ?? 1)
-        if (stateIssues.length > 0) {
-            nextSetup = {
-                ...nextSetup,
-                episodeStatePlan: await repairNovelSetupStatePlan({
-                    title: project.title,
-                    totalEpisodes: project.totalEpisodes ?? 1,
-                    setup: nextSetup,
-                    issues: stateIssues
-                })
-            }
-            stateIssues = validateEpisodeStatePlan(nextSetup.episodeStatePlan, project.totalEpisodes ?? 1)
-        }
-        if (stateIssues.length > 0) throw new Error(`故事架构连续性校验失败：${stateIssues.map(issue => issue.message).join('；')}`)
-
         const factLedger = (nextSetup.episodeStatePlan ?? []).map(state => buildEpisodeFactSnapshot({ episodeNumber: state.episodeNumber, statePlan: state, sourceVersion: project.sourceVersion + 1 }))
         nextSetup = {
             ...nextSetup,
@@ -121,7 +106,7 @@ async function runSetupJob(jobId: string, project: Project, baseSetup: NovelSetu
                 coreSeed: 'model',
                 mainCharacters: 'model',
                 supportingCharacters: 'model',
-                episodeStatePlan: 'model_validated',
+                episodeStatePlan: 'model',
                 visualStyle: 'inherited',
                 visualStyleProfile: 'inherited',
                 videoAspectRatio: 'inherited'

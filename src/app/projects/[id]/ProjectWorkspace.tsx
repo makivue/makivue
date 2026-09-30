@@ -1,54 +1,51 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import Link, { useParams, useRouter } from '@/i18n/navigation'
-import {
-    ArrowLeft,
-    Users,
-    MapPin,
-    Film,
-    Plus,
-    ChevronLeft,
-    ChevronRight,
-    Sparkles,
-    BookOpen,
-    ImageIcon,
-    RefreshCw,
-    Check,
-    AlertTriangle,
-    X,
-    Trash2,
-    BarChart3,
-    ArrowUpRight,
-    Clapperboard,
-    Pencil,
-    CircleMinus,
-    CirclePlus,
-    Globe
-} from 'lucide-react'
-import NovelTab, { STAGES, stageIndexValue } from './NovelTab'
-import ProductionInsightsPanel from './ProductionInsightsPanel'
+import { useConfirmDialog } from '@/components/ConfirmDialog'
+import CreationJourney, { type CreationStage } from '@/components/CreationJourney'
+import CustomSelect from '@/components/CustomSelect'
+import HomeLogoLink from '@/components/HomeLogoLink'
+import OptimizedMediaImage from '@/components/OptimizedMediaImage'
 import ReferenceLibraryHeader from '@/components/ReferenceLibraryHeader'
 import ReferenceThumbnail from '@/components/ReferenceThumbnail'
-import OptimizedMediaImage from '@/components/OptimizedMediaImage'
-import CreationJourney, { type CreationStage } from '@/components/CreationJourney'
-import { getChapterProgress, getMissingChapterOutlineNumbers } from '@/lib/chapter-progress'
-import CustomSelect from '@/components/CustomSelect'
-import { useConfirmDialog } from '@/components/ConfirmDialog'
-import { getImageResolutionDetail, getImageResolutionLabel, IMAGE_QUALITY_OPTIONS, normalizeImageQuality, type ImageQuality } from '@/lib/image-quality'
-import { clientFetch, readApiJson } from '@/lib/client-fetch'
-import { getPollingDelay } from '@/lib/polling'
-import { isUnavailablePageStatus, isValidRouteResourceId, redirectToHomepage } from '@/lib/home-redirect'
 import { pushToast } from '@/components/Toast'
 import { useI18n } from '@/i18n/I18nProvider'
-import { isTransientReferenceJobError, REF_IMAGE_STALE_WINDOW_MS, type ReferenceGenerationProgress, type ReferenceGenerationTimings } from '@/lib/reference-generation-progress'
-import type { ImageGenerationRecovery, ImageProviderSwitch } from '@/lib/image-generation-recovery'
-import { characterTurnaroundLayout } from '@/lib/character-reference-retry'
+import Link, { useParams, useRouter } from '@/i18n/navigation'
+import { getChapterProgress, getMissingChapterOutlineNumbers } from '@/lib/chapter-progress'
 import { applyCharacterReferenceResult } from '@/lib/character-reference-result'
-import { isProductionImageProvider, type ProductionImageProvider } from '@/lib/provider-capabilities'
-import { createSceneReferenceSelection, getSelectedSceneReferenceUrls, MAX_SELECTED_SCENE_REFERENCES } from '@/lib/scene-reference-selection'
+import { clientFetch, readApiJson } from '@/lib/client-fetch'
+import { isUnavailablePageStatus, isValidRouteResourceId, redirectToHomepage } from '@/lib/home-redirect'
+import type { ImageGenerationRecovery, ImageProviderSwitch } from '@/lib/image-generation-recovery'
+import { getImageResolutionDetail, getImageResolutionLabel, IMAGE_QUALITY_OPTIONS, normalizeImageQuality, type ImageQuality } from '@/lib/image-quality'
 import { formatPointBalance } from '@/lib/points'
-import HomeLogoLink from '@/components/HomeLogoLink'
+import { getPollingDelay } from '@/lib/polling'
+import { isProductionImageProvider, type ProductionImageProvider } from '@/lib/provider-capabilities'
+import { isTransientReferenceJobError, REF_IMAGE_STALE_WINDOW_MS, type ReferenceGenerationProgress, type ReferenceGenerationTimings } from '@/lib/reference-generation-progress'
+import { createSceneReferenceSelection, getSelectedSceneReferenceUrls, MAX_SELECTED_SCENE_REFERENCES } from '@/lib/scene-reference-selection'
+import {
+    AlertTriangle,
+    ArrowLeft,
+    ArrowUpRight,
+    BookOpen,
+    Check,
+    ChevronLeft,
+    ChevronRight,
+    CircleMinus,
+    CirclePlus,
+    Clapperboard,
+    Film,
+    Globe,
+    ImageIcon,
+    MapPin,
+    Pencil,
+    Plus,
+    RefreshCw,
+    Sparkles,
+    Trash2,
+    Users,
+    X
+} from 'lucide-react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import NovelTab, { stageIndexValue, STAGES } from './NovelTab'
 
 interface Character {
     id: string
@@ -79,7 +76,7 @@ interface Character {
     }>
 }
 
-type CharacterIdentityRole = 'turnaround_sheet' | 'full_body' | 'three_quarter_view' | 'profile' | 'back' | 'face'
+type CharacterIdentityRole = 'full_body' | 'three_quarter_view' | 'profile' | 'back' | 'face'
 
 function referenceCandidateKey(kind: 'characters' | 'scenes', targetId: string, url: string, role?: CharacterIdentityRole) {
     return JSON.stringify([kind, targetId, url, role ?? null])
@@ -89,7 +86,7 @@ const CHARACTER_IDENTITY_REFERENCE_ROLES: Array<{
     role: CharacterIdentityRole
     label: string
     shortLabel: string
-}> = [{ role: 'turnaround_sheet', label: '多视图角色设定板', shortLabel: '设定板' }]
+}> = [{ role: 'full_body', label: '角色参考图', shortLabel: '参考图' }]
 
 interface Scene {
     id: string
@@ -148,19 +145,6 @@ interface Project {
 
 type ReferencePromptEditor = { kind: 'character'; id: string } | { kind: 'scene'; id: string }
 
-type PromptOptimizationInput = {
-    feedback: string
-    issues: string[]
-}
-
-type PromptAiActionResult = {
-    prompt: string
-    summary: string[]
-    visualDiagnosisUsed: boolean
-}
-
-const PROMPT_OPTIMIZATION_ISSUES = ['构图不理想', '内容与描述不符', '光线或色调不对', '不够写实', '元素太多', '缺少关键元素', '出现多余人物或文字'] as const
-
 interface ReferencePromptDialogProps {
     kindLabel: string
     name: string
@@ -172,267 +156,93 @@ interface ReferencePromptDialogProps {
     placeholder: string
     onClose: () => void
     onSave: (value: string) => Promise<void>
-    onAiAction: (action: 'rewrite' | 'expand', value: string, optimization?: PromptOptimizationInput) => Promise<PromptAiActionResult | null>
 }
 
-function ReferencePromptDialog({ kindLabel, name, initialValue, savedValue, saving, hasReferences, referenceImageUrl, placeholder, onClose, onSave, onAiAction }: ReferencePromptDialogProps) {
+function ReferencePromptDialog({ kindLabel, name, initialValue, savedValue, saving, hasReferences, placeholder, onClose, onSave }: ReferencePromptDialogProps) {
     const { t } = useI18n()
     const [draft, setDraft] = useState(initialValue)
-    const [aiAction, setAiAction] = useState<'rewrite' | 'expand' | null>(null)
-    const [optimizerOpen, setOptimizerOpen] = useState(false)
-    const [optimizationFeedback, setOptimizationFeedback] = useState('')
-    const [optimizationIssues, setOptimizationIssues] = useState<Set<string>>(new Set())
-    const [suggestion, setSuggestion] = useState<PromptAiActionResult | null>(null)
-    const dirty = draft.trim() !== savedValue.trim()
-    const busy = saving || aiAction !== null
-    const canOptimize = Boolean(referenceImageUrl || optimizationFeedback.trim() || optimizationIssues.size)
-
-    async function runAiAction(action: 'rewrite' | 'expand', optimization?: PromptOptimizationInput) {
-        if (busy || !draft.trim()) return
-        setAiAction(action)
-        try {
-            const improved = await onAiAction(action, draft, optimization)
-            if (!improved) return
-            if (action === 'rewrite') setSuggestion(improved)
-            else setDraft(improved.prompt)
-        } finally {
-            setAiAction(null)
-        }
-    }
-
-    function toggleOptimizationIssue(issue: string) {
-        setOptimizationIssues(current => {
-            const next = new Set(current)
-            if (next.has(issue)) next.delete(issue)
-            else next.add(issue)
-            return next
-        })
-    }
-
+    const dialogRef = useRef<HTMLElement>(null)
     useEffect(() => {
-        const closeOnEscape = (event: KeyboardEvent) => {
-            if (event.key === 'Escape' && !busy) onClose()
-        }
-        document.addEventListener('keydown', closeOnEscape)
-        return () => document.removeEventListener('keydown', closeOnEscape)
-    }, [busy, onClose])
-
+        const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+        dialogRef.current?.querySelector('textarea')?.focus()
+        return () => previousFocus?.focus()
+    }, [])
     return (
         <div
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-950/80 px-4 py-6 backdrop-blur-sm"
-            onMouseDown={event => {
-                if (event.target === event.currentTarget && !busy) onClose()
-            }}>
-            <form
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+            onClick={() => !saving && onClose()}>
+            <section
+                ref={dialogRef}
+                onKeyDown={event => {
+                    if (event.key === 'Escape' && !saving) {
+                        event.preventDefault()
+                        onClose()
+                    }
+                    if (event.key !== 'Tab') return
+                    const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), textarea:not(:disabled)') ?? [])
+                    const first = focusable[0]
+                    const last = focusable.at(-1)
+                    if (event.shiftKey && document.activeElement === first) {
+                        event.preventDefault()
+                        last?.focus()
+                    } else if (!event.shiftKey && document.activeElement === last) {
+                        event.preventDefault()
+                        first?.focus()
+                    }
+                }}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="reference-prompt-title"
-                onSubmit={event => {
-                    event.preventDefault()
-                    void onSave(draft)
-                }}
-                className="studio-reference-prompt-dialog relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-purple-500/25 bg-gray-950 shadow-2xl shadow-black/60">
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-purple-500/15 to-transparent" />
-                <div className="relative p-4">
-                    <div className="flex items-center gap-2">
-                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-purple-400/30 bg-purple-500/10 text-purple-200">
-                            <Pencil className="h-3.5 w-3.5" />
-                        </div>
-                        <div className="flex min-w-0 flex-1 items-center gap-2">
-                            <span className="shrink-0 text-xs font-medium text-purple-300">
-                                {t(kindLabel)} {t('提示词')}
-                            </span>
-                            <h2
-                                id="reference-prompt-title"
-                                data-i18n-skip
-                                title={name}
-                                className="min-w-0 truncate text-sm font-semibold text-white">
-                                {name}
-                            </h2>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            disabled={busy}
-                            aria-label="关闭"
-                            className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-40">
-                            <X className="h-4 w-4" />
-                        </button>
-                    </div>
-
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                        <label
-                            htmlFor="reference-prompt-editor"
-                            className="text-xs font-medium text-gray-300">
-                            完整视觉描述
-                        </label>
-                        <div className="flex items-center gap-1.5">
-                            <button
-                                type="button"
-                                onClick={() => setOptimizerOpen(current => !current)}
-                                disabled={busy || !draft.trim()}
-                                className="inline-flex h-7 items-center gap-1 rounded-md border border-purple-500/25 bg-purple-500/10 px-2 text-[11px] font-medium text-purple-200 transition-colors hover:border-purple-400/45 hover:bg-purple-500/20 disabled:cursor-not-allowed disabled:opacity-40">
-                                <RefreshCw className={`h-3 w-3 ${aiAction === 'rewrite' ? 'animate-spin' : ''}`} />
-                                {aiAction === 'rewrite' ? '优化中...' : 'AI 优化'}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => void runAiAction('expand')}
-                                disabled={busy || !draft.trim()}
-                                className="inline-flex h-7 items-center gap-1 rounded-md border border-purple-500/25 bg-purple-500/10 px-2 text-[11px] font-medium text-purple-200 transition-colors hover:border-purple-400/45 hover:bg-purple-500/20 disabled:cursor-not-allowed disabled:opacity-40">
-                                <Sparkles className={`h-3 w-3 ${aiAction === 'expand' ? 'animate-pulse' : ''}`} />
-                                {aiAction === 'expand' ? t('扩写中...') : `AI ${t('扩写')}`}
-                            </button>
-                        </div>
-                    </div>
-                    {optimizerOpen && (
-                        <div className="mt-2 rounded-lg border border-purple-500/25 bg-purple-500/[0.06] p-3">
-                            <div className="flex gap-2.5">
-                                {referenceImageUrl && (
-                                    <div className="relative hidden h-20 w-30 shrink-0 overflow-hidden rounded-lg border border-gray-700 bg-black sm:block">
-                                        <ReferenceThumbnail
-                                            src={referenceImageUrl}
-                                            alt={`${name} 当前参考图`}
-                                            sizes="120px"
-                                            className="h-full w-full object-cover"
-                                        />
-                                    </div>
-                                )}
-                                <div className="min-w-0 flex-1">
-                                    <p className="text-xs font-medium text-purple-100">这次希望 AI 改善什么？</p>
-                                    <p className="mt-1 text-[11px] leading-4 text-gray-500">
-                                        {referenceImageUrl ? '会自动分析当前选中的参考图，并结合你的要求重写 Prompt。' : '当前没有参考图，请选择问题或填写具体修改目标。'}
-                                    </p>
-                                    <div className="mt-2 flex flex-wrap gap-1.5">
-                                        {PROMPT_OPTIMIZATION_ISSUES.map(issue => {
-                                            const selected = optimizationIssues.has(issue)
-                                            return (
-                                                <button
-                                                    key={issue}
-                                                    type="button"
-                                                    aria-pressed={selected}
-                                                    onClick={() => toggleOptimizationIssue(issue)}
-                                                    disabled={busy}
-                                                    className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${selected ? 'border-purple-400 bg-purple-500/25 text-purple-100' : 'border-gray-700 bg-gray-900/70 text-gray-400 hover:border-gray-600 hover:text-gray-200'}`}>
-                                                    {issue}
-                                                </button>
-                                            )
-                                        })}
-                                    </div>
-                                </div>
-                            </div>
-                            <textarea
-                                value={optimizationFeedback}
-                                maxLength={1000}
-                                rows={2}
-                                disabled={busy}
-                                onChange={event => setOptimizationFeedback(event.target.value)}
-                                placeholder="例如：不要赛博朋克霓虹，改成真实政府大楼地下车库；空间更开阔，灯光更自然。"
-                                className="mt-2 block w-full resize-y rounded-lg border border-gray-700 bg-gray-950/80 px-2.5 py-2 text-xs leading-5 text-gray-200 outline-none placeholder:text-gray-600 focus:border-purple-400"
-                            />
-                            <div className="mt-2 flex items-center justify-between gap-3">
-                                <span className="text-[10px] tabular-nums text-gray-600">{optimizationFeedback.length} / 1,000</span>
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        void runAiAction('rewrite', {
-                                            feedback: optimizationFeedback.trim(),
-                                            issues: Array.from(optimizationIssues)
-                                        })
-                                    }
-                                    disabled={busy || !canOptimize}
-                                    className="inline-flex items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-40">
-                                    <Sparkles className={`h-3.5 w-3.5 ${aiAction === 'rewrite' ? 'animate-pulse' : ''}`} />
-                                    {aiAction === 'rewrite' ? '正在分析并优化...' : referenceImageUrl ? '分析图片并优化' : '开始优化'}
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                    <textarea
-                        id="reference-prompt-editor"
-                        autoFocus
-                        value={draft}
-                        maxLength={20_000}
-                        rows={6}
-                        disabled={busy}
-                        onChange={event => {
-                            setDraft(event.target.value)
-                            setSuggestion(null)
-                        }}
-                        placeholder={placeholder}
-                        className="mt-1.5 block min-h-36 w-full resize-y rounded-lg border border-gray-700 bg-gray-900/90 px-3 py-2 text-[13px] leading-5 text-gray-100 outline-none transition-colors placeholder:text-gray-600 focus:border-purple-400"
-                    />
-
-                    {suggestion && (
-                        <div className="mt-2.5 rounded-lg border border-emerald-400/25 bg-emerald-400/[0.06] p-3">
-                            <div className="flex items-center justify-between gap-3">
-                                <div>
-                                    <p className="text-xs font-medium text-emerald-200">AI 优化建议</p>
-                                    <p className="mt-0.5 text-[11px] text-gray-500">{suggestion.visualDiagnosisUsed ? '已结合当前参考图进行分析' : '已根据文字要求优化'}</p>
-                                </div>
-                                <div className="flex gap-1.5">
-                                    <button
-                                        type="button"
-                                        onClick={() => setSuggestion(null)}
-                                        className="rounded-md border border-gray-700 px-2.5 py-1.5 text-[11px] text-gray-400 hover:text-white">
-                                        放弃
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setDraft(suggestion.prompt)
-                                            setSuggestion(null)
-                                            setOptimizerOpen(false)
-                                        }}
-                                        className="rounded-md bg-emerald-600 px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-emerald-500">
-                                        应用到编辑框
-                                    </button>
-                                </div>
-                            </div>
-                            {suggestion.summary.length > 0 && <p className="mt-2 text-[11px] leading-5 text-emerald-100/75">修改：{suggestion.summary.join('；')}</p>}
-                            <div className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-lg border border-gray-800 bg-gray-950/80 p-3 font-mono text-xs leading-5 text-gray-200">
-                                {suggestion.prompt}
-                            </div>
-                        </div>
-                    )}
-
-                    {(hasReferences || !draft.trim()) && (
-                        <div
-                            className={`mt-2.5 flex items-start gap-2 rounded-lg border px-3 py-2 text-xs leading-5 ${draft.trim() ? 'border-emerald-400/20 bg-emerald-400/[0.07] text-emerald-100' : 'border-amber-400/20 bg-amber-400/[0.07] text-amber-100'}`}>
-                            {draft.trim() ? <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" /> : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />}
-                            <span>{!draft.trim() ? '清空 Prompt 后将无法生成候选图。' : '保存 Prompt 不会删除现有参考图或已生成视频；新的 Prompt 将用于之后重新生成的内容。'}</span>
-                        </div>
-                    )}
-
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                            <span className={dirty ? 'text-amber-300' : 'text-gray-500'}>{dirty ? '修改尚未保存' : '当前内容已保存'}</span>
-                            <span className="tabular-nums text-gray-500">{draft.length.toLocaleString()} / 20,000</span>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                disabled={busy}
-                                className="h-8 rounded-lg border border-gray-700 bg-gray-900/80 px-3 text-xs font-medium text-gray-300 transition-colors hover:border-gray-600 hover:bg-gray-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40">
-                                取消
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={!dirty || busy}
-                                className="studio-primary disabled:cursor-not-allowed disabled:opacity-40">
-                                {saving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                                {saving ? '保存中...' : '保存修改'}
-                            </button>
-                        </div>
-                    </div>
+                className="w-full max-w-2xl rounded-xl border border-gray-700 bg-gray-950 p-5 shadow-xl"
+                onClick={event => event.stopPropagation()}>
+                <div className="mb-4 flex items-center justify-between gap-3">
+                    <h2
+                        id="reference-prompt-title"
+                        className="font-semibold text-white">
+                        {kindLabel} · {name}
+                    </h2>
+                    <button
+                        type="button"
+                        aria-label={t('关闭')}
+                        disabled={saving}
+                        onClick={onClose}
+                        className="rounded p-2 text-gray-400 hover:text-white">
+                        <X className="h-4 w-4" />
+                    </button>
                 </div>
-            </form>
+                <textarea
+                    aria-label={kindLabel}
+                    value={draft}
+                    maxLength={20_000}
+                    rows={8}
+                    disabled={saving}
+                    onChange={event => setDraft(event.target.value)}
+                    placeholder={placeholder}
+                    className="w-full rounded-lg border border-gray-700 bg-gray-900 p-3 text-sm text-gray-100 focus:border-purple-400"
+                />
+                {hasReferences && <p className="mt-2 text-xs text-gray-400">{t('保存后，需要重新生成相关图片才能应用修改。')}</p>}
+                <div className="mt-4 flex justify-end gap-2">
+                    <button
+                        type="button"
+                        disabled={saving}
+                        onClick={onClose}
+                        className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300">
+                        {t('取消')}
+                    </button>
+                    <button
+                        type="button"
+                        disabled={saving || !draft.trim() || draft.trim() === savedValue.trim()}
+                        onClick={() => void onSave(draft.trim())}
+                        className="rounded-lg bg-purple-600 px-4 py-2 text-sm text-white disabled:opacity-40">
+                        {saving ? t('保存中...') : t('保存')}
+                    </button>
+                </div>
+            </section>
         </div>
     )
 }
 
-type ProjectTab = 'insights' | 'novel' | 'episodes' | 'characters' | 'scenes'
+type ProjectTab = 'novel' | 'episodes' | 'characters' | 'scenes'
 
 const IMAGE_PROVIDER_OPTIONS = [
     { value: 'banana', label: 'Nano Banana', desc: 'Gemini 图像模型，适合风格一致和参考图生成' },
@@ -572,7 +382,7 @@ interface CharacterReferenceBatchStatus {
 }
 
 function characterReferenceGenerationKey(characterId: string, role: CharacterIdentityRole): string {
-    return role === 'turnaround_sheet' ? characterId : `${characterId}:${role}`
+    return role === 'full_body' ? characterId : `${characterId}:${role}`
 }
 
 function characterReferenceBatchFinished(status: CharacterReferenceBatchStatus) {
@@ -669,32 +479,8 @@ async function pollRefImageJob(
     throw new Error(`参考图任务超时（30 分钟未完成）${lastPollingError ? `，最近一次状态查询失败：${lastPollingError}` : ''}`)
 }
 
-async function pollPromptEnhancementJob(jobId: string, timeoutMs = 5 * 60 * 1000): Promise<PromptAiActionResult> {
-    const deadline = Date.now() + timeoutMs
-    let attempt = 0
-    while (Date.now() < deadline) {
-        const res = await clientFetch(`/api/ai/expand-prompt/status/${jobId}`)
-        const json = await readApiJson(res)
-        if (!res.ok || !json.success) throw new Error(json.error ?? '轮询 Prompt 优化任务失败')
-        const data = json.data ?? {}
-        if (data.phase === 'done') {
-            const improved = data.result?.expanded
-            if (typeof improved !== 'string' || !improved.trim()) throw new Error('Prompt 优化任务已完成但未返回结果')
-            return {
-                prompt: improved.trim(),
-                summary: Array.isArray(data.result?.optimizationSummary) ? data.result.optimizationSummary.map(String).filter(Boolean) : [],
-                visualDiagnosisUsed: data.result?.visualDiagnosisUsed === true
-            }
-        }
-        if (data.phase === 'error') throw new Error(data.error ?? 'Prompt 优化失败')
-        await new Promise(resolve => setTimeout(resolve, getPollingDelay({ baseMs: Math.min(1000 + attempt++ * 500, 5000), jitterRatio: 0.15 })))
-    }
-    throw new Error('Prompt 优化任务超时（5 分钟未完成）')
-}
-
 const REFERENCE_STAGE_LABELS: Record<ReferenceGenerationProgress['stage'], string> = {
     generating: '模型出图',
-    inspecting: '质量检查',
     uploading: '上传图片',
     writing_db: '保存结果'
 }
@@ -729,19 +515,6 @@ function conciseCharacterGenerationError(message: string): string {
     if (/429|rate.?limit|限流/i.test(cleaned)) return '模型服务限流'
     if (/503|no available image provider|route_exhausted|暂无可用.*(?:模型|线路)/i.test(cleaned)) return '模型线路暂时不可用'
     if (/上传 local storage 失败|upload.*failed/i.test(cleaned)) return '图片上传失败'
-    if (/Reference quality inspection failed.*finishReason=MAX_TOKENS/i.test(cleaned)) return '图片已生成，但质检响应被截断，请重试该角色'
-
-    if (/身份\/构图门禁|quality gate|质检失败/i.test(cleaned)) {
-        const reasons: string[] = []
-        if (/物种|身体结构|subject.?type|wrong species|human substitute|required animal species/i.test(cleaned)) reasons.push('物种或身体结构不正确')
-        if (/不是同一角色|identity (?:inconsistency|drift|mismatch)|identity.*not consistent/i.test(cleaned)) reasons.push('角色身份不一致')
-        if (/duplicate|near-duplicate|重复|distinct/i.test(cleaned)) reasons.push('视角重复')
-        if (/missing .*view|incorrect.*(?:angle|view|order)|angle.*(?:incorrect|wrong|failed)|角度不正确|视图覆盖不完整|有效不同.*角度|角度覆盖/i.test(cleaned)) reasons.push('角度覆盖不足')
-        if (/background|shadow|背景|阴影/i.test(cleaned)) reasons.push('背景不合格')
-        if (/crop|cropp|裁切|全身/i.test(cleaned)) reasons.push('主体未完整入镜')
-        if (/text|typography|watermark|文字|水印/i.test(cleaned)) reasons.push('包含文字或水印')
-        return `图片质检未通过${reasons.length > 0 ? `（${[...new Set(reasons)].slice(0, 3).join('、')}）` : ''}`
-    }
 
     return cleaned.length > 96 ? `${cleaned.slice(0, 96)}…` : cleaned || '参考图生成失败'
 }
@@ -792,7 +565,7 @@ function selectedCharacterRoleAsset(character: Character, role: CharacterIdentit
 function updateCharacterReferenceSelection(character: Character, url: string | null, role: CharacterIdentityRole): Character {
     return {
         ...character,
-        referenceImageUrl: role === 'turnaround_sheet' ? url : character.referenceImageUrl,
+        referenceImageUrl: role === 'full_body' ? url : character.referenceImageUrl,
         referenceAssetRows: character.referenceAssetRows?.map(asset =>
             asset.role === role ? { ...asset, status: asset.url === url ? 'selected' : asset.status === 'selected' ? 'candidate' : asset.status } : asset
         )
@@ -800,7 +573,7 @@ function updateCharacterReferenceSelection(character: Character, url: string | n
 }
 
 function productionCharacterIdentityRoles(): CharacterIdentityRole[] {
-    return ['turnaround_sheet']
+    return ['full_body']
 }
 
 function missingCharacterIdentityRoleCount(character: Character) {
@@ -813,7 +586,7 @@ function getInitialProjectNavigation(routeTab: ProjectTab): { tab: ProjectTab; s
     const searchParams = new URLSearchParams(window.location.search)
     const tab = searchParams.get('tab')
     const stage = searchParams.get('stage')
-    const validTab = tab === 'insights' || tab === 'novel' || tab === 'episodes' || tab === 'characters' || tab === 'scenes' ? tab : routeTab
+    const validTab = tab === 'novel' || tab === 'episodes' || tab === 'characters' || tab === 'scenes' ? tab : routeTab
     const validStage = stage === 'setup' || stage === 'outlined' || stage === 'drafting' || stage === 'finalized' ? stage : 'setup'
     return { tab: routeTab === 'characters' || routeTab === 'scenes' ? routeTab : stage ? 'novel' : validTab, stage: validStage }
 }
@@ -1014,8 +787,8 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
                         if (!local) return character
                         // A refresh started before/during a save may contain the
                         // old selection. Still accept new candidates and metadata.
-                        const selected = selectedCharacterRoleAsset(local, 'turnaround_sheet')
-                        const merged = updateCharacterReferenceSelection(character, local.referenceImageUrl, 'turnaround_sheet')
+                        const selected = selectedCharacterRoleAsset(local, 'full_body')
+                        const merged = updateCharacterReferenceSelection(character, local.referenceImageUrl, 'full_body')
                         if (selected && !merged.referenceAssetRows?.some(asset => asset.role === selected.role && asset.stateKey === selected.stateKey && asset.url === selected.url)) {
                             merged.referenceAssetRows = [...(merged.referenceAssetRows ?? []), selected]
                         }
@@ -1171,8 +944,8 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
         charId: string,
         options: { silent?: boolean; refresh?: boolean; quality?: ImageQuality; role?: CharacterIdentityRole; replaceSelected?: boolean; retryBatchFailure?: boolean } = {}
     ): Promise<{ ok: true } | { ok: false; error: string }> {
-        const role = options.role ?? 'turnaround_sheet'
-        const generationKey = role === 'turnaround_sheet' ? charId : `${charId}:${role}`
+        const role = options.role ?? 'full_body'
+        const generationKey = role === 'full_body' ? charId : `${charId}:${role}`
         manuallyGeneratingCharacterRefs.current.add(generationKey)
         if (options.retryBatchFailure) supersededCharacterBatchFailures.current.add(generationKey)
         setCharacterGenerationErrors(prev => {
@@ -1283,7 +1056,7 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
         }
     }
 
-    async function generateCharRefFromCard(char: Character, role: CharacterIdentityRole = 'turnaround_sheet', retryBatchFailure = false) {
+    async function generateCharRefFromCard(char: Character, role: CharacterIdentityRole = 'full_body', retryBatchFailure = false) {
         if (characterBatchRestoring) return
         const prompt = getCharacterPromptValue(char).trim()
         if (!prompt) {
@@ -1356,60 +1129,10 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
         if (saved) setPromptEditor(null)
     }
 
-    async function runPromptAiAction(action: 'rewrite' | 'expand', sourceValue: string, optimization?: PromptOptimizationInput): Promise<PromptAiActionResult | null> {
-        if (!promptEditor || !project) return null
-        const isCharacter = promptEditor.kind === 'character'
-        const entity = isCharacter ? project.characters.find(item => item.id === promptEditor.id) : project.scenes.find(item => item.id === promptEditor.id)
-        if (!entity) return null
-        const source = sourceValue.trim()
-        if (!source) return null
-
-        setAiMsg(null)
-        try {
-            const context = isCharacter
-                ? {
-                      name: entity.name,
-                      role: (entity as Character).role,
-                      gender: (entity as Character).gender,
-                      age: (entity as Character).age,
-                      imageProvider
-                  }
-                : {
-                      name: entity.name,
-                      description: (entity as Scene).description,
-                      imageProvider
-                  }
-            const res = await clientFetch('/api/ai/expand-prompt', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    projectId: project.id,
-                    field: isCharacter ? 'characterPrompt' : 'scenePrompt',
-                    action,
-                    text: source,
-                    referenceTargetId: entity.id,
-                    optimizationFeedback: optimization?.feedback ?? '',
-                    optimizationIssues: optimization?.issues ?? [],
-                    referencePromptContext: context
-                })
-            })
-            const json = await readApiJson(res)
-            if (!res.ok || !json.success) throw new Error(json.error ?? `${action === 'rewrite' ? '改写' : '扩写'}失败`)
-            const jobId = json.data?.jobId
-            if (typeof jobId !== 'string' || !jobId) throw new Error('Prompt 优化任务未返回 jobId')
-            const improved = await pollPromptEnhancementJob(jobId)
-            setAiMsg({ type: 'success', text: `${action === 'rewrite' ? '优化' : t('扩写')} ✓` })
-            return improved
-        } catch (error) {
-            setAiMsg({ type: 'error', text: error instanceof Error ? error.message : String(error) })
-            return null
-        }
-    }
-
-    async function selectCharRef(charId: string, url: string, role: CharacterIdentityRole = 'turnaround_sheet') {
+    async function selectCharRef(charId: string, url: string, role: CharacterIdentityRole = 'full_body') {
         const character = project?.characters.find(item => item.id === charId)
         if (!character || pendingCharacterReferenceSelections.current.has(charId) || referenceCandidateDeletionKeys.current.has(referenceCandidateKey('characters', charId, url, role))) return
-        const previousUrl = selectedCharacterRoleAsset(character, role)?.url ?? (role === 'turnaround_sheet' ? character.referenceImageUrl : null)
+        const previousUrl = selectedCharacterRoleAsset(character, role)?.url ?? (role === 'full_body' ? character.referenceImageUrl : null)
         if (previousUrl === url) return
 
         pendingCharacterReferenceSelections.current.add(charId)
@@ -1481,8 +1204,8 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
         if (!existingBatch && plannedIdentityTasks.length === 0) return
         if (!existingBatch && mode === 'all' && options.confirm !== false) {
             const approved = await confirm({
-                title: replaceSelected ? t('重新生成多视图角色设定板？') : `${t('全部重新生成候选')}？`,
-                message: `${t('将为 {count} 个角色各生成一张 16:9 多视图设定板，包含面部特写和正面、45°、侧面、背面四个全身视图。生成失败时保留旧图。').replace(
+                title: replaceSelected ? t('重新生成角色参考图？') : `${t('全部重新生成候选')}？`,
+                message: `${t('将为 {count} 个角色各生成一张全身角色参考图。生成失败时保留旧图。').replace(
                     '{count}',
                     String(eligibleCharacters.length)
                 )} ${t('当前定稿图和已有候选图都会保留；每张新图都会扣除对应金币。')}`,
@@ -1562,7 +1285,7 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
                         }
                         const providerSwitch = item.progress?.providerSwitch ?? item.result?.providerSwitch
                         if (providerSwitch) {
-                            notifyImageProviderSwitch(providerSwitch, `character:${item.jobId}`, `${charactersById.get(item.characterId)?.name ?? `角色 ${item.characterId}`} · 多视图角色设定板`)
+                            notifyImageProviderSwitch(providerSwitch, `character:${item.jobId}`, `${charactersById.get(item.characterId)?.name ?? `角色 ${item.characterId}`} · 角色参考图`)
                         }
                     }
                     displayCharacterReferenceResults(completedResults, selectionVersions)
@@ -1622,9 +1345,9 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
                             : failed === 0
                               ? mode === 'all'
                                   ? replaceSelected
-                                      ? `多视图角色设定板重新生成完成：已替换 ${success} 张定稿图`
+                                      ? t('角色参考图重新生成完成：已替换 {count} 张定稿图', { count: success })
                                       : `${t('全部重新生成候选')}：${t('成功')} ${success}`
-                                  : t('多视图角色设定板生成完成：{count} 张', { count: success })
+                                  : t('角色参考图生成完成：{count} 张', { count: success })
                               : `角色参考图生成结束：成功 ${success} 张，失败 ${failed} 张。${primaryFailure ? `主要原因：${primaryFailure}` : '可在对应角色卡里重试。'}`
                 })
         } catch (error) {
@@ -1679,7 +1402,7 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
         if (!payload.replaceAll) {
             setAiMsg({
                 type: 'success',
-                text: payload.characterIds.length > 0 || payload.sceneIds.length > 0 ? '角色和场景已更新。请点击“补齐多视图设定板”生成所需参考图。' : '角色和场景已更新，没有需要重新生成的参考图。'
+                text: payload.characterIds.length > 0 || payload.sceneIds.length > 0 ? '角色和场景已更新。请点击“补齐角色参考图”生成所需参考图。' : '角色和场景已更新，没有需要重新生成的参考图。'
             })
             return
         }
@@ -2375,20 +2098,6 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
                     ))}
 
                     <Link
-                        href={projectTabHref(id, 'insights')}
-                        prefetch={false}
-                        onNavigate={event => {
-                            event.preventDefault()
-                            navigateToProjectTab('insights')
-                        }}
-                        title={sidebarCollapsed ? '生产数据与质检' : undefined}
-                        className={`mt-1 w-full flex items-center rounded-md transition-colors ${sidebarNavButtonClass} ${
-                            activeTab === 'insights' ? 'bg-gray-800/70 text-white' : 'text-gray-400 hover:bg-gray-800/40 hover:text-gray-200'
-                        }`}>
-                        <BarChart3 className="w-4 h-4 flex-shrink-0" />
-                        {!sidebarCollapsed && <span className="flex-1 text-start font-medium">生产数据与质检</span>}
-                    </Link>
-                    <Link
                         href={`/projects/${id}/publication`}
                         title={t('发布作品')}
                         className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-400 hover:bg-gray-800/40 hover:text-gray-200">
@@ -2442,17 +2151,6 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
                         }}>
                         场景
                     </Link>
-                    <Link
-                        href={projectTabHref(id, 'insights')}
-                        prefetch={false}
-                        onNavigate={event => {
-                            event.preventDefault()
-                            navigateToProjectTab('insights')
-                        }}
-                        aria-label="生产数据与质检"
-                        title="生产数据与质检">
-                        <BarChart3 className="h-4 w-4" />
-                    </Link>
                 </div>
                 <CreationJourney
                     current={journeyStage}
@@ -2476,7 +2174,6 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
                         video: { href: `${productionHref}#episode-finished`, detail: `${mergedCount} / ${episodesCount} ${t('集成片')}`, completed: episodesCount > 0 && mergedCount === episodesCount }
                     }}
                 />
-                {activeTab === 'insights' && <ProductionInsightsPanel projectId={id} />}
 
                 {/* 小说 Tab */}
                 {activeTab === 'novel' && (
@@ -2727,7 +2424,7 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
                                                     const generationProgress = characterGenerationProgress[generationKey]
                                                     const generationError = characterGenerationErrors[generationKey]
                                                     const retryBatchFailure = Boolean(generationError)
-                                                    const generationActionLabel = retryBatchFailure ? t('重新生成') : t('生成 5 画面候选图')
+                                                    const generationActionLabel = retryBatchFailure ? t('重新生成') : t('生成角色参考图')
                                                     const selectionSaving = savingCharacterReferenceFor.has(char.id)
                                                     const previewUrls = assets.map(asset => asset.url)
                                                     return (
@@ -2738,8 +2435,7 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
                                                                 <div className={`grid w-full gap-1.5 ${assets.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
                                                                     {assets.map(asset => {
                                                                         const selected = asset.status === 'selected'
-                                                                        const layout = characterTurnaroundLayout(asset.promptVersion)
-                                                                        const layoutLabel = layout === 'legacy' ? t('旧版设定板') : layout === 'compact' ? t('5 画面设定板') : referenceRole.shortLabel
+                                                                        const layoutLabel = referenceRole.shortLabel
                                                                         return (
                                                                             <div
                                                                                 key={asset.id}
@@ -2760,7 +2456,7 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
                                                                                     }
                                                                                     className="studio-character-sheet-preview"
                                                                                     aria-label={`${char.name} · ${layoutLabel} · ${t('预览大图')}`}
-                                                                                    title={layout === 'legacy' ? t('旧图不会自动改变；重新生成后可选用五画面版本。') : t('预览大图')}>
+                                                                                    title={t('预览大图')}>
                                                                                     <ReferenceThumbnail
                                                                                         src={asset.url}
                                                                                         alt={`${char.name} ${referenceRole.label}`}
@@ -2772,7 +2468,7 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
                                                                                     {selected ? (
                                                                                         <>
                                                                                             <span
-                                                                                                className={`studio-character-sheet-status ${layout === 'legacy' ? 'is-legacy' : ''}`}
+                                                                                                className="studio-character-sheet-status"
                                                                                                 title={selectionSaving ? t('保存中...') : `${layoutLabel} · ${t('形象已确认')}`}
                                                                                                 aria-label={selectionSaving ? t('保存中...') : t('形象已确认')}
                                                                                                 aria-live="polite">
@@ -3133,7 +2829,6 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
                     placeholder="可中文/英文：发型、脸型、服装、颜色材质、体型轮廓、身份气质。"
                     onClose={closePromptEditor}
                     onSave={savePromptEditor}
-                    onAiAction={runPromptAiAction}
                 />
             )}
 
@@ -3154,7 +2849,6 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
                     placeholder="可中文/英文：空间布局、时间氛围、灯光、材质、核心道具、镜头视角。"
                     onClose={closePromptEditor}
                     onSave={savePromptEditor}
-                    onAiAction={runPromptAiAction}
                 />
             )}
 

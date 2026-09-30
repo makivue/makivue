@@ -26,6 +26,18 @@ makivue brings story development, asset management, and video production into on
 
 **Your projects and media stay on your computer. Models use your own supplier accounts.** The local edition needs no online login, database service, or cloud storage. The local server sends generation requests directly to your selected supplier.
 
+## Basic generation edition
+
+This edition keeps the complete creation workflow with manual control over results:
+
+- **Characters:** one full-body reference image per generation, with candidate selection and manual regeneration.
+- **Storyboards:** an initial draft from the script; long scripts are processed in batches. Edit actions, dialogue and duration yourself.
+- **Illustrations:** a simple prompt with selected character references, without automatic prompt polishing or cross-shot continuity repair.
+- **Videos:** generate each shot with your selected model, without automatic model recommendations, comparison runs or multi-segment assembly.
+- **Review:** check the output yourself. There is no AI quality scoring, visual inspection, narrative review or quality-triggered regeneration.
+
+Batch generation, cancellation, resumable jobs, manual retries, basic input validation and protection against overwriting newer edits remain available. Provider format and safety requirements still apply. Native first/last-frame inputs remain available where the model supports them.
+
 ## Interface previews
 
 ### English

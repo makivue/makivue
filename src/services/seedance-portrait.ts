@@ -1,5 +1,5 @@
-import { prisma } from '@/lib/prisma'
 import { genId } from '@/lib/id'
+import { prisma } from '@/lib/prisma'
 import { createSeedancePortraitAsset, getSeedancePortraitAssetStatus } from './seedance-assets'
 import { getSeedanceConfig, type SeedanceConfig } from './seedance-config'
 
@@ -131,7 +131,7 @@ export async function syncCharacterSeedancePortraitAssets(characterId: bigint, s
     }
     if (!byRole.has('turnaround_sheet') && character.referenceImageUrl) byRole.set('turnaround_sheet', character.referenceImageUrl)
     const references = [...byRole.entries()]
-    if (!references.length) throw new Error('请先定稿多视图角色设定板或面部特写，再同步真人素材')
+    if (!references.length) throw new Error('请先定稿角色参考图，再同步真人素材')
 
     let created = 0
     let skipped = 0

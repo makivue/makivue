@@ -4,14 +4,9 @@ import { describe, expect, it } from 'vitest'
 
 describe('prompt action labels', () => {
     const page = fs.readFileSync(path.join(process.cwd(), 'src/app/projects/[id]/episodes/[episodeId]/page.tsx'), 'utf8')
-
-    it('uses distinct rewrite and expand icons with concise labels', () => {
-        expect(page).not.toContain("'一键改写'")
-        expect(page).not.toContain("'一键扩写'")
-        expect(page).toContain("<RefreshCw className={`w-3 h-3 ${expandingField === 'actionDescRewrite'")
-        expect(page).toContain("<Sparkles className={`w-3 h-3 ${expandingField === 'actionDescExpand'")
-        expect(page).toContain("? '改写中...' : '改写'")
-        expect(page).toContain("? '扩写中...' : '扩写'")
+    it('does not offer storyboard prompt rewriting', () => {
+        expect(page).not.toContain('expandingField')
+        expect(page).not.toContain('runAiAction')
     })
 
     it('provides the concise labels in every locale catalog', () => {

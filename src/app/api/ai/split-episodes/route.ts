@@ -1,20 +1,20 @@
-import { after, NextRequest } from 'next/server'
-import { withHiModelsUsageScope } from '@/lib/himodels-usage-context.server'
-import { prisma } from '@/lib/prisma'
-import { apiResponse, apiError } from '@/lib/utils'
-import { getEpisodeFormatSpec, parseNovelSetup } from '@/lib/novel'
-import { generateReviewedScript } from '@/services/script-generation'
-import { setupWithObservedFacts } from '@/services/narrative-facts'
-import { saveReviewedNarrative } from '@/services/narrative-persistence'
-import { GEMINI_FLASH_TEXT_MODEL_ID } from '@/lib/gemini-models'
-import { currentUserId } from '@/lib/current-user'
-import { assertProjectOwner } from '@/lib/ownership'
 import { parseApiId } from '@/lib/api-id'
+import { currentUserId } from '@/lib/current-user'
+import { GEMINI_FLASH_TEXT_MODEL_ID } from '@/lib/gemini-models'
+import { withHiModelsUsageScope } from '@/lib/himodels-usage-context.server'
+import { getEpisodeFormatSpec, parseNovelSetup } from '@/lib/novel'
+import { assertProjectOwner } from '@/lib/ownership'
+import { prisma } from '@/lib/prisma'
 import { createJob, updateJob } from '@/lib/projectAiJobStore'
-import { startTextJobHeartbeat } from '@/lib/text-job-lease'
-import { assertSufficientPoints, BillingError, chargeLlmUsage, quoteLlmBudgetPoints } from '@/services/billing'
 import { deriveScriptCharacterScope } from '@/lib/script-character-scope'
+import { startTextJobHeartbeat } from '@/lib/text-job-lease'
+import { apiError, apiResponse } from '@/lib/utils'
+import { assertSufficientPoints, BillingError, chargeLlmUsage, quoteLlmBudgetPoints } from '@/services/billing'
+import { setupWithObservedFacts } from '@/services/narrative-facts'
+import { saveGeneratedNarrative } from '@/services/narrative-persistence'
+import { generateBasicScript } from '@/services/script-generation'
 import { syncSetupCharacters } from '@/services/setup-characters'
+import { after, NextRequest } from 'next/server'
 
 // 定稿章节 → 分集剧本：串行调用 N 次 LLM，肯定顶网关。改为异步 job：
 // 立即返回 jobId，后台逐集跑 LLM，前端轮询 /api/ai/split-episodes/status/[jobId] 拿进度。
@@ -105,7 +105,7 @@ async function runSplitEpisodesJob(jobId: string, project: ProjectWithEpisodes, 
                 currentEpisodeState
             })
             const result = await withHiModelsUsageScope({ billingKey: `job:${jobId}:${ep.id}` }, () =>
-                generateReviewedScript({
+                generateBasicScript({
                     model,
                     title: project.title,
                     genre: project.genre ?? undefined,
@@ -139,12 +139,11 @@ async function runSplitEpisodesJob(jobId: string, project: ProjectWithEpisodes, 
                 })
             )
             await updateJob(jobId, { phase: 'writing_db' })
-            const updated = await saveReviewedNarrative({
+            const updated = await saveGeneratedNarrative({
                 episode: ep,
                 stage: 'script',
                 content: result.script,
                 facts: result.facts,
-                quality: result.quality,
                 adaptation: { title: result.title, synopsis: result.synopsis, scenePlan: result.scenePlan },
                 settleUsage: tx =>
                     chargeLlmUsage({

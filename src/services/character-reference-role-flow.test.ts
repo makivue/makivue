@@ -14,12 +14,11 @@ describe('REF-011 character reference roles', () => {
     const refImageJobStore = fs.readFileSync(path.join(process.cwd(), 'src/lib/refImageJobStore.ts'), 'utf8')
     const ai = fs.readFileSync(path.join(process.cwd(), 'src/services/ai.ts'), 'utf8')
 
-    it('returns and renders only the multi-view turnaround sheet', () => {
-        expect(projectRoute).toContain("role: 'turnaround_sheet'")
+    it('returns and renders only the full-body reference image', () => {
+        expect(projectRoute).toContain("role: 'full_body'")
         expect(projectRoute).not.toContain("where: { deletedAt: null, role: 'state_reference' }")
         const roleConfig = page.match(/const CHARACTER_IDENTITY_REFERENCE_ROLES:[\s\S]*?= \[([\s\S]*?)\n\]/)?.[1] ?? ''
-        expect(roleConfig).toContain("role: 'turnaround_sheet'")
-        expect(roleConfig).not.toContain("role: 'full_body'")
+        expect(roleConfig).toContain("role: 'full_body'")
         expect(roleConfig).not.toContain("role: 'three_quarter_view'")
         expect(roleConfig).not.toContain("role: 'profile'")
         expect(roleConfig).not.toContain("role: 'back'")
@@ -65,7 +64,7 @@ describe('REF-011 character reference roles', () => {
     })
 
     it('keeps empty and populated sheet frames at the same aspect ratio and overlays their actions', () => {
-        expect(globalStyles).toMatch(/\.studio-character-sheet,\s*\.studio-character-sheet-empty\s*\{[^}]*aspect-ratio: 16 \/ 9;/)
+        expect(globalStyles).toMatch(/\.studio-character-sheet,\s*\.studio-character-sheet-empty\s*\{[^}]*aspect-ratio: 3 \/ 4;/)
         expect(globalStyles).toMatch(/\.studio-character-sheet-preview\s*\{[^}]*width: 100%;[^}]*height: 100%;/)
         expect(page).toContain('className="h-full w-full object-contain"')
         expect(globalStyles).toMatch(/\.studio-character-sheet-toolbar\s*\{[^}]*position: absolute;[^}]*bottom: 6px;/)
@@ -75,35 +74,19 @@ describe('REF-011 character reference roles', () => {
 
     it('keeps candidate and selected state for the turnaround sheet', () => {
         expect(referenceRoute).toContain('where: { characterId: idNum, role, status:')
-        expect(referenceJob).toContain("const shouldSelect = replaceSelected || (!existingSelected && !(role === 'turnaround_sheet' && character.referenceImageUrl))")
-        expect(referenceJob).toContain("const primarySheetChanged = role === 'turnaround_sheet'")
+        expect(referenceJob).toContain("const shouldSelect = replaceSelected || (!existingSelected && !(role === 'full_body' && character.referenceImageUrl))")
+        expect(referenceJob).toContain("const primarySheetChanged = role === 'full_body'")
         expect(referenceJob).toContain("status: shouldSelect ? 'selected' : 'candidate'")
-        expect(referenceJob).toContain("role === 'turnaround_sheet' ? [url")
+        expect(referenceJob).toContain("role === 'full_body' ? [url")
         expect(referenceJob).not.toContain("role === 'state'")
         expect(page).toContain("body: JSON.stringify({ action: 'select', url, role })")
     })
-
-    it('generates one complete production sheet per character', () => {
-        expect(page).toContain("return ['turnaround_sheet']")
-        expect(page).toContain('productionCharacterIdentityRoles()')
-        expect(page).toContain('character-references`, {')
-        expect(page).toMatch(/pollCharacterReferenceBatch\(\s*activeProject.id,\s*jobId/)
-        expect(page).not.toContain('runWithConcurrency(plannedIdentityTasks, concurrency')
-        expect(page).not.toContain('scheduleProjectRefresh')
-        expect(page).toContain('16:9 多视图设定板')
-        expect(page).toContain('面部特写和正面、45°、侧面、背面四个全身视图')
-        expect(page).toContain("const batchQuality: ImageQuality = 'ultra'")
-        expect(ai).toContain("role === 'turnaround_sheet' ? CHARACTER_TURNAROUND_ASPECT_RATIO")
-        expect(ai).toContain("role === 'turnaround_sheet' ? 'ultra'")
-        expect(ai).toContain('const explicitAnimalSpecies = characterReferenceAnimalSpecies(characterIdentityContext)')
-        expect(ai).toContain('ABSOLUTE SUBJECT TYPE:')
-        expect(ai).toContain('subjectTypeNegative')
-        expect(ai).toContain('inspectCharacterReferenceQuality(absPath, role, subjectProfile, resolvedAnimalSpecies)')
-        expect(ai).toContain("['turnaround_sheet', 'three_quarter_view', 'profile', 'back'].includes(role)")
-        expect(ai).toContain('subject-type or fixed-angle gate failed; retrying the same reference with another model and targeted correction')
-        expect(page).not.toContain('queuedCharacterRefFor')
-        expect(referenceRoute).toContain("value === undefined || value === null || value === 'turnaround_sheet'")
-        expect(referenceRoute).toContain('单角度角色参考图已停用，请使用多视图角色设定板')
+    it('offers one full-body image without quality inspection', () => {
+        expect(page).toContain("return ['full_body']")
+        expect(page).toContain('一张全身角色参考图')
+        expect(ai).not.toContain('inspectCharacterReferenceQuality')
+        expect(ai).not.toContain('CHARACTER_TURNAROUND_ASPECT_RATIO')
+        expect(referenceRoute).toContain("value === undefined || value === null || value === 'full_body'")
     })
 
     it('claims the shared account image slot before provider generation', () => {
@@ -152,8 +135,6 @@ describe('REF-011 character reference roles', () => {
         expect(referenceRoute).toContain("data: { status: 'candidate' }")
         expect(referenceJob).toContain("status: shouldSelect ? 'selected' : 'candidate'")
         expect(page).toContain('generateCharRefFromCard(char, referenceRole.role, true)')
-        expect(referenceJob).toContain('const replacingLegacyAnimalSheets =')
-        expect(referenceJob).toContain("data: { status: 'candidate', deletedAt: new Date() }")
     })
 
     it('keeps card-level failures visible while the batch summary stays compact', () => {
@@ -162,7 +143,7 @@ describe('REF-011 character reference roles', () => {
         expect(page).toContain('const manuallyGeneratingCharacterRefs = useRef(new Set<string>())')
         expect(page).toContain('!manuallyGeneratingCharacterRefs.current.has(key) && !supersededCharacterBatchFailures.current.has(key)')
         expect(page).toContain('if (supersededCharacterBatchFailures.current.has(key)) continue')
-        expect(page).toContain("const generationActionLabel = retryBatchFailure ? t('重新生成') : t('生成 5 画面候选图')")
+        expect(page).toContain("const generationActionLabel = retryBatchFailure ? t('重新生成') : t('生成角色参考图')")
         expect(page).toContain('disabled={characterBatchRestoring || generating || promptBusy || !promptValue.trim() || (!!charBatch && !retryBatchFailure)}')
         expect(page).toContain('生成失败：{generationError}')
         expect(page).toContain('!generating && generationError && (')
@@ -174,17 +155,9 @@ describe('REF-011 character reference roles', () => {
         expect(page).not.toContain('排队 {charBatchQueued}')
         expect(page).toContain("errorCode === 'HIMODELS_IMAGE_THINKING_ROUTE'")
         expect(page).toContain("errorCode === 'HIMODELS_IMAGE_EMPTY_RESPONSE'")
-        expect(page).toContain("reasons.push('物种或身体结构不正确')")
-        expect(page).toContain("reasons.push('主体未完整入镜')")
     })
-
-    it('uses only the turnaround sheet downstream and enforces the active provider slot budget', () => {
-        expect(ai).toContain('characterReferenceRoleForShot({')
-        expect(ai).toContain("role: 'turnaround_sheet'")
-        expect(ai).toContain('characterReferenceFallbackRoles(preferredIdentityRole)')
-        expect(ai).toContain('TURNAROUND SHEET USAGE LOCK')
-        expect(ai).toContain('referenceImageBudget')
-        expect(ai).toContain('referenceImages.length >= referenceImageBudget')
-        expect(ai).toContain('for (const selection of characterReferenceSelections) pushBudgetedReference(selection.primaryUrl)')
+    it('uses the selected character image in storyboard generation', () => {
+        expect(ai).toContain('character.referenceImageUrl')
+        expect(ai).not.toContain('characterReferenceRoleForShot')
     })
 })

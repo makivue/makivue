@@ -25,8 +25,8 @@ interface CharacterReferenceResult {
 
 /** Render a persisted sheet directly from its job result, without a project reload. */
 export function applyCharacterReferenceResult<T extends CharacterReferenceView>(character: T, jobId: string, result: CharacterReferenceResult, preserveSelection = false): T {
-    const role = result.role ?? 'turnaround_sheet'
-    if (result.targetType !== 'character' || result.targetId !== character.id || role !== 'turnaround_sheet' || result.stateKey || !result.candidateUrl) return character
+    const role = result.role ?? 'full_body'
+    if (result.targetType !== 'character' || result.targetId !== character.id || role !== 'full_body' || result.stateKey || !result.candidateUrl) return character
 
     const referenceImageUrl = preserveSelection ? character.referenceImageUrl : result.referenceImageUrl
     const assets = (character.referenceAssetRows ?? []).map(asset =>

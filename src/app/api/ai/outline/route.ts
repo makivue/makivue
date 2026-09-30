@@ -1,23 +1,22 @@
-import { after, NextRequest } from 'next/server'
-import { withHiModelsUsageScope } from '@/lib/himodels-usage-context.server'
-import { prisma } from '@/lib/prisma'
-import { apiResponse, apiError } from '@/lib/utils'
-import { parseNovelSetup, stringifyNovelSetup, NovelSetup } from '@/lib/novel'
-import { generateOutlineBatch, fillMissingChapters, repairOutlineSeriesChapters, reviewOutlineSeries, GeneratedOutlineChapter } from '@/services/llm'
-import { genId } from '@/lib/id'
-import { currentUserId } from '@/lib/current-user'
-import { assertProjectOwner } from '@/lib/ownership'
+import type { Prisma } from '@/generated/prisma/client'
 import { parseApiId } from '@/lib/api-id'
-import { appendOutlineHiModelsResponse, assertJobActive, createJob, getActiveProjectJob, updateJob } from '@/lib/outlineJobStore'
+import { buildEpisodeFactSnapshot, CONTENT_CONTRACT_VERSION, validateOutlineContract } from '@/lib/content-contracts'
+import { currentUserId } from '@/lib/current-user'
 import type { HiModelsRawResponse } from '@/lib/himodels-response-diagnostics'
 import { createProviderTokenUsageCollector, type ProviderTokenUsageCall } from '@/lib/himodels-token-usage'
+import { withHiModelsUsageScope } from '@/lib/himodels-usage-context.server'
+import { genId } from '@/lib/id'
+import { NovelSetup, parseNovelSetup, stringifyNovelSetup } from '@/lib/novel'
+import { appendOutlineHiModelsResponse, assertJobActive, createJob, getActiveProjectJob, updateJob } from '@/lib/outlineJobStore'
+import { assertProjectOwner } from '@/lib/ownership'
+import { prisma } from '@/lib/prisma'
+import { apiError, apiResponse } from '@/lib/utils'
 import { assertSufficientPoints, BillingError, chargeLlmUsage, quoteLlmBudgetPoints } from '@/services/billing'
-import { findMissingOutlineChapterNumbers, selectUsableOutlineChapters } from '@/services/outline-validation'
-import { buildEpisodeFactSnapshot, CONTENT_CONTRACT_VERSION, validateOutlineContract } from '@/lib/content-contracts'
-import { outlineRepairEpisodeNumbers, type OutlineSeriesReview } from '@/lib/outline-series-review'
-import type { Prisma } from '@/generated/prisma/client'
-import { withActiveOutlineWrite } from '@/services/outline-persistence-guard'
 import { finishEpisodeDownstreamReset, resetEpisodeDownstreamInTransaction } from '@/services/episode-downstream-reset'
+import { fillMissingChapters, GeneratedOutlineChapter, generateOutlineBatch } from '@/services/llm'
+import { withActiveOutlineWrite } from '@/services/outline-persistence-guard'
+import { findMissingOutlineChapterNumbers, selectUsableOutlineChapters } from '@/services/outline-validation'
+import { after, NextRequest } from 'next/server'
 
 export const maxDuration = 2100
 
@@ -63,45 +62,6 @@ function storedOutlineChapter(
         continuityBridge: text('continuityBridge'),
         requiredEvents: list('requiredEvents')
     }
-}
-
-async function reviewAndRepairCompleteOutline(params: {
-    jobId: string
-    title: string
-    totalEpisodes: number
-    setup: NovelSetup
-    chapters: GeneratedOutlineChapter[]
-    sourceNovel?: string | null
-    onHiModelsResponse: (response: HiModelsRawResponse) => void | Promise<void>
-    onTokenUsage: (call: ProviderTokenUsageCall) => void | Promise<void>
-}) {
-    let chapters = params.chapters.slice().sort((a, b) => a.chapterNumber - b.chapterNumber)
-    let review = await reviewOutlineSeries(params)
-    const repairNumbers = outlineRepairEpisodeNumbers(review, params.totalEpisodes)
-    const repaired: GeneratedOutlineChapter[] = []
-
-    for (let start = 0; start < repairNumbers.length; start += 5) {
-        await assertJobActive(params.jobId)
-        const requested = repairNumbers.slice(start, start + 5)
-        const raw = await repairOutlineSeriesChapters({ ...params, chapters, chapterNumbers: requested, review })
-        const batch = selectUsableOutlineChapters(raw, requested)
-        const missing = findMissingOutlineChapterNumbers(requested, batch)
-        if (missing.length > 0) throw new Error(`全剧统稿返修未返回合格章节：${missing.join('、')}`)
-        const replacements = new Map(batch.map(chapter => [chapter.chapterNumber, chapter]))
-        chapters = chapters.map(chapter => replacements.get(chapter.chapterNumber) ?? chapter)
-        repaired.push(...batch)
-    }
-
-    const contractIssues = validateOutlineContract(
-        chapters,
-        Array.from({ length: params.totalEpisodes }, (_, index) => index + 1)
-    )
-    if (contractIssues.length > 0) throw new Error(`全剧统稿返修未通过结构校验：${contractIssues.map(issue => issue.message).join('；')}`)
-    if (repairNumbers.length > 0) {
-        review = await reviewOutlineSeries({ ...params, chapters })
-        if (review.issues.length > 0) throw new Error(`全剧统稿复核未通过：${review.issues.map(issue => issue.message).join('；')}`)
-    }
-    return { chapters, repaired, review }
 }
 
 export async function GET(req: NextRequest) {
@@ -291,7 +251,6 @@ async function runMissingOutlineJob(
         await assertJobActive(jobId)
         const generatedNumbers = new Set(generated.map(c => c.chapterNumber))
         const remaining = missingChapterNumbers.filter(n => !generatedNumbers.has(n))
-        let seriesQuality: Record<string, number> | undefined
         if (remaining.length === 0) {
             const replacements = new Map(generated.map(chapter => [chapter.chapterNumber, chapter]))
             const completeChapters = project.episodes
@@ -303,27 +262,8 @@ async function runMissingOutlineJob(
                 Array.from({ length: totalEpisodes }, (_, index) => index + 1)
             )
             if (contractIssues.length > 0) throw new Error(`补齐后的大纲合同校验失败：${contractIssues.map(issue => issue.message).join('；')}`)
-            const reviewed = await reviewAndRepairCompleteOutline({
-                jobId,
-                title: project.title,
-                totalEpisodes,
-                setup,
-                chapters: completeChapters,
-                sourceNovel: project.novel,
-                onHiModelsResponse,
-                onTokenUsage
-            })
-            if (reviewed.repaired.length > 0) await persistOutlineChapters(project.id, project, reviewed.repaired, totalEpisodes, jobId)
-            seriesQuality = reviewed.review.scores
-            await persistOutline(
-                project.id,
-                project,
-                reviewed.chapters,
-                totalEpisodes,
-                setup,
-                jobId,
-                tx => chargeLlmUsage({ userId, jobId, task: '续写分集大纲', input: billingInput, output: reviewed.chapters, tx }),
-                reviewed.review
+            await persistOutline(project.id, project, completeChapters, totalEpisodes, setup, jobId, tx =>
+                chargeLlmUsage({ userId, jobId, task: '续写分集大纲', input: billingInput, output: completeChapters, tx })
             )
         } else {
             await withActiveOutlineWrite(project.id, project.operationVersion, jobId, tx => chargeLlmUsage({ userId, jobId, task: '续写分集大纲', input: billingInput, output: generated, tx }))
@@ -332,7 +272,6 @@ async function runMissingOutlineJob(
             phase: 'done',
             result: {
                 count: generated.length,
-                seriesQuality,
                 ...usage.snapshot(),
                 requested: missingChapterNumbers.length,
                 missing: remaining,
@@ -462,34 +401,11 @@ async function runOutlineJob(
         for (let n = 1; n <= totalEpisodes; n++) {
             if (!received.has(n)) missingNumbers.push(n)
         }
-        let seriesQuality: Record<string, number> | undefined
         if (missingNumbers.length === 0) {
             const contractIssues = validateOutlineContract(chapters, allChapterNumbers)
             if (contractIssues.length > 0) throw new Error(`大纲合同校验失败：${contractIssues.map(issue => issue.message).join('；')}`)
             await updateJob(jobId, { phase: 'filling' })
-            const reviewed = await reviewAndRepairCompleteOutline({
-                jobId,
-                title: project.title,
-                totalEpisodes,
-                setup,
-                chapters,
-                sourceNovel: project.novel,
-                onHiModelsResponse,
-                onTokenUsage
-            })
-            chapters.splice(0, chapters.length, ...reviewed.chapters)
-            if (reviewed.repaired.length > 0) await persistOutlineChapters(projectId, project, reviewed.repaired, totalEpisodes, jobId)
-            seriesQuality = reviewed.review.scores
-            await persistOutline(
-                projectId,
-                project,
-                chapters,
-                totalEpisodes,
-                setup,
-                jobId,
-                tx => chargeLlmUsage({ userId, jobId, task: '分集大纲生成', input: billingInput, output: chapters, tx }),
-                reviewed.review
-            )
+            await persistOutline(projectId, project, chapters, totalEpisodes, setup, jobId, tx => chargeLlmUsage({ userId, jobId, task: '分集大纲生成', input: billingInput, output: chapters, tx }))
         } else {
             await withActiveOutlineWrite(projectId, project.operationVersion, jobId, tx => chargeLlmUsage({ userId, jobId, task: '分集大纲生成', input: billingInput, output: chapters, tx }))
         }
@@ -498,13 +414,12 @@ async function runOutlineJob(
             phase: 'done',
             result: {
                 count: chapters.length,
-                seriesQuality,
                 ...usage.snapshot(),
                 requested: totalEpisodes,
                 missing: missingNumbers,
                 warning:
                     missingNumbers.length > 0
-                        ? `要求 ${totalEpisodes} 章，当前仅有 ${chapters.length} 章通过结构与连续性校验。缺失或不合格章节：${missingNumbers.join(', ')}。项目不会进入大纲完成态，请点击“继续生成剩余大纲”。`
+                        ? `要求 ${totalEpisodes} 章，当前仅有 ${chapters.length} 章完成生成。缺失章节：${missingNumbers.join(', ')}。项目不会进入大纲完成态，请点击“继续生成剩余大纲”。`
                         : undefined
             }
         })
@@ -534,7 +449,6 @@ async function persistOutlineChapters(
             const intensity = typeof data.intensity === 'number' && Number.isFinite(data.intensity) ? Math.max(1, Math.min(10, Math.round(data.intensity))) : 5
             const existing = project.episodes.find(e => e.episodeNumber === n)
             if (existing) {
-
                 const current = await tx.episode.findUnique({ where: { id: existing.id } })
                 if (!current || current.deletedAt) throw new Error('章节已重置，请重新生成大纲')
                 const reset = await resetEpisodeDownstreamInTransaction(tx, current, 'outline')
@@ -638,8 +552,7 @@ async function persistOutline(
     totalEpisodes: number,
     setup: NovelSetup,
     jobId: string,
-    settleUsage: (tx: Prisma.TransactionClient) => Promise<unknown>,
-    seriesReview?: OutlineSeriesReview
+    settleUsage: (tx: Prisma.TransactionClient) => Promise<unknown>
 ) {
     const requestedNumbers = Array.from({ length: totalEpisodes }, (_, index) => index + 1)
     const contractIssues = validateOutlineContract(chapters, requestedNumbers)
@@ -707,7 +620,6 @@ async function persistOutline(
                 novelSetup: stringifyNovelSetup({
                     ...setup,
                     episodeStatePlan,
-                    ...(seriesReview ? { outlineQuality: seriesReview } : {}),
                     factLedger: episodeStatePlan.map(state =>
                         buildEpisodeFactSnapshot({ episodeNumber: state.episodeNumber, synopsis: received.get(state.episodeNumber)?.synopsis, statePlan: state })
                     ),

@@ -20,8 +20,8 @@ describe('image inspection failure policy', () => {
         expect(frameGeneration).not.toContain('qualityGateWarning')
     })
 
-    it('keeps strict inspection for character reference assets only', () => {
-        expect(characterGeneration).toContain('const qualityRejected =')
-        expect(characterGeneration).toContain('inspectCharacterReferenceQuality')
+    it('does not inspect character images', () => {
+        expect(characterGeneration).not.toContain('qualityRejected')
+        expect(characterGeneration).not.toContain('inspectCharacterReferenceQuality')
     })
 })

@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { NextRequest } from 'next/server'
 import { BillingError } from '@/lib/billing-error'
+import { NextRequest } from 'next/server'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
     after: vi.fn(),
@@ -36,26 +36,13 @@ vi.mock('@/services/llm', async importOriginal => ({
     correctChapterContent: mocks.correct,
     chatJSON: mocks.chatJSON
 }))
-vi.mock('@/services/narrative-persistence', () => ({ saveReviewedNarrative: mocks.save }))
+vi.mock('@/services/narrative-persistence', () => ({ saveGeneratedNarrative: mocks.save }))
 
 import { POST } from './route'
 
 const content = '阿青交出信封，小雨接过信封。'.repeat(10)
-const review = {
-    issues: [],
-    quality: { causality: 80, characterAgency: 80, escalation: 80, emotionalProgression: 80, dialogueSubtext: 80, hookStrength: 80, visualDramatization: 80, notes: [] },
-    facts: {
-        summary: '交接信封',
-        openingState: '阿青持信封',
-        endingState: '小雨持信封',
-        characterStateChanges: '信封易主',
-        continuityBridge: '首集建立场景',
-        events: [{ description: '小雨获得信封', evidence: '小雨接过信封' }]
-    }
-}
-
 beforeEach(() => {
-    vi.clearAllMocks()
+    vi.resetAllMocks()
     vi.useFakeTimers()
     const episode = { id: 789n, projectId: 999n, episodeNumber: 1, sourceVersion: 1, operationVersion: 0, status: 'outlined', title: '信封', synopsis: '交接信封', chapterContent: null }
     mocks.episode.mockResolvedValue({ ...episode, project: { id: 999n, title: '信封', totalEpisodes: 1, novelStage: 'outlined', novelSetup: JSON.stringify({ targetWordCount: 100 }) } })
@@ -65,7 +52,6 @@ beforeEach(() => {
     mocks.createJob.mockResolvedValue({ id: '456', createdByRequest: true })
     mocks.generate.mockResolvedValue(content)
     mocks.correct.mockResolvedValue(content)
-    mocks.chatJSON.mockResolvedValue(review)
     mocks.save.mockResolvedValue(episode)
 })
 afterEach(() => vi.useRealTimers())
@@ -77,43 +63,22 @@ async function submit() {
 }
 
 describe('chapter generation delivery', () => {
-    it('delivers an English chapter when the review replaces smart quotes with straight quotes', async () => {
+    it('saves the first chapter without review, correction or invented facts', async () => {
         const sentence = '“I can’t leave,” Maya said.'
-        const englishContent = (sentence + '\n').repeat(25)
-        mocks.generate.mockResolvedValue(englishContent)
-        mocks.chatJSON.mockResolvedValue({ ...review, facts: { ...review.facts, events: [{ description: 'Maya speaks', evidence: '"I can\'t leave," Maya said.' }] } })
+        mocks.generate.mockResolvedValue(sentence)
         await (await submit())!()
         expect(mocks.generate).toHaveBeenCalledOnce()
-        expect(mocks.chatJSON).toHaveBeenCalledOnce()
+        expect(mocks.chatJSON).not.toHaveBeenCalled()
         expect(mocks.correct).not.toHaveBeenCalled()
-        expect(mocks.save).toHaveBeenCalledWith(
-            expect.objectContaining({
-                content: englishContent.trim(),
-                facts: expect.objectContaining({ events: [{ description: 'Maya speaks', evidence: sentence }] })
-            })
-        )
+        expect(mocks.save).toHaveBeenCalledWith(expect.objectContaining({ content: sentence, facts: expect.objectContaining({ summary: sentence, events: [] }) }))
         expect(mocks.updateJob).toHaveBeenLastCalledWith('456', expect.objectContaining({ phase: 'done' }))
     })
 
-    it('saves a chapter after recovering malformed review evidence without generating it again', async () => {
-        mocks.chatJSON.mockResolvedValueOnce({ ...review, facts: { ...review.facts, events: [{ description: '交接', evidence: '不存在的原句' }] } })
-        const run = await submit()
-        expect(mocks.generate).not.toHaveBeenCalled()
-        await run!()
-        expect(mocks.generate).toHaveBeenCalledOnce()
-        expect(mocks.chatJSON).toHaveBeenCalledTimes(2)
-        expect(mocks.save).toHaveBeenCalledOnce()
-        expect(mocks.save).toHaveBeenCalledWith(expect.objectContaining({ stage: 'chapter', content, facts: expect.objectContaining({ events: review.facts.events }) }))
-        expect(mocks.updateJob).toHaveBeenLastCalledWith('456', expect.objectContaining({ phase: 'done', result: expect.objectContaining({ chapterContent: content }) }))
-    })
-
-    it('does not save or report success when factual review stays invalid', async () => {
-        mocks.chatJSON.mockResolvedValue({ ...review, facts: { ...review.facts, events: [] } })
+    it('does not save or report success if local persistence rejects the result', async () => {
+        mocks.save.mockRejectedValue(new Error('content changed during generation'))
         await (await submit())!()
         expect(mocks.generate).toHaveBeenCalledOnce()
-        expect(mocks.chatJSON).toHaveBeenCalledTimes(3)
-        expect(mocks.save).not.toHaveBeenCalled()
-        expect(mocks.updateJob).toHaveBeenLastCalledWith('456', expect.objectContaining({ phase: 'error', error: expect.stringContaining('未提取实际事件') }))
+        expect(mocks.updateJob).toHaveBeenLastCalledWith('456', expect.objectContaining({ phase: 'error' }))
     })
 
     it('surfaces insufficient balance immediately instead of retrying it four times', async () => {

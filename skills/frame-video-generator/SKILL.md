@@ -1,42 +1,10 @@
-# Frame And Video Generator
+# Basic Illustration and Video Generation
 
-## Purpose
+- Request an illustration using the saved image/action description and selected character references.
+- Generate one video shot using the user's selected provider. Keep supported native first/last-frame and reference-video inputs.
+- Do not add prompt polishing, quality inspection, cross-shot state locks, model recommendations, comparison runs or multi-segment generation.
+- Keep required provider safety handling, input validation, bounded network recovery and job polling.
+- Batch generation creates one main illustration and one video per shot. Users may request additional illustrations manually.
+- Save outputs locally with unique filenames. Preserve cancellation and stale-write guards before committing results.
 
-Generate first, middle, and last frames for each storyboard, then generate stable image-to-video shots.
-
-## When To Use
-
-- Generating illustration frames.
-- Generating image-to-video.
-- Debugging bad frame quality, repeated images, or video drift.
-
-## Inputs
-
-- Storyboard action and image prompt.
-- Character references.
-- Scene references.
-- Style references.
-- First frame URL and last frame URL.
-- Provider-specific URL requirements.
-
-## Rules
-
-1. Generate first and last frames for every storyboard.
-2. Generate middle frames when a shot needs bridge visuals.
-3. Public URL is mandatory for providers that cannot fetch local files.
-4. Use unique generation filenames to avoid cache collisions.
-5. Video prompts should describe one stable continuous motion.
-6. Avoid fast action, large position changes, camera cuts, text, subtitles, logos, extra limbs, and identity drift.
-7. Retry rate-limited video calls with backoff.
-
-## Project Hooks
-
-- `src/services/ai.ts`: `generateFrame`, `generateVideo`
-- `src/services/storyboard-generation-handler.ts`
-- `src/app/api/episodes/[id]/generate-all/route.ts`
-- `src/services/banana.ts`
-- `src/services/oss.ts`
-
-## References
-
-- Image-to-video workflows using first/last frame constraints.
+Implementation: `src/services/ai.ts`, `src/services/storyboard-generation-handler.ts`, `src/services/local-media.ts`, and the episode generation route.

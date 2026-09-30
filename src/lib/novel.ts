@@ -3,7 +3,6 @@ import { buildRegionalPreviewPrompt, REGIONAL_STORY_PRESETS, regionalVisualDirec
 import { isLiveActionHumanStyle, LEGACY_BEAUTY_PREFIX, LIVE_ACTION_BEAUTY_PREFIX } from './character-reference-policy'
 import { DEFAULT_VISUAL_STYLE_KEY } from './project-metadata'
 import type { EpisodeFactSnapshot } from './content-contracts'
-import type { OutlineSeriesReview } from './outline-series-review'
 import { applyVisualStyleProfile, createVisualStyleProfile, resolveVisualStyleProfile, type VisualStyleProfile } from './visual-style-profile'
 
 export type { VisualStyleProfile } from './visual-style-profile'
@@ -170,7 +169,6 @@ export interface NovelSetup {
     /** 关键提示词和校验契约版本登记。 */
     promptVersions?: Record<string, string>
     /** 最近一次全剧大纲统稿结果，供后续生成与诊断复用。 */
-    outlineQuality?: OutlineSeriesReview
     /** 视觉风格预设 key，见 VISUAL_STYLE_PRESETS */
     visualStyle?: string
     /** 创建项目时冻结的完整视觉语言规范，供分镜、图片和视频全链路复用。 */

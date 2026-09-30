@@ -1,20 +1,19 @@
-import { after, NextRequest } from 'next/server'
-import { withHiModelsUsageScope } from '@/lib/himodels-usage-context.server'
-import { apiError, apiResponse } from '@/lib/utils'
-import { currentUserId } from '@/lib/current-user'
 import { parseApiId } from '@/lib/api-id'
+import { currentUserId } from '@/lib/current-user'
+import { withHiModelsUsageScope } from '@/lib/himodels-usage-context.server'
+import { normalizeImageQuality } from '@/lib/image-quality'
 import { assertProjectOwner } from '@/lib/ownership'
 import { prisma } from '@/lib/prisma'
-import { isImageProvider, resolveCharacterReferenceRuntimePolicy, type CharacterReferenceRole, type ImageProvider } from '@/services/ai'
-import { normalizeImageQuality } from '@/lib/image-quality'
-import { assertSufficientPoints, BillingError, quoteGenerationPoints } from '@/services/billing'
-import { assertNanoBananaCredentialsConfigured, NanoBananaConfigurationError } from '@/services/banana'
-import { buildCharacterTurnaroundPromptVersion } from '@/lib/character-reference-retry'
-import { createJob as createRefImageJob, updateJob as updateRefImageJob } from '@/lib/refImageJobStore'
 import { createJob as createProjectJob, updateJob as updateProjectJob } from '@/lib/projectAiJobStore'
 import { REFERENCE_BATCH_CONCURRENCY } from '@/lib/reference-generation-progress'
+import { createJob as createRefImageJob, updateJob as updateRefImageJob } from '@/lib/refImageJobStore'
+import { apiError, apiResponse } from '@/lib/utils'
+import { isImageProvider, resolveCharacterReferenceRuntimePolicy, type CharacterReferenceRole, type ImageProvider } from '@/services/ai'
+import { assertNanoBananaCredentialsConfigured, NanoBananaConfigurationError } from '@/services/banana'
+import { assertSufficientPoints, BillingError, quoteGenerationPoints } from '@/services/billing'
 import { runCharacterReferenceBatchJob, type CharacterReferenceBatchItem, type CharacterReferenceBatchPayload } from '@/services/character-reference-batch'
 import type { CharacterReferenceJobInput } from '@/services/character-reference-job'
+import { after, NextRequest } from 'next/server'
 
 type Params = { params: Promise<{ id: string }> }
 type RequestedTask = { characterId: string; role: CharacterReferenceRole }
@@ -23,7 +22,7 @@ export const maxDuration = 1800
 const MAX_CHARACTER_REFERENCE_BATCH_SIZE = 50
 
 function characterReferenceRole(value: unknown): CharacterReferenceRole | null {
-    return value === undefined || value === null || value === 'turnaround_sheet' ? 'turnaround_sheet' : null
+    return value === undefined || value === null || value === 'full_body' ? 'full_body' : null
 }
 
 function parseTasks(value: unknown): RequestedTask[] | null {
@@ -74,7 +73,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     try {
         const taskPolicy = await resolveCharacterReferenceRuntimePolicy(projectId, imageProvider)
         const taskProvider = taskPolicy.provider
-        const promptVersion = buildCharacterTurnaroundPromptVersion(taskPolicy.promptVersion)
+        const promptVersion = taskPolicy.promptVersion
         if (taskProvider === 'banana') assertNanoBananaCredentialsConfigured()
         await assertSufficientPoints(userId, quoteGenerationPoints('reference', taskProvider))
 
