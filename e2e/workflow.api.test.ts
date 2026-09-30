@@ -1,8 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { issueSessionToken } from '../src/lib/session-token'
 import { localizedLocales } from '../src/i18n/config'
-
-const authorization = `Bearer ${issueSessionToken({ userId: 1n, email: 'e2e@example.test' })}`
 
 test.describe('short-drama workflow surface', () => {
     test('serves localized pages without a self-redirect after an internal rewrite', async ({ request }) => {
@@ -25,19 +22,22 @@ test.describe('short-drama workflow surface', () => {
         expect(visibleSource).not.toContain('Wan 驱动音频')
     })
 
-    test('rejects retired TTS settings before any database write', async ({ request }) => {
+    test('rejects retired TTS settings before writing local preferences', async ({ request }) => {
         const response = await request.post('/api/settings', {
-            headers: { Authorization: authorization },
             data: { provider: 'tts_provider', modelName: 'openai' }
         })
         expect(response.status()).toBe(400)
         await expect(response.json()).resolves.toMatchObject({ success: false, error: '不支持的配置项' })
     })
 
-    test('keeps image and video generation endpoints behind authentication', async ({ request }) => {
+    test('rejects cross-origin generation requests before calling model suppliers', async ({ request }) => {
         for (const pathname of ['/api/storyboards/1/images/generate', '/api/storyboards/1/video/generate']) {
-            const response = await request.post(pathname, { data: { type: pathname.includes('/images/') ? 'first_frame' : 'video' } })
-            expect(response.status()).toBe(401)
+            const response = await request.post(pathname, {
+                headers: { Origin: 'https://untrusted.test', 'Sec-Fetch-Site': 'cross-site' },
+                data: { type: pathname.includes('/images/') ? 'first_frame' : 'video' }
+            })
+            expect(response.status()).toBe(403)
+            await expect(response.json()).resolves.toMatchObject({ error: 'Cross-origin access is disabled' })
         }
     })
 })

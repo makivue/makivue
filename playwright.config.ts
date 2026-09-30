@@ -1,7 +1,4 @@
 import { defineConfig } from '@playwright/test'
-import { config as loadEnv } from 'dotenv'
-
-loadEnv({ path: '.env.test', override: false, quiet: true })
 
 export default defineConfig({
     testDir: './e2e',
@@ -19,10 +16,12 @@ export default defineConfig({
             testMatch: '**/*.api.test.ts'
         }
     ],
-    webServer: {
-        command: 'npm run dev',
-        url: 'http://127.0.0.1:3000',
-        reuseExistingServer: true,
-        timeout: 120_000
-    }
+    webServer: process.env.PLAYWRIGHT_BASE_URL
+        ? undefined
+        : {
+              command: 'npm run dev',
+              url: 'http://127.0.0.1:3000',
+              reuseExistingServer: true,
+              timeout: 120_000
+          }
 })

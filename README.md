@@ -58,7 +58,7 @@ makivue 将故事创作、素材管理和视频制作放进同一个项目。你
 
 | 软件             | 要求                                             |
 | ---------------- | ------------------------------------------------ |
-| Node.js          | 22 或更新版本                                    |
+| Node.js          | 22.12+（22 LTS）或 24+                           |
 | npm              | 随 Node.js 安装                                  |
 | FFmpeg / ffprobe | 本地安装，并加入 PATH                            |
 | 模型账号         | 需要生成时，配置自己对应供应商的 Token / API Key |
@@ -76,7 +76,14 @@ ffprobe -version
 
 ### 2. 获取代码并安装依赖
 
-从本仓库的 **Code** 菜单复制克隆地址，或选择 **Download ZIP** 下载并解压。在项目根目录执行：
+克隆仓库：
+
+```bash
+git clone https://github.com/makivue/makivue.git
+cd makivue
+```
+
+也可以选择 **Code → Download ZIP**，解压后进入项目目录。然后安装依赖并准备个人配置：
 
 ```bash
 npm ci
@@ -249,6 +256,6 @@ npm test
 
 欢迎提交问题反馈、文档改进与代码贡献。请提供复现步骤、运行环境和脱敏后的错误信息，具体见[贡献指南](CONTRIBUTING.md)。
 
-当前仓库尚未附带 `LICENSE` 文件，具体授权范围以维护者后续公布的许可证为准。模型输出和参考素材的使用还需遵守对应供应商与素材的授权条款。
+本项目采用 [MIT 许可证](LICENSE)，允许使用、修改、分发及商用；分发代码时须保留版权与许可证声明。模型输出和参考素材的使用还需遵守对应供应商与素材的授权条款。
 
 文档组织方式参考 [Huobao Drama](https://github.com/chatfire-AI/huobao-drama)，功能与配置说明按本仓库实现编写。

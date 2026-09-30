@@ -23,9 +23,11 @@ cp .env.example .env
 npm run dev
 ```
 
-需要 Node.js 22+、FFmpeg 和 ffprobe。普通测试使用模拟模型响应，不要求填写真实凭证。
+需要 Node.js 22.12+（22 LTS）或 24+、FFmpeg 和 ffprobe。普通测试使用模拟模型响应，不要求填写真实凭证。
 
 涉及 Next.js 行为的变更，请先阅读当前安装版本的 `node_modules/next/dist/docs/`，并遵循 [AGENTS.md](AGENTS.md)。
+
+依赖升级后运行 `npm audit` 并重新验证构建与测试。`package.json` 中的两项 Prisma 依赖覆盖用于修复其固定旧版本带来的安全告警：配置合并使用 `deepmerge-ts` 8，CLI 的间接依赖使用修复后的 `mysql2` 3。保留它们，直到上游依赖已更新；本项目仍只使用 Prisma 生成类型，不连接数据库。
 
 ## 修改原则
 
@@ -64,4 +66,4 @@ npm run security:secrets-check
 
 ## 授权
 
-当前仓库尚未附带 `LICENSE`。请勿假定某种开源许可证已经生效；授权范围以维护者公布的许可证为准。
+本项目采用 [MIT 许可证](LICENSE)。提交贡献时，请确认你有权提供相关代码或素材，并同意你的贡献按该许可证分发。引入第三方内容时保留其版权与许可证声明。

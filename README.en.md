@@ -52,7 +52,7 @@ The repository includes **278 style previews** and their thumbnails. These examp
 
 ### Requirements
 
-- Node.js 22 or newer and npm.
+- Node.js 22.12+ (22 LTS) or 24+, with npm.
 - FFmpeg and ffprobe available on your PATH; on macOS, use `brew install ffmpeg`.
 - Your own credentials for any model suppliers you intend to use.
 
@@ -67,7 +67,14 @@ ffprobe -version
 
 ### Install and run
 
-Clone this repository using its **Code** menu, or download and extract the ZIP. In the project root:
+Clone the repository:
+
+```bash
+git clone https://github.com/makivue/makivue.git
+cd makivue
+```
+
+Alternatively, use **Code → Download ZIP**, extract it, and open the project directory. Then install dependencies and prepare your own configuration:
 
 ```bash
 npm ci
@@ -208,6 +215,6 @@ Stop the service and back up your data. Run `git pull --ff-only` and `npm ci` in
 
 Issues, documentation improvements, and code contributions are welcome. Include reproduction steps and sanitized error messages; see the [contribution guide](CONTRIBUTING.md).
 
-This repository currently has no `LICENSE` file. Licensing terms remain to be published by the maintainer. Model outputs and reference materials are also subject to the relevant supplier and asset terms.
+This project is licensed under the [MIT License](LICENSE), which permits use, modification, distribution, and commercial use. Retain the copyright and license notice when distributing the code. Model outputs and reference materials are also subject to the relevant supplier and asset terms.
 
 Documentation organization was inspired by [Huobao Drama](https://github.com/chatfire-AI/huobao-drama). Features and setup instructions describe this repository.

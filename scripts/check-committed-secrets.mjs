@@ -33,14 +33,21 @@ function listWorkspaceFiles(directory = '.', relativeDirectory = '') {
 }
 
 let files
-let usingGit = true
-try {
-    files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], { encoding: 'utf8' }).split('\0').filter(Boolean)
-} catch (error) {
-    if (error?.code !== 'ENOENT') throw error
-    usingGit = false
+// ZIP exports have no checkout metadata. Do not accidentally inspect a parent
+// repository if the user extracts an archive inside another Git working tree.
+let usingGit = fs.existsSync('.git')
+if (usingGit) {
+    try {
+        files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], { encoding: 'utf8', stdio: 'pipe' }).split('\0').filter(Boolean)
+    } catch (error) {
+        if (error?.code !== 'ENOENT') throw error
+        usingGit = false
+    }
+}
+if (!usingGit) {
+    if (process.argv.includes('--history')) throw new Error('History scanning requires Git and a Git checkout.')
     files = listWorkspaceFiles()
-    console.warn('Warning: git is unavailable; scanning workspace files with build/runtime directories excluded.')
+    console.warn('Warning: Git metadata or executable unavailable; scanning workspace files with build/runtime directories excluded.')
 }
 
 const forbiddenFiles = [
@@ -168,4 +175,6 @@ if (failures.size) {
     console.error(`Committed secret check failed:\n${[...failures].join('\n')}`)
     process.exit(1)
 }
-console.log(usingGit ? `Committed secret check passed: ${files.length} publishable paths and staged content scanned` : `Secret check passed: ${files.length} workspace paths scanned (git unavailable)`)
+console.log(
+    usingGit ? `Committed secret check passed: ${files.length} publishable paths and staged content scanned` : `Secret check passed: ${files.length} workspace paths scanned (without Git metadata)`
+)

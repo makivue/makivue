@@ -23,6 +23,46 @@ beforeEach(() => {
 afterEach(() => fs.rmSync(root, { recursive: true, force: true }))
 
 describe('public repository secret gate', () => {
+    it('scans ZIP exports without Git metadata while excluding personal runtime data', () => {
+        fs.rmSync(path.join(root, '.git'), { recursive: true })
+        fs.writeFileSync(path.join(root, 'README.md'), '# makivue\n')
+        fs.writeFileSync(path.join(root, '.env'), syntheticToken)
+        fs.mkdirSync(path.join(root, 'data'))
+        fs.writeFileSync(path.join(root, 'data', 'workspace.json'), syntheticToken)
+        const result = check()
+        expect(result.status, result.stderr).toBe(0)
+        expect(result.stdout).toContain('1 workspace paths scanned')
+        fs.writeFileSync(path.join(root, 'source.txt'), syntheticToken)
+        const failed = check()
+        expect(failed.status).toBe(1)
+        expect(failed.stderr).toContain('source.txt: contains API secret')
+        expect(failed.stdout + failed.stderr).not.toContain(syntheticToken)
+    })
+
+    it('scans an extracted archive instead of the surrounding Git repository', () => {
+        fs.writeFileSync(path.join(root, 'parent.txt'), syntheticToken)
+        git('add', 'parent.txt')
+        const archive = path.join(root, 'archive')
+        fs.mkdirSync(archive)
+        fs.writeFileSync(path.join(archive, 'README.md'), '# makivue\n')
+        const result = spawnSync(process.execPath, [scanner], { cwd: archive, encoding: 'utf8' })
+        expect(result.status, result.stderr).toBe(0)
+        expect(result.stdout).toContain('1 workspace paths scanned')
+    })
+
+    it('does not claim to scan history when checkout metadata is missing', () => {
+        fs.rmSync(path.join(root, '.git'), { recursive: true })
+        const result = check('--history')
+        expect(result.status).toBe(1)
+        expect(result.stderr).toContain('History scanning requires Git and a Git checkout')
+    })
+
+    it('does not bypass errors in existing Git metadata', () => {
+        fs.rmSync(path.join(root, '.git'), { recursive: true })
+        fs.writeFileSync(path.join(root, '.git'), 'gitdir: missing-checkout\n')
+        expect(check().status).not.toBe(0)
+    })
+
     it('allows the public brand and the owner-provided website link', () => {
         fs.writeFileSync(path.join(root, 'README.md'), '# makivue\n\n[官网](https://makivue.com?utm_source=github)\n')
         git('add', 'README.md')
