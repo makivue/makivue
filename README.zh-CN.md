@@ -14,6 +14,8 @@
 
 [官网](https://makivue.com?utm_source=github) · [快速开始](#quick-start) · [模型配置](MODEL_CONFIG.md) · [参与贡献](CONTRIBUTING.md)
 
+**加入社区：** [WhatsApp 交流群](https://chat.whatsapp.com/LGcDrlKUrZ3AbJdO8WSPox?mode=gi_t) · [Telegram 交流群](https://t.me/+piA50HGZMaAxNTU1)
+
 [English](README.md) | **简体中文** | [Français](README.fr.md)
 
 </div>

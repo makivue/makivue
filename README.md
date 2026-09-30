@@ -14,6 +14,8 @@ A local AI creation workspace built with Next.js, React, and TypeScript.
 
 [Website](https://makivue.com?utm_source=github) · [Quick start](#quick-start) · [Model configuration](MODEL_CONFIG.md) · [Contributing](CONTRIBUTING.md)
 
+**Join the community:** [WhatsApp](https://chat.whatsapp.com/LGcDrlKUrZ3AbJdO8WSPox?mode=gi_t) · [Telegram](https://t.me/+piA50HGZMaAxNTU1)
+
 **English** | [简体中文](README.zh-CN.md) | [Français](README.fr.md)
 
 </div>

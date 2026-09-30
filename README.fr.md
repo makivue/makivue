@@ -14,6 +14,8 @@ Un atelier local de création de mini-séries, développé avec Next.js, React e
 
 [Site officiel](https://makivue.com?utm_source=github) · [Démarrage rapide](#quick-start) · [Configuration des modèles](MODEL_CONFIG.md) · [Contribuer](CONTRIBUTING.md)
 
+**Rejoignez la communauté :** [WhatsApp](https://chat.whatsapp.com/LGcDrlKUrZ3AbJdO8WSPox?mode=gi_t) · [Telegram](https://t.me/+piA50HGZMaAxNTU1)
+
 [English](README.md) | [简体中文](README.zh-CN.md) | **Français**
 
 </div>
