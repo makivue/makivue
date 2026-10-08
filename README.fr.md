@@ -1,3 +1,9 @@
+**Choose your language / 选择文档语言 / Choisir la langue**
+
+| English | 简体中文 | Français |
+| :---: | :---: | :---: |
+| **[Read the English documentation](README.md)** | **[阅读完整中文文档](README.zh-CN.md)** | **Documentation française** |
+
 <div align="center">
 
 <a href="https://makivue.com?utm_source=github">
@@ -15,8 +21,6 @@ Un atelier local de création de mini-séries, développé avec Next.js, React e
 [Site officiel](https://makivue.com?utm_source=github) · [Démarrage rapide](#quick-start) · [Configuration des modèles](MODEL_CONFIG.md) · [Contribuer](CONTRIBUTING.md)
 
 **Rejoignez la communauté :** [WhatsApp](https://chat.whatsapp.com/LGcDrlKUrZ3AbJdO8WSPox?mode=gi_t) · [Telegram](https://t.me/+piA50HGZMaAxNTU1)
-
-[English](README.md) | [简体中文](README.zh-CN.md) | **Français**
 
 </div>
 
@@ -261,3 +265,7 @@ Les signalements de problèmes, les améliorations de documentation et les contr
 Le projet est distribué sous [licence MIT](LICENSE), qui autorise l’utilisation, la modification, la distribution et l’usage commercial. Conservez la mention de copyright et la licence lors de la distribution du code. Les résultats des modèles et les ressources de référence restent soumis aux conditions des fournisseurs et des ayants droit concernés.
 
 L’organisation de la documentation s’inspire de [Huobao Drama](https://github.com/chatfire-AI/huobao-drama). Les fonctionnalités et les instructions décrivent les possibilités de ce dépôt.
+
+---
+
+**Language / 语言 / Langue :** [English — Read the English documentation](README.md) · [简体中文 — 阅读完整中文文档](README.zh-CN.md) · **Français**

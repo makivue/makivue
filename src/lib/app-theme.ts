@@ -1,4 +1,8 @@
 export const APP_THEMES = [
+    { id: 'quantum', name: '量子冰蓝', hint: '深空黑 · 冰蓝能量', colors: ['#68e8ff', '#a6bdff'], tone: 'dark' },
+    { id: 'nebula', name: '星云霓紫', hint: '午夜黑 · 紫粉辉光', colors: ['#c4a5ff', '#ff9bdd'], tone: 'dark' },
+    { id: 'obsidian', name: '黑曜鎏金', hint: '曜石黑 · 香槟金属', colors: ['#f4d58b', '#ddb563'], tone: 'dark' },
+    { id: 'matrix', name: '翡翠矩阵', hint: '墨绿黑 · 翡翠流光', colors: ['#73efbd', '#59dbdf'], tone: 'dark' },
     { id: 'aurora', name: '极光蓝', hint: '冷静科技', colors: ['#61e8ff', '#6378ff'], tone: 'dark' },
     { id: 'graphite', name: '石墨冰蓝', hint: '深灰底 · 冰蓝点缀', colors: ['#191c22', '#7dd3fc'], tone: 'dark' },
     { id: 'amber', name: '曜石琥珀', hint: '暖黑底 · 鲜明橙光', colors: ['#1c1a17', '#ffcd70'], tone: 'dark' },

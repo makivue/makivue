@@ -1,3 +1,9 @@
+**Choose your language / 选择文档语言 / Choisir la langue**
+
+| English | 简体中文 | Français |
+| :---: | :---: | :---: |
+| **[Read the English documentation](README.md)** | **完整中文文档** | **[Lire la documentation française](README.fr.md)** |
+
 <div align="center">
 
 <a href="https://makivue.com?utm_source=github">
@@ -15,8 +21,6 @@
 [官网](https://makivue.com?utm_source=github) · [快速开始](#quick-start) · [模型配置](MODEL_CONFIG.md) · [参与贡献](CONTRIBUTING.md)
 
 **加入社区：** [WhatsApp 交流群](https://chat.whatsapp.com/LGcDrlKUrZ3AbJdO8WSPox?mode=gi_t) · [Telegram 交流群](https://t.me/+piA50HGZMaAxNTU1)
-
-[English](README.md) | **简体中文** | [Français](README.fr.md)
 
 </div>
 
@@ -288,3 +292,7 @@ npm test
 本项目采用 [MIT 许可证](LICENSE)，允许使用、修改、分发及商用；分发代码时须保留版权与许可证声明。模型输出和参考素材的使用还需遵守对应供应商与素材的授权条款。
 
 文档组织方式参考 [Huobao Drama](https://github.com/chatfire-AI/huobao-drama)，功能与配置说明按本仓库实现编写。
+
+---
+
+**Language / 语言 / Langue :** [English — Read the English documentation](README.md) · **简体中文** · [Français — Lire la documentation française](README.fr.md)

@@ -158,12 +158,22 @@ function WorkGrid({ query, genre }: { query: string; genre: string }) {
                                     aria-label={`${t('立即观看')} ${work.seoTitle || work.title}`}>
                                     <div className="work-poster">
                                         {work.coverUrl ? (
-                                            <OptimizedMediaImage
-                                                src={work.coverUrl}
-                                                alt={work.coverAlt || work.title}
-                                                fill
-                                                sizes="(min-width: 1400px) 16vw, (min-width: 1024px) 20vw, (min-width: 640px) 25vw, 50vw"
-                                            />
+                                            <>
+                                                <OptimizedMediaImage
+                                                    src={work.coverUrl}
+                                                    alt=""
+                                                    aria-hidden
+                                                    fill
+                                                    sizes="(min-width: 1400px) 16vw, (min-width: 1024px) 20vw, (min-width: 640px) 25vw, 50vw"
+                                                    className="work-poster-backdrop"
+                                                />
+                                                <OptimizedMediaImage
+                                                    src={work.coverUrl}
+                                                    alt={work.coverAlt || work.title}
+                                                    fill
+                                                    sizes="(min-width: 1400px) 16vw, (min-width: 1024px) 20vw, (min-width: 640px) 25vw, 50vw"
+                                                />
+                                            </>
                                         ) : (
                                             <Film size={36} />
                                         )}

@@ -44,12 +44,22 @@ function HomeWorkCard({ work }: { work: PublicWork }) {
             onBlur={stopPreview}>
             <div className={styles.poster}>
                 {work.coverUrl ? (
-                    <OptimizedMediaImage
-                        src={work.coverUrl}
-                        alt={work.coverAlt || title}
-                        fill
-                        sizes="(min-width: 1280px) 340px, (min-width: 1024px) 25vw, (min-width: 640px) 34vw, 50vw"
-                    />
+                    <>
+                        <OptimizedMediaImage
+                            src={work.coverUrl}
+                            alt=""
+                            aria-hidden
+                            fill
+                            sizes="(min-width: 1408px) 214px, (min-width: 1024px) calc((100vw - 128px) / 6), (min-width: 768px) calc((100vw - 96px) / 4), (min-width: 480px) calc((100vw - 72px) / 3), calc((100vw - 44px) / 2)"
+                            className={styles.backdrop}
+                        />
+                        <OptimizedMediaImage
+                            src={work.coverUrl}
+                            alt={work.coverAlt || title}
+                            fill
+                            sizes="(min-width: 1408px) 214px, (min-width: 1024px) calc((100vw - 128px) / 6), (min-width: 768px) calc((100vw - 96px) / 4), (min-width: 480px) calc((100vw - 72px) / 3), calc((100vw - 44px) / 2)"
+                        />
+                    </>
                 ) : (
                     <Film
                         size={42}

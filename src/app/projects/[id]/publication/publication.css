@@ -245,7 +245,7 @@
     place-items: center;
 }
 .publication-cover img {
-    object-fit: cover;
+    object-fit: contain;
 }
 .publication-upload {
     position: relative;
@@ -326,7 +326,17 @@
     border-color: var(--app-accent);
 }
 .publication-cover-options button img {
+    object-fit: contain;
+}
+.publication-cover .publication-cover-backdrop,
+.publication-cover-options .publication-cover-backdrop {
     object-fit: cover;
+    filter: blur(18px) brightness(0.6);
+    transform: scale(1.15);
+    pointer-events: none;
+}
+.publication-cover-options .publication-cover-backdrop {
+    filter: blur(8px) brightness(0.6);
 }
 .publication-cover-options button > span {
     position: absolute;

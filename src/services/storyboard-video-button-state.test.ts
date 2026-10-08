@@ -7,7 +7,7 @@ describe('storyboard video button state', () => {
 
     it('immediately replaces a stale red failure state while a retry is being submitted', () => {
         expect(episodePage).toContain("const videoGenerating = submittingVideo || batchVideoRunning || (sb.videoStatus === 'generating' && !videoQueued)")
-        expect(episodePage).toMatch(/className={`\$\{headerIconButtonBase\} \$\{[\s\S]*?videoGenerating[\s\S]*?border-purple-500\/50/)
+        expect(episodePage).toContain("${videoGenerating ? 'is-running' : videoQueued ? 'is-queued' : headerButtonTone.video}")
         expect(episodePage).toContain('<RefreshCw className="h-4 w-4 animate-spin" />')
         expect(episodePage).toContain('aria-label={videoHeaderActionLabel}')
         expect(episodePage).not.toContain("videoGenerating ? t('生成中') : videoQueued ? t('排队') : t('视频')")

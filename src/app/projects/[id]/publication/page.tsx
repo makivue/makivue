@@ -460,12 +460,22 @@ function PublicationEditor({ initial }: { initial: Publication }) {
                     </div>
                     <div className="publication-cover">
                         {project.coverUrl ? (
-                            <OptimizedMediaImage
-                                src={project.coverUrl}
-                                alt={form.coverAlt || project.title}
-                                fill
-                                sizes="300px"
-                            />
+                            <>
+                                <OptimizedMediaImage
+                                    src={project.coverUrl}
+                                    alt=""
+                                    aria-hidden
+                                    fill
+                                    sizes="300px"
+                                    className="publication-cover-backdrop"
+                                />
+                                <OptimizedMediaImage
+                                    src={project.coverUrl}
+                                    alt={form.coverAlt || project.title}
+                                    fill
+                                    sizes="300px"
+                                />
+                            </>
                         ) : (
                             <ImagePlus size={32} />
                         )}
@@ -502,12 +512,22 @@ function PublicationEditor({ initial }: { initial: Publication }) {
                                         title={t(candidate.label)}
                                         disabled={isBusy}
                                         onClick={() => void selectMedia('cover', candidate.url)}>
-                                        <OptimizedMediaImage
-                                            src={candidate.url}
-                                            alt={t(candidate.label)}
-                                            fill
-                                            sizes="84px"
-                                        />
+                                        <>
+                                            <OptimizedMediaImage
+                                                src={candidate.url}
+                                                alt=""
+                                                aria-hidden
+                                                fill
+                                                sizes="96px"
+                                                className="publication-cover-backdrop"
+                                            />
+                                            <OptimizedMediaImage
+                                                src={candidate.url}
+                                                alt={t(candidate.label)}
+                                                fill
+                                                sizes="96px"
+                                            />
+                                        </>
                                         {project.coverUrl === candidate.url && (
                                             <span>
                                                 <Check size={12} />

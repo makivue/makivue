@@ -14,7 +14,7 @@
 }
 .headerContent {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-columns: max-content minmax(0, 1fr) max-content;
     align-items: center;
     gap: 1rem;
 }
@@ -22,6 +22,12 @@
     order: 0;
     grid-column: auto;
     margin: 0;
+    min-width: 0;
+    flex-wrap: wrap;
+}
+.headerContent > nav a {
+    flex: 0 0 auto;
+    white-space: nowrap;
 }
 .brand {
     display: flex;
@@ -263,26 +269,51 @@
         gap: 0.5rem;
     }
 }
-@media (max-width: 900px) {
+@media (max-width: 1535px) {
     .headerContent {
         grid-template-columns: minmax(0, 1fr) auto;
-        gap: 0.25rem 0.75rem;
+        gap: 0.5rem 0.75rem;
     }
     .headerContent > nav {
         grid-column: 1/-1;
         order: 3;
-        margin-top: 0.25rem;
     }
     .account {
         grid-column: 2;
     }
 }
+@media (max-width: 767px) {
+    .header :global(.site-header-shell) {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+    }
+    .headerContent {
+        display: contents;
+    }
+    .account {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        max-width: 100%;
+    }
+    .headerContent > nav {
+        grid-column: 1 / -1;
+        grid-row: 3;
+    }
+}
 @media (max-width: 600px) {
+    .headerContent > nav {
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+    }
     .headerContent > nav a {
+        flex: 1 0 auto;
         gap: 0;
         padding-inline: 0.5rem;
         font-size: 0.75rem;
-        white-space: nowrap;
     }
     .headerContent > nav svg {
         display: none;

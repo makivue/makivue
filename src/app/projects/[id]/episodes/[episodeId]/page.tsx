@@ -87,6 +87,8 @@ import {
     RefreshCw,
     Settings,
     Sparkles,
+    ImagePlus,
+    Clapperboard,
     StopCircle,
     Trash2,
     Upload,
@@ -2597,7 +2599,8 @@ function EpisodeWorkspace({ projectId, episodeId }: { projectId: string; episode
                                     progressNavCollapsed ? 'justify-center px-0 py-2' : 'px-3 py-2.5 gap-2'
                                 } ${isActive ? 'bg-purple-500/20 border border-purple-500/40' : 'border border-transparent hover:bg-gray-800/60'}`}>
                                 <span
-                                    className={`w-7 h-7 rounded flex items-center justify-center text-[11px] font-bold flex-shrink-0 ${
+                                    data-highlighted={isEpStoryboarding || hasSb || isScripted || isActive}
+                                    className={`studio-episode-marker relative w-7 h-7 rounded flex items-center justify-center text-[11px] font-bold flex-shrink-0 ${
                                         isEpStoryboarding
                                             ? 'bg-pink-900/40 text-pink-300'
                                             : isStoryboarded || hasSb
@@ -2619,17 +2622,17 @@ function EpisodeWorkspace({ projectId, episodeId }: { projectId: string; episode
                                         </div>
                                         <div className="text-[11px] text-gray-500 flex items-center gap-1.5 mt-0.5">
                                             {isEpStoryboarding ? (
-                                                <span className="text-pink-300">AI 分镜中</span>
+                                                <span className="studio-episode-accent text-pink-300">AI 分镜中</span>
                                             ) : isBatchQueue ? (
                                                 <span className="text-gray-400">即将开始</span>
                                             ) : hasSb ? (
                                                 <>
-                                                    <Layers className="w-3 h-3 text-pink-400" />
+                                                    <Layers className="studio-episode-accent w-3 h-3 text-pink-400" />
                                                     <span>{ep._count.storyboards} 个分镜</span>
                                                 </>
                                             ) : isScripted ? (
                                                 <>
-                                                    <CheckCircle className="w-3 h-3 text-blue-400" />
+                                                    <CheckCircle className="studio-episode-accent w-3 h-3 text-blue-400" />
                                                     <span>已拆本 · 未分镜</span>
                                                 </>
                                             ) : (
@@ -3500,19 +3503,8 @@ function ShotCard({
     const headerButtonBase = 'studio-shot-action whitespace-nowrap disabled:cursor-not-allowed'
     const headerIconButtonBase = `${headerButtonBase} is-icon-only`
     const headerButtonTone = {
-        frame:
-            activeGenerationStatus === 'pending'
-                ? 'border-amber-500/50 bg-amber-500/15 text-amber-200'
-                : batchFrameFailed || (sb.frameStatus === 'failed' && !frameReady)
-                  ? 'border-red-500/40 bg-red-500/15 text-red-100 hover:bg-red-500/35 hover:border-red-500/60'
-                  : frameSucceeded
-                    ? 'border-green-500/40 bg-green-500/15 text-green-100 hover:bg-green-500/25 hover:border-green-500/60'
-                    : 'border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:border-purple-500/80 hover:text-white hover:shadow-[0_0_12px_rgba(168,85,247,0.3)]',
-        video: videoFailure.failed
-            ? 'border-red-500/40 bg-red-500/15 text-red-100 hover:bg-red-500/35 hover:border-red-500/60'
-            : sb.videoUrl || activeGenerationStatus === 'video_done'
-              ? 'border-blue-500/40 bg-blue-500/15 text-blue-100 hover:bg-blue-500/35 hover:border-blue-500/60'
-              : 'border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:border-blue-500/80 hover:text-white hover:shadow-[0_0_12px_rgba(59,130,246,0.3)]',
+        frame: activeGenerationStatus === 'pending' ? 'is-queued' : batchFrameFailed || (sb.frameStatus === 'failed' && !frameReady) ? 'is-failed' : frameSucceeded ? 'is-complete' : '',
+        video: videoFailure.failed ? 'is-failed' : sb.videoUrl || activeGenerationStatus === 'video_done' ? 'is-complete' : '',
         compose:
             sb.composeStatus === 'failed' && !sb.composedVideoUrl
                 ? 'border-red-500/40 bg-red-500/15 text-red-100 hover:bg-red-500/35 hover:border-red-500/60'
@@ -3712,7 +3704,7 @@ function ShotCard({
                             <span
                                 data-i18n-skip
                                 title={sb.dialogue}
-                                className="min-w-0 truncate text-sm text-slate-200">
+                                className="studio-shot-summary min-w-0 truncate text-sm text-slate-200">
                                 {sb.dialogue}
                             </span>
                         )}
@@ -3720,7 +3712,7 @@ function ShotCard({
                             <span
                                 data-i18n-skip
                                 title={extractStoryboardBoundaryStates(sb.actionDesc).endingState ?? sb.actionDesc}
-                                className="min-w-0 truncate text-sm text-slate-200">
+                                className="studio-shot-summary min-w-0 truncate text-sm text-slate-200">
                                 {extractStoryboardBoundaryStates(sb.actionDesc).endingState ?? sb.actionDesc}
                             </span>
                         )}
@@ -3736,21 +3728,13 @@ function ShotCard({
                         disabled={(submittingFrame && !frameGenerating) || (batchBusy && !batchFrameRunning)}
                         aria-label={frameHeaderActionLabel}
                         title={frameHeaderActionLabel}
-                        className={`${headerIconButtonBase} ${
-                            frameGenerating
-                                ? 'border-yellow-500/50 bg-yellow-500/15 text-yellow-200 hover:bg-yellow-500/30'
-                                : submittingFrame
-                                  ? 'border-blue-500/50 bg-blue-500/15 text-blue-200'
-                                  : headerButtonTone.frame
-                        } ${frameGenerating || submittingFrame || activeGenerationStatus === 'pending' || frameSucceeded ? 'is-status' : ''}`}>
+                        className={`${headerIconButtonBase} ${frameGenerating || submittingFrame ? 'is-running' : headerButtonTone.frame} ${frameGenerating || submittingFrame || activeGenerationStatus === 'pending' || frameSucceeded ? 'is-status' : ''}`}>
                         {frameGenerating || submittingFrame ? (
                             <RefreshCw className="h-4 w-4 animate-spin" />
                         ) : activeGenerationStatus === 'pending' ? (
                             <RefreshCw className="h-4 w-4" />
-                        ) : frameSucceeded ? (
-                            <Check className="h-4 w-4" />
                         ) : (
-                            <ImageIcon className="h-4 w-4" />
+                            <ImagePlus className="h-4 w-4" />
                         )}
                     </button>
                     <button
@@ -3760,10 +3744,8 @@ function ShotCard({
                         disabled={batchBusy || !canGenerateVideo || sb.videoStatus === 'generating' || submittingVideo}
                         aria-label={videoHeaderActionLabel}
                         title={videoHeaderActionLabel}
-                        className={`${headerIconButtonBase} ${
-                            videoGenerating ? 'border-purple-500/50 bg-purple-500/15 text-purple-100' : videoQueued ? 'border-amber-500/50 bg-amber-500/15 text-amber-200' : headerButtonTone.video
-                        } ${videoGenerating || videoQueued ? 'is-status' : ''}`}>
-                        {videoGenerating ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Video className="h-4 w-4" />}
+                        className={`${headerIconButtonBase} ${videoGenerating ? 'is-running' : videoQueued ? 'is-queued' : headerButtonTone.video} ${videoGenerating || videoQueued ? 'is-status' : ''}`}>
+                        {videoGenerating ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Clapperboard className="h-4 w-4" />}
                     </button>
                     {!selectedProviderUsesEmbeddedAudio && (
                         <button
@@ -3787,8 +3769,18 @@ function ShotCard({
                         event.stopPropagation()
                         onToggle()
                     }}
-                    className="studio-shot-toggle flex shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-400 hover:bg-white/5 hover:text-gray-200">
-                    {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    className="studio-shot-toggle flex shrink-0 items-center justify-center text-gray-600 transition-colors hover:text-gray-400">
+                    {expanded ? (
+                        <ChevronUp
+                            className="h-3 w-3"
+                            strokeWidth={1.5}
+                        />
+                    ) : (
+                        <ChevronDown
+                            className="h-3 w-3"
+                            strokeWidth={1.5}
+                        />
+                    )}
                 </button>
             </div>
 
@@ -4251,19 +4243,21 @@ function ShotCard({
                                     onClick={() => void onDelete()}
                                     disabled={deleting}
                                     aria-busy={deleting}
-                                    className="inline-flex h-7 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-md bg-red-600 px-2 text-xs font-medium text-white [--app-action-danger:#e52222] transition-colors hover:bg-red-500 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-red-400 disabled:cursor-wait disabled:opacity-50">
+                                    aria-label={deleting ? t('正在删除…') : t('删除分镜')}
+                                    aria-haspopup="dialog"
+                                    title={deleting ? t('正在删除…') : t('删除分镜')}
+                                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--app-text-muted)] transition-colors hover:bg-red-500/10 hover:text-[var(--home-error)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--app-accent)] disabled:cursor-wait disabled:opacity-50">
                                     {deleting ? (
                                         <RefreshCw
                                             aria-hidden="true"
-                                            className="h-3 w-3 animate-spin"
+                                            className="h-4 w-4 animate-spin"
                                         />
                                     ) : (
                                         <Trash2
                                             aria-hidden="true"
-                                            className="h-3 w-3"
+                                            className="h-4 w-4"
                                         />
                                     )}
-                                    <span>{deleting ? t('正在删除…') : t('删除分镜')}</span>
                                 </button>
                             </div>
                             <div className="flex gap-2 flex-wrap items-start">
@@ -4524,7 +4518,7 @@ function ShotCard({
                                         )
                                     })}
                                 </div>
-                                <div className="flex gap-2">
+                                <div className="flex flex-wrap items-stretch gap-2">
                                     {SHOW_SHORT_DRAMA_VIDEO_MODEL_CONTROLS && (
                                         <CustomSelect
                                             ariaLabel="视频模型"
@@ -4544,7 +4538,7 @@ function ShotCard({
                                                 }
                                             }}
                                             disabled={sb.videoStatus === 'generating'}
-                                            className="w-56 flex-shrink-0"
+                                            className="min-w-0 flex-1 basis-48"
                                             buttonClassName="bg-gray-900 py-2 text-[11px]"
                                             options={[
                                                 { value: 'seedance25', label: SEEDANCE_25_LABEL },
@@ -4558,18 +4552,17 @@ function ShotCard({
                                         />
                                     )}
                                     {sb.videoStatus === 'generating' ? (
-                                        <div className="flex flex-1 gap-2">
+                                        <div className="flex min-w-0 flex-1 basis-56 gap-2">
                                             <button
                                                 disabled
-                                                className={`flex flex-1 items-center justify-center gap-1.5 py-2 text-white text-xs rounded opacity-80 ${
-                                                    videoQueued ? 'bg-amber-600/70' : 'bg-blue-600/70'
-                                                }`}>
+                                                aria-busy="true"
+                                                className="studio-shot-primary flex-1">
                                                 <RefreshCw className={`w-3.5 h-3.5 ${videoQueued ? '' : 'animate-spin'}`} />
                                                 {videoQueued ? '排队中...' : '生成中...'}
                                             </button>
                                             <button
                                                 onClick={() => onCancelGenerate('video')}
-                                                className="flex flex-1 items-center justify-center gap-1.5 py-2 bg-red-600/80 hover:bg-red-600 text-white text-xs rounded transition-colors">
+                                                className="flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded px-3 py-2 text-xs text-white transition-colors bg-red-600/80 hover:bg-red-600">
                                                 <XCircle className="w-3.5 h-3.5" />
                                                 停止生成
                                             </button>
@@ -4578,7 +4571,8 @@ function ShotCard({
                                         <button
                                             onClick={() => void generateVideo()}
                                             disabled={!canGenerateVideo || submittingVideo}
-                                            className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs rounded transition-colors"
+                                            aria-busy={submittingVideo}
+                                            className="studio-shot-primary flex-1 basis-40"
                                             title={submittingVideo ? '正在准备中，请稍候' : videoBlockedReason}>
                                             {submittingVideo ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Video className="w-3.5 h-3.5" />}
                                             {submittingVideo ? '准备中...' : sb.videoUrl ? '重新生成视频' : '生成视频'}
@@ -4613,19 +4607,20 @@ function ShotCard({
                                                     className="w-full rounded border border-gray-800 bg-black/40 p-2 font-mono text-[10px] leading-relaxed text-gray-300 focus:border-blue-500 focus:outline-none"
                                                 />
 
-                                                <div className="mt-2 flex items-center gap-2">
+                                                <div className="mt-3 flex flex-wrap items-center gap-2">
                                                     <button
                                                         type="button"
                                                         onClick={saveVideoPrompt}
                                                         disabled={savingVideoPrompt || !videoPromptDirty}
-                                                        className="rounded bg-blue-600 px-2.5 py-1.5 text-[11px] text-white transition-colors hover:bg-blue-700 disabled:opacity-40">
+                                                        aria-busy={savingVideoPrompt}
+                                                        className="studio-shot-primary">
                                                         {savingVideoPrompt ? '保存中...' : '保存'}
                                                     </button>
                                                     <button
                                                         type="button"
                                                         onClick={() => setVideoPromptDraft('')}
                                                         disabled={savingVideoPrompt || !videoPromptDraft}
-                                                        className="rounded border border-gray-700 px-2.5 py-1.5 text-[11px] text-gray-300 transition-colors hover:border-gray-500 hover:text-white disabled:opacity-40">
+                                                        className="studio-prompt-action">
                                                         清空
                                                     </button>
                                                 </div>

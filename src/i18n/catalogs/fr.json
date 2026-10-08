@@ -1,4 +1,12 @@
 {
+    "量子冰蓝": "Glace quantique",
+    "深空黑 · 冰蓝能量": "Noir spatial · Bleu électrique",
+    "星云霓紫": "Violet nébuleux",
+    "午夜黑 · 紫粉辉光": "Noir de minuit · Halo violet",
+    "黑曜鎏金": "Or obsidienne",
+    "曜石黑 · 香槟金属": "Noir obsidienne · Or champagne",
+    "翡翠矩阵": "Matrice émeraude",
+    "墨绿黑 · 翡翠流光": "Noir forêt · Lueur émeraude",
     "请先生成所有集的合成视频": "Générez d’abord la vidéo assemblée de chaque épisode",
     "还有 {count} 集未生成合成视频，全部完成后即可发布。": "Il reste {count} épisodes sans vidéo assemblée. Terminez-les tous pour publier.",
     "发布后，所有人都可以在剧集页查看并播放全部分集。": "Après publication, chacun pourra regarder tous les épisodes sur la page de la série.",

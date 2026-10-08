@@ -1,4 +1,12 @@
 {
+    "量子冰蓝": "Quantum Ice",
+    "深空黑 · 冰蓝能量": "Space black · Electric ice",
+    "星云霓紫": "Nebula Violet",
+    "午夜黑 · 紫粉辉光": "Midnight black · Violet glow",
+    "黑曜鎏金": "Obsidian Gold",
+    "曜石黑 · 香槟金属": "Obsidian black · Champagne gold",
+    "翡翠矩阵": "Emerald Matrix",
+    "墨绿黑 · 翡翠流光": "Forest black · Emerald light",
     "请先生成所有集的合成视频": "Generate merged videos for every episode first",
     "还有 {count} 集未生成合成视频，全部完成后即可发布。": "{count} episodes still need merged videos. Finish them all to publish.",
     "发布后，所有人都可以在剧集页查看并播放全部分集。": "Once published, anyone can view and play all episodes on the series page.",

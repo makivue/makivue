@@ -61,8 +61,8 @@
 
 .grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 2.5rem 1.5rem;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 1.75rem 1rem;
 }
 
 .card {
@@ -87,8 +87,14 @@
 }
 
 .poster > img {
+    object-fit: contain;
+}
+
+.poster > .backdrop {
     object-fit: cover;
-    transition: transform 240ms ease;
+    filter: blur(18px) brightness(0.6);
+    transform: scale(1.15);
+    pointer-events: none;
 }
 
 .preview {
@@ -96,8 +102,7 @@
     inset: 0;
     width: 100%;
     height: 100%;
-    object-fit: cover;
-    background: #000;
+    object-fit: contain;
 }
 
 .status {
@@ -127,11 +132,6 @@
         opacity 180ms ease,
         transform 180ms ease;
     backdrop-filter: blur(8px);
-}
-
-.card:hover .poster > img,
-.card:focus-visible .poster > img {
-    transform: scale(1.035);
 }
 
 .card:hover {
@@ -229,8 +229,7 @@
 
 @media (max-width: 1023px) {
     .grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 1.75rem 1rem;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 }
 
@@ -240,7 +239,7 @@
     }
 
     .grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 1.25rem 0.75rem;
     }
 }
@@ -260,7 +259,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .poster > img,
     .play,
     .card {
         transition: none;

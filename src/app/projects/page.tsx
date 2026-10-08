@@ -402,12 +402,23 @@ export default function ProjectsPage() {
                                         {published && (
                                             <div className="studio-library-project-cover">
                                                 {p.coverUrl ? (
-                                                    <OptimizedMediaImage
-                                                        src={p.coverUrl}
-                                                        alt={p.title}
-                                                        fill
-                                                        sizes="(min-width: 640px) 132px, 112px"
-                                                    />
+                                                    <>
+                                                        <OptimizedMediaImage
+                                                            src={p.coverUrl}
+                                                            alt=""
+                                                            aria-hidden
+                                                            fill
+                                                            sizes="(min-width: 1280px) 160px, (min-width: 980px) 14vw, (min-width: 664px) 20vw, 40vw"
+                                                            className="studio-library-project-cover-backdrop"
+                                                        />
+                                                        <OptimizedMediaImage
+                                                            src={p.coverUrl}
+                                                            alt={p.title}
+                                                            fill
+                                                            sizes="(min-width: 1280px) 160px, (min-width: 980px) 14vw, (min-width: 664px) 20vw, 40vw"
+                                                            className="studio-library-project-cover-image"
+                                                        />
+                                                    </>
                                                 ) : (
                                                     <Clapperboard
                                                         className="h-8 w-8"

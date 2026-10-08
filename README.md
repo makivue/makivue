@@ -1,3 +1,9 @@
+**Choose your language / 选择文档语言 / Choisir la langue**
+
+| English | 简体中文 | Français |
+| :---: | :---: | :---: |
+| **English documentation** | **[阅读完整中文文档](README.zh-CN.md)** | **[Lire la documentation française](README.fr.md)** |
+
 <div align="center">
 
 <a href="https://makivue.com?utm_source=github">
@@ -15,8 +21,6 @@ A local AI creation workspace built with Next.js, React, and TypeScript.
 [Website](https://makivue.com?utm_source=github) · [Quick start](#quick-start) · [Model configuration](MODEL_CONFIG.md) · [Contributing](CONTRIBUTING.md)
 
 **Join the community:** [WhatsApp](https://chat.whatsapp.com/LGcDrlKUrZ3AbJdO8WSPox?mode=gi_t) · [Telegram](https://t.me/+piA50HGZMaAxNTU1)
-
-**English** | [简体中文](README.zh-CN.md) | [Français](README.fr.md)
 
 </div>
 
@@ -247,3 +251,7 @@ Issues, documentation improvements, and code contributions are welcome. Include 
 This project is licensed under the [MIT License](LICENSE), which permits use, modification, distribution, and commercial use. Retain the copyright and license notice when distributing the code. Model outputs and reference materials are also subject to the relevant supplier and asset terms.
 
 Documentation organization was inspired by [Huobao Drama](https://github.com/chatfire-AI/huobao-drama). Features and setup instructions describe this repository.
+
+---
+
+**Language / 语言 / Langue :** **English** · [简体中文 — 阅读完整中文文档](README.zh-CN.md) · [Français — Lire la documentation française](README.fr.md)

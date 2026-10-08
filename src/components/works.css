@@ -264,8 +264,13 @@
     color: var(--app-text-muted);
 }
 .work-poster > img {
+    object-fit: contain;
+}
+.work-poster > .work-poster-backdrop {
     object-fit: cover;
-    transition: transform 240ms;
+    filter: blur(18px) brightness(0.6);
+    transform: scale(1.15);
+    pointer-events: none;
 }
 .work-poster-status {
     position: absolute;
@@ -292,9 +297,6 @@
 .work-card:hover .work-poster-play,
 .work-card:focus-visible .work-poster-play {
     opacity: 1;
-}
-.work-card:hover .work-poster > img {
-    transform: scale(1.035);
 }
 .work-card h3 {
     font-size: 14px;
@@ -611,7 +613,6 @@
     }
 }
 @media (prefers-reduced-motion: reduce) {
-    .work-poster > img,
     .work-poster-play {
         transition: none;
     }
