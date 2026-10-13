@@ -115,6 +115,7 @@ def main():
     parser.add_argument("--apply", action="store_true", help="Write after all safety and conflict checks pass")
     parser.add_argument("--include", action="append", default=[], metavar="PATH", help="Review a newly tracked source file for inclusion")
     parser.add_argument("--remove", action="append", default=[], metavar="PATH", help="Confirm deletion of a managed file removed upstream")
+    parser.add_argument("--source-ref", metavar="REF", help="Read a committed source snapshot, leaving concurrent source edits untouched")
     args = parser.parse_args()
     destination = Path(__file__).resolve().parent.parent
     state_path = destination / ".git" / "open-source-sync.json"
@@ -126,9 +127,28 @@ def main():
         raise SyncError("Source and destination must be separate repositories")
     if Path(git(source, "rev-parse", "--show-toplevel")).resolve() != source:
         raise SyncError("Configured source is not a repository root")
-    if git(source, "status", "--porcelain", "--untracked-files=no"):
+    source_commit = git(source, "rev-parse", "--verify", (args.source_ref or "HEAD") + "^{commit}")
+    if not args.source_ref and git(source, "status", "--porcelain", "--untracked-files=no"):
         raise SyncError("Commit or resolve tracked changes in the source before syncing. No exported files changed.")
-    tracked = set(git(source, "ls-files", "-z").split("\0")) - {""}
+    modes = {}
+    if args.source_ref:
+        entries = git(source, "ls-tree", "-r", "-z", source_commit).split("\0")
+        for entry in filter(None, entries):
+            metadata, relative = entry.split("\t", 1)
+            modes[relative] = metadata.split()[0]
+        tracked = set(modes)
+    else:
+        tracked = set(git(source, "ls-files", "-z").split("\0")) - {""}
+
+    def source_bytes(relative):
+        path = safe_path(source, relative)
+        if relative not in tracked:
+            return None
+        if args.source_ref:
+            if modes[relative] not in {"100644", "100755"}:
+                raise SyncError("Non-regular snapshot file requires manual review: " + relative)
+            return subprocess.check_output(["git", "-C", str(source), "show", source_commit + ":" + relative], stderr=subprocess.PIPE)
+        return path.read_bytes() if path.is_file() else None
     managed = state["files"]
     protected = state["protected"]
     excluded = set(state["excluded"])
@@ -150,8 +170,8 @@ def main():
     for relative in sorted(tracked - set(managed) - set(protected) - excluded - includes):
         pending.append(relative + ": new source file; review and use --include PATH or update exclusions")
     for relative, baseline in sorted(protected.items()):
-        path = safe_path(source, relative)
-        if relative not in tracked or not path.is_file() or digest(path.read_bytes()) != baseline:
+        data = source_bytes(relative)
+        if data is None or digest(data) != baseline:
             pending.append(relative + ": protected export file; merge manually and update the local baseline")
 
     for relative in sorted(set(managed) | includes):
@@ -169,10 +189,10 @@ def main():
             else:
                 deletions.append(relative)
             continue
-        if not original.is_file():
+        data = source_bytes(relative)
+        if data is None:
             problems.append(relative + ": source file missing")
             continue
-        data = original.read_bytes()
         if baseline and digest(data) == baseline["source"]:
             continue
         exported = transform(data, state["replacements"])
@@ -183,7 +203,8 @@ def main():
                 problems.append(relative + ": modified on both sides; merge manually")
         elif baseline:
             problems.append(relative + ": deleted locally; merge manually")
-        updates.append((relative, data, exported, original.stat().st_mode & 0o777))
+        mode = (0o755 if modes[relative] == "100755" else 0o644) if args.source_ref else original.stat().st_mode & 0o777
+        updates.append((relative, data, exported, mode))
 
     # Scan the entire publishable working tree, including export-owned edits.
     for relative in set(git(destination, "ls-files", "--cached", "--others", "--exclude-standard", "-z").split("\0")) - {""}:
@@ -215,7 +236,7 @@ def main():
     for relative in deletions:
         safe_path(destination, relative).unlink(missing_ok=True)
         del managed[relative]
-    state["source_commit"] = git(source, "rev-parse", "HEAD")
+    state["source_commit"] = source_commit
     temporary = state_path.with_suffix(".tmp")
     temporary.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n")
     os.replace(temporary, state_path)

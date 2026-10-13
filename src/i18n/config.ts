@@ -18,6 +18,15 @@ export function localeDisplayName(displayLocale: Locale, locale: string): string
     }
 }
 
+export function parseLocalePreference(value: string | null | undefined): Locale | null {
+    const locale = value?.startsWith('manual.') ? value.slice('manual.'.length) : value
+    return isLocale(locale) ? locale : null
+}
+
+export function serializeLocalePreference(locale: Locale): string {
+    return `manual.${locale}`
+}
+
 export function isLocale(value: string | null | undefined): value is Locale {
     return !!value && locales.includes(value as Locale)
 }

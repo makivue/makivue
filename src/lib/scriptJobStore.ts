@@ -13,6 +13,7 @@ interface ScriptJobResult {
     synopsis: string | null
     script: string
     allScripted: boolean
+    warning?: string
 }
 
 export interface ScriptJob {
@@ -113,6 +114,7 @@ export async function updateJob(id: string, patch: ScriptJobUpdate): Promise<voi
             await releaseModelReservations(`job:${id}`)
         }
     } catch (err) {
+        if (Object.keys(patch).length === 0) throw err
         if (err instanceof Error && err.message === '任务已取消，停止写入') throw err
         console.warn(`[scriptJobStore] updateJob(${id}) failed:`, err)
     }

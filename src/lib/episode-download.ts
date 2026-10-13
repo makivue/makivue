@@ -1,0 +1,1 @@
+export const EPISODE_DOWNLOAD_POINTS = 100

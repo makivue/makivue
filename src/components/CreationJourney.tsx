@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type CSSProperties } from 'react'
 import { Check, ChevronRight } from 'lucide-react'
 import Link from '@/i18n/navigation'
 import { useI18n } from '@/i18n/I18nProvider'
 import GlobalPreferences from '@/components/GlobalPreferences'
+import type { ImportedContentStage } from '@/lib/project-content-workflow'
 
 const STAGES = [
     { key: 'outline', label: '故事大纲' },
@@ -26,8 +27,10 @@ function revealJourneyStep(nav: HTMLElement | null, step: HTMLAnchorElement | nu
     }
 }
 
-export default function CreationJourney({ current, steps }: { current: CreationStage; steps: Record<CreationStage, Step> }) {
+export default function CreationJourney({ current, steps, contentStage }: { current: CreationStage; steps: Record<CreationStage, Step>; contentStage?: ImportedContentStage | null }) {
     const { locale, t } = useI18n()
+    const importedScript = contentStage === 'script' || contentStage === 'storyboard'
+    const visibleStages = STAGES.filter(stage => stage.key !== 'outline' || !contentStage || contentStage === 'outline')
     const activeStep = useRef<HTMLAnchorElement>(null)
     const navigation = useRef<HTMLElement>(null)
     useEffect(() => {
@@ -49,8 +52,11 @@ export default function CreationJourney({ current, steps }: { current: CreationS
                 ref={navigation}
                 aria-label={t('短剧创作流程')}
                 className="studio-journey min-w-0 flex-1 overflow-x-auto novel-scroll">
-                <ol className="studio-journey-list">
-                    {STAGES.map(({ key, label }, index) => {
+                <ol
+                    className="studio-journey-list"
+                    style={{ '--journey-step-count': visibleStages.length } as CSSProperties}>
+                    {visibleStages.map(({ key, label: defaultLabel }, index) => {
+                        const label = importedScript && key === 'script' ? '剧本' : importedScript && key === 'extract' ? '角色和场景' : defaultLabel
                         const step = steps[key]
                         const active = current === key
                         const description = `${t(label)} · ${t(step.detail)}`
@@ -74,7 +80,7 @@ export default function CreationJourney({ current, steps }: { current: CreationS
                                     </span>
                                     <span className="whitespace-nowrap text-xs font-medium">{t(label)}</span>
                                 </Link>
-                                {index < STAGES.length - 1 && (
+                                {index < visibleStages.length - 1 && (
                                     <ChevronRight
                                         className="studio-journey-arrow"
                                         aria-hidden="true"

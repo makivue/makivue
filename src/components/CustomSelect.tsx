@@ -22,6 +22,7 @@ export default function CustomSelect({
     onChange,
     placeholder = '请选择',
     ariaLabel,
+    ariaDescribedBy,
     disabled = false,
     searchable = false,
     className = '',
@@ -33,6 +34,7 @@ export default function CustomSelect({
     onChange: (value: string) => void
     placeholder?: string
     ariaLabel: string
+    ariaDescribedBy?: string
     disabled?: boolean
     searchable?: boolean
     className?: string
@@ -111,12 +113,16 @@ export default function CustomSelect({
                 type="button"
                 disabled={disabled}
                 aria-label={t(ariaLabel)}
+                aria-describedby={ariaDescribedBy}
                 aria-haspopup="listbox"
                 aria-expanded={open}
                 aria-controls={`${id}-listbox`}
                 onClick={event => {
-                    // Keep menus inside a native dialog's interactive top layer.
-                    setPortalContainer(event.currentTarget.closest('dialog') ?? document.body)
+                    // Keep menus in their dialog or fullscreen player's top layer.
+                    setPortalContainer(
+                        event.currentTarget.closest<HTMLElement>('dialog, [data-video-fullscreen]') ??
+                            (document.fullscreenElement?.contains(event.currentTarget) ? (document.fullscreenElement as HTMLElement) : document.body)
+                    )
                     setQuery('')
                     if (!open) setPositioned(false)
                     setOpen(!open)

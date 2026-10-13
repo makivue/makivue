@@ -11,12 +11,14 @@ export default function DramaSettingsDialog({
     onClose,
     id = 'drama-settings',
     title = '剧集设定',
+    icon = <SlidersHorizontal size={18} />,
     className = ''
 }: {
     children: ReactNode
     onClose: () => void
     id?: string
     title?: string
+    icon?: ReactNode
     className?: string
 }) {
     const { t } = useI18n()
@@ -84,7 +86,7 @@ export default function DramaSettingsDialog({
                 }}>
                 <div className={styles.settingsDialogHeader}>
                     <h2 id={`${id}-heading`}>
-                        <SlidersHorizontal size={18} />
+                        {icon}
                         {t(title)}
                     </h2>
                     <button

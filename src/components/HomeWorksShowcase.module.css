@@ -74,7 +74,7 @@
 .poster {
     position: relative;
     display: grid;
-    aspect-ratio: 2 / 3;
+    aspect-ratio: 9 / 16;
     place-items: center;
     overflow: hidden;
     border: 1px solid var(--home-border);
@@ -166,7 +166,7 @@
 }
 
 .skeleton {
-    aspect-ratio: 2 / 3;
+    aspect-ratio: 9 / 16;
     overflow: hidden;
     border: 1px solid var(--home-border);
     border-radius: 0.75rem;

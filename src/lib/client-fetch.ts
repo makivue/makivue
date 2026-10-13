@@ -4,6 +4,7 @@ import { redirectToHomepage } from './home-redirect'
 import { pushToast } from '@/components/Toast'
 import { notifyWalletBalanceInvalidated, notifyWalletRechargeRequired, WALLET_RECHARGE_REQUIRED_STATUS } from './wallet-gate'
 import { logHiModelsDiagnosticEvent } from './himodels-browser-diagnostics'
+import { logBrowserApiErrors, observeBrowserApiErrors } from './browser-error-diagnostics'
 
 export { extractApiTokenUsage } from './api-token-usage'
 
@@ -91,6 +92,7 @@ function logHiModelsRawResponses(payload: unknown) {
                 body: entry.response,
                 status: typeof entry.status === 'number' ? entry.status : undefined,
                 requestId: typeof entry.requestId === 'string' ? entry.requestId : null,
+                gw_trace_id: typeof entry.gw_trace_id === 'string' ? entry.gw_trace_id : null,
                 durationMs: typeof entry.durationMs === 'number' ? entry.durationMs : undefined,
                 truncated: entry.truncated === true
             },
@@ -228,6 +230,11 @@ function observeWalletResponse(input: RequestInfo | URL, method: string, respons
     const observesTerminalState = observesStatus || observesSnapshot
     if (!observesTerminalState || !(response.headers.get('content-type') ?? '').includes('json')) return
 
+    // Progress and diagnostic views describe the same billable task. Fetch
+    // retries and query parameter order must not turn it into a new completion.
+    url.searchParams.delete('view')
+    url.searchParams.delete('__retry')
+    url.searchParams.sort()
     const requestKey = `${url.pathname}${url.searchParams.size > 0 ? `?${url.searchParams.toString()}` : ''}`
     void response
         .clone()
@@ -360,20 +367,26 @@ export async function clientFetch(input: RequestInfo | URL, init?: ClientFetchIn
             })
             logOutlineDiagnostics(input, method, response)
             observeWalletRechargeErrorResponse(response)
-            observeWalletResponse(retryInput(input, attempt, method), method, response)
+            observeWalletResponse(input, method, response)
             const retryable = response.status === 429 || response.status === 502 || response.status === 503 || response.status === 504
             if (response.status === 401) {
                 clearAuthSession()
                 redirectToHomepage()
             }
             if (!retryable || attempt === maxAttempts - 1) {
+                observeBrowserApiErrors(response, requestUrl(input)?.pathname ?? '', method)
                 if (response.status === 429 && !suppressRateLimitToast) showRateLimitToast()
                 return response
             }
             retryResponse = response
         } catch (error) {
             lastError = error
-            if (fetchInit.signal?.aborted || attempt === maxAttempts - 1) throw error
+            if (fetchInit.signal?.aborted || attempt === maxAttempts - 1) {
+                if (!fetchInit.signal?.aborted && typeof window !== 'undefined') {
+                    logBrowserApiErrors({ success: false, error: error instanceof Error ? error.message : String(error) }, { endpoint: requestUrl(input)?.pathname ?? '', method })
+                }
+                throw error
+            }
         }
         await new Promise(resolve => setTimeout(resolve, retryDelayMs(retryResponse, attempt)))
     }

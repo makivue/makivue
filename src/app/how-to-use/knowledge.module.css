@@ -1,0 +1,974 @@
+.page {
+    --guide-text: var(--home-text, #f3f8ff);
+    --guide-muted: var(--home-text-muted, #afbed3);
+    --guide-accent: var(--home-accent, #8bbfff);
+    --guide-border: var(--home-border, #30405d);
+    --guide-panel: var(--home-bg-alt, #111c30);
+    color: var(--guide-text);
+    background: var(--home-bg, #0b1221);
+    font-family: var(--font-sans), 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    overflow-wrap: anywhere;
+}
+
+.page :is(a, button, input, [tabindex]):focus-visible {
+    outline: 2px solid var(--guide-accent);
+    outline-offset: 0;
+}
+
+.page[dir='rtl'] :is(h1, h2, .eyebrow, .chapterEyebrow, .caseMarker, .tocTitle) {
+    letter-spacing: normal;
+}
+
+.page[dir='rtl'] :is(:global(.lucide-arrow-right), :global(.lucide-arrow-up-right)) {
+    transform: scaleX(-1);
+}
+
+.headerContent,
+.brand,
+.headerNav,
+.headerCta,
+.eyebrow,
+.meta,
+.meta span,
+.heroActions,
+.primaryLink,
+.secondaryLink {
+    display: flex;
+    align-items: center;
+}
+.headerContent {
+    justify-content: space-between;
+    gap: 20px;
+}
+.brand {
+    gap: 10px;
+    font-weight: 650;
+    font-size: 15px;
+}
+.headerNav {
+    gap: 24px;
+    font-size: 13px;
+    color: var(--guide-muted);
+}
+.headerNav span {
+    color: var(--guide-accent);
+}
+.headerCta {
+    gap: 8px;
+    font-size: 13px;
+    color: var(--guide-accent);
+}
+.hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(300px, 0.8fr);
+    gap: 76px;
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 76px 32px 72px;
+    align-items: center;
+}
+.eyebrow {
+    gap: 9px;
+    color: var(--guide-accent);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    font-weight: 600;
+}
+.hero h1 {
+    margin-top: 24px;
+    font-size: clamp(34px, 4.1vw, 53px);
+    font-weight: 650;
+    line-height: 1.3;
+    letter-spacing: -0.055em;
+}
+.hero h1 span {
+    color: var(--guide-accent);
+}
+.heroIntro {
+    max-width: 565px;
+    margin-top: 23px;
+    font-size: 15px;
+    line-height: 1.95;
+    color: var(--guide-muted);
+}
+.meta {
+    gap: 19px;
+    flex-wrap: wrap;
+    margin-top: 24px;
+    color: var(--guide-muted);
+    font-size: 11px;
+}
+.meta span {
+    gap: 6px;
+}
+.meta > span:first-child {
+    border: 1px solid var(--guide-border);
+    border-radius: 5px;
+    padding: 3px 8px;
+}
+.heroActions {
+    gap: 22px;
+    flex-wrap: wrap;
+    margin-top: 29px;
+}
+.primaryLink,
+.secondaryLink {
+    justify-content: center;
+    gap: 14px;
+    font-size: 13px;
+    font-weight: 550;
+    min-height: 42px;
+}
+.primaryLink {
+    padding: 10px 18px;
+    border-radius: 9px;
+    color: var(--home-bg, #0b1221);
+    background: var(--guide-accent);
+}
+.primaryLink:hover {
+    filter: brightness(1.1);
+}
+.secondaryLink {
+    color: var(--guide-muted);
+}
+.secondaryLink:hover {
+    color: var(--guide-text);
+}
+.workflow {
+    padding: 25px;
+    background: linear-gradient(145deg, color-mix(in srgb, var(--guide-accent) 9%, var(--guide-panel)), var(--guide-panel));
+    border: 1px solid var(--guide-border);
+    border-radius: 18px;
+    box-shadow: 0 20px 60px #00000012;
+}
+.workflowHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 9px;
+    letter-spacing: 0.13em;
+    color: var(--guide-muted);
+}
+.statusDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--guide-accent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--guide-accent) 10%, transparent);
+}
+.workflow h2 {
+    margin-top: 12px;
+    font-size: 21px;
+    letter-spacing: -0.03em;
+    font-weight: 550;
+}
+.workflow ol {
+    position: relative;
+    margin-top: 21px;
+}
+.workflow ol::before {
+    content: '';
+    position: absolute;
+    top: 17px;
+    bottom: 17px;
+    inset-inline-start: 14px;
+    width: 1px;
+    background: var(--guide-border);
+}
+.workflow li {
+    position: relative;
+    display: grid;
+    grid-template-columns: 29px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 0;
+    font-size: 12px;
+}
+.workflow li strong {
+    font-weight: 500;
+}
+.workflow li > span:last-child {
+    color: var(--guide-muted);
+    font-size: 10px;
+}
+.workflowNumber {
+    display: grid;
+    place-items: center;
+    height: 29px;
+    background: var(--guide-panel);
+    color: var(--guide-accent);
+    border: 1px solid var(--guide-border);
+    border-radius: 9px;
+    font-size: 10px;
+    font-family: monospace;
+}
+.workflow > p {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    border-top: 1px solid var(--guide-border);
+    margin-top: 18px;
+    padding-top: 16px;
+    font-size: 10px;
+    line-height: 1.8;
+    color: var(--guide-muted);
+}
+.workflow > p svg {
+    flex-shrink: 0;
+    margin-top: 1px;
+    color: var(--guide-accent);
+}
+.contentLayout {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 0 32px 70px;
+    display: grid;
+    grid-template-columns: 208px minmax(0, 1fr);
+    gap: 68px;
+    border-top: 1px solid var(--guide-border);
+}
+.contentLayout > aside {
+    min-width: 0;
+    padding-top: 40px;
+}
+.toc {
+    position: sticky;
+    top: 28px;
+    max-height: calc(100dvh - 56px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+.tocTitle {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--guide-muted);
+    margin-bottom: 16px;
+    margin-inline-start: 10px;
+}
+.toc nav {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.toc nav a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    font-size: 12px;
+    color: var(--guide-muted);
+    border-radius: 7px;
+    transition:
+        background-color 150ms,
+        color 150ms;
+}
+.toc nav a span {
+    font-family: monospace;
+    font-size: 10px;
+    opacity: 0.6;
+}
+.toc nav a[aria-current],
+.toc nav a:hover {
+    color: var(--guide-accent);
+    background: color-mix(in srgb, var(--guide-accent) 8%, transparent);
+}
+.tocChecklist {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 20px 10px 0;
+    margin-top: 16px;
+    border-top: 1px solid var(--guide-border);
+    font-size: 12px;
+    color: var(--guide-accent);
+}
+.article {
+    min-width: 0;
+    padding-top: 40px;
+}
+.caseStudy {
+    position: relative;
+    border-inline-start: 2px solid var(--guide-accent);
+    padding-inline-start: 23px;
+}
+.caseMarker {
+    color: var(--guide-accent);
+    font-size: 9px;
+    letter-spacing: 0.14em;
+}
+.caseStudy h2 {
+    margin-top: 9px;
+    font-size: 17px;
+    font-weight: 600;
+}
+.caseStudy > p {
+    font-size: 14px;
+    line-height: 1.95;
+    margin-top: 10px;
+    color: var(--guide-muted);
+}
+.caseStudy > .caseNote {
+    font-size: 11px;
+    line-height: 1.85;
+    opacity: 0.9;
+}
+.chapter {
+    padding: 55px 0;
+    border-bottom: 1px solid var(--guide-border);
+    scroll-margin-top: 32px;
+}
+.chapterEyebrow {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    color: var(--guide-accent);
+    font-size: 11px;
+}
+.chapterEyebrow span {
+    font-family: monospace;
+    padding: 4px 7px;
+    border-radius: 5px;
+    background: color-mix(in srgb, var(--guide-accent) 9%, transparent);
+}
+.chapter h2,
+.checklistSection h2 {
+    font-size: clamp(23px, 2.4vw, 29px);
+    line-height: 1.5;
+    letter-spacing: -0.035em;
+    font-weight: 600;
+    margin-top: 14px;
+}
+.intro {
+    margin-top: 16px;
+    font-size: 15px;
+    line-height: 1.95;
+    color: var(--guide-muted);
+}
+.principle {
+    margin-top: 24px;
+    padding: 16px 19px;
+    border-inline-start: 2px solid var(--guide-accent);
+    border-start-end-radius: 8px;
+    border-end-end-radius: 8px;
+    background: color-mix(in srgb, var(--guide-accent) 6%, transparent);
+    color: var(--guide-text);
+    font-size: 14px;
+    line-height: 1.85;
+}
+.steps {
+    margin: 29px 0;
+    display: grid;
+    gap: 22px;
+}
+.steps li {
+    display: flex;
+    gap: 14px;
+}
+.steps li > span {
+    flex: 0 0 23px;
+    height: 23px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--guide-border);
+    border-radius: 50%;
+    color: var(--guide-muted);
+    font-size: 10px;
+    margin-top: 2px;
+}
+.steps h3 {
+    font-size: 16px;
+    font-weight: 550;
+    line-height: 1.8;
+}
+.steps p {
+    font-size: 14px;
+    line-height: 1.95;
+    color: var(--guide-muted);
+    margin-top: 6px;
+}
+.comparison {
+    display: grid;
+    grid-template-columns: 0.8fr 1.2fr;
+    margin: 28px 0;
+    border: 1px solid var(--guide-border);
+    border-radius: 10px;
+    overflow: hidden;
+}
+.comparison > div {
+    padding: 21px;
+}
+.comparison > div + div {
+    border-inline-start: 1px solid var(--guide-border);
+    background: color-mix(in srgb, var(--guide-accent) 5%, transparent);
+}
+.comparison span {
+    font-size: 10px;
+    color: var(--guide-muted);
+}
+.comparison > div + div span {
+    color: var(--guide-accent);
+}
+.comparison p {
+    margin-top: 11px;
+    font-size: 14px;
+    line-height: 1.95;
+}
+.tableBlock {
+    margin: 29px 0;
+}
+.tableScroll {
+    overflow-x: auto;
+    border: 1px solid var(--guide-border);
+    border-radius: 10px;
+}
+.tableScroll table {
+    width: 100%;
+    min-width: 560px;
+    border-collapse: collapse;
+    font-size: 13px;
+    line-height: 1.85;
+    text-align: start;
+}
+.tableScroll caption {
+    text-align: start;
+    padding: 14px 17px;
+    color: var(--guide-text);
+    font-size: 12px;
+    font-weight: 550;
+    background: color-mix(in srgb, var(--guide-accent) 5%, transparent);
+}
+.tableScroll :is(th, td) {
+    padding: 14px 17px;
+    border-top: 1px solid var(--guide-border);
+    vertical-align: top;
+}
+.tableScroll thead th {
+    color: var(--guide-muted);
+    font-size: 11px;
+    font-weight: 400;
+}
+.tableScroll tbody th {
+    font-weight: 500;
+    width: 24%;
+}
+.tableScroll td {
+    color: var(--guide-muted);
+}
+.scrollHint {
+    display: none;
+    margin-top: 8px;
+    font-size: 10px;
+    color: var(--guide-muted);
+}
+.figure {
+    margin: 30px 0;
+}
+.figure a {
+    display: block;
+    overflow: hidden;
+    border: 1px solid var(--guide-border);
+    background: #111c30;
+    border-radius: 10px;
+}
+.figureBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 11px 15px;
+    color: #c1d2ec;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    background: #142037;
+    border-bottom: 1px solid #31445f;
+}
+.figure img {
+    width: 100%;
+    height: auto;
+}
+.figure figcaption {
+    margin-top: 11px;
+    font-size: 11px;
+    line-height: 1.9;
+    color: var(--guide-muted);
+}
+.prompt {
+    margin: 29px 0;
+    border: 1px solid var(--guide-border);
+    border-radius: 10px;
+    background: var(--guide-panel);
+    overflow: hidden;
+}
+.promptHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    border-bottom: 1px solid var(--guide-border);
+    padding: 11px 17px;
+    font-size: 11px;
+    color: var(--guide-muted);
+}
+.promptHeader button,
+.checklistHeader button {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 30px;
+    color: var(--guide-accent);
+    cursor: pointer;
+}
+.prompt pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    padding: 19px;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 2;
+}
+.copyStatus {
+    display: block;
+    font-size: 11px;
+    color: var(--guide-accent);
+    padding: 0 19px;
+}
+.copyStatus:not(:empty) {
+    padding-bottom: 14px;
+}
+.notes {
+    display: grid;
+    gap: 17px;
+    margin-top: 30px;
+}
+.note {
+    border-inline-start: 2px solid color-mix(in srgb, var(--guide-accent) 50%, transparent);
+    padding-inline-start: 15px;
+}
+.note h3 {
+    color: var(--guide-accent);
+    font-size: 11px;
+    font-weight: 550;
+}
+.note p {
+    font-size: 13px;
+    line-height: 1.95;
+    color: var(--guide-muted);
+    margin-top: 7px;
+}
+.suggestion {
+    border-color: var(--guide-border);
+}
+.suggestion h3 {
+    color: var(--guide-text);
+}
+.checkpoint {
+    display: flex;
+    gap: 11px;
+    margin-top: 28px;
+    padding-top: 21px;
+    border-top: 1px dashed var(--guide-border);
+}
+.checkpoint svg {
+    flex-shrink: 0;
+    color: var(--guide-accent);
+    margin-top: 3px;
+}
+.checkpoint p {
+    font-size: 13px;
+    line-height: 1.95;
+    color: var(--guide-muted);
+}
+.checkpoint strong {
+    display: block;
+    margin-bottom: 3px;
+    color: var(--guide-text);
+    font-weight: 550;
+}
+.checklistSection {
+    padding-top: 55px;
+    scroll-margin-top: 32px;
+}
+.checklistSection > p:not(.eyebrow) {
+    font-size: 13px;
+    line-height: 1.95;
+    color: var(--guide-muted);
+    margin-top: 14px;
+}
+.checklist {
+    border: 1px solid var(--guide-border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-top: 25px;
+}
+.checklistHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 15px 22px;
+    font-size: 11px;
+    border-bottom: 1px solid var(--guide-border);
+    background: color-mix(in srgb, var(--guide-accent) 5%, transparent);
+    color: var(--guide-muted);
+}
+.checklistHeader strong {
+    font-size: 20px;
+    color: var(--guide-accent);
+}
+.checklist fieldset {
+    padding: 9px 22px;
+}
+.checklist label {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 13px 0;
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1.85;
+}
+.checklist label + label {
+    border-top: 1px solid color-mix(in srgb, var(--guide-border) 65%, transparent);
+}
+.checklist input {
+    width: 17px;
+    height: 17px;
+    flex-shrink: 0;
+    margin-top: 4px;
+    accent-color: var(--guide-accent);
+    cursor: pointer;
+}
+.checklist label:has(input:checked) span {
+    color: var(--guide-muted);
+}
+.checklistStatus {
+    padding: 13px 22px;
+    border-top: 1px solid var(--guide-border);
+    font-size: 11px;
+    line-height: 1.8;
+    color: var(--guide-muted);
+}
+.closing {
+    padding-top: 60px;
+}
+.closing h2 {
+    font-size: 25px;
+    font-weight: 550;
+    letter-spacing: -0.03em;
+}
+.closing > p {
+    color: var(--guide-muted);
+    font-size: 13px;
+    line-height: 1.9;
+    margin-top: 13px;
+}
+.closing > .scopeNote {
+    margin-top: 33px;
+    padding-top: 25px;
+    border-top: 1px solid var(--guide-border);
+    font-size: 11px;
+}
+.backTop {
+    display: inline-block;
+    margin-top: 20px;
+    font-size: 11px;
+    color: var(--guide-accent);
+}
+
+.byline {
+    margin-top: 15px;
+    color: var(--guide-muted);
+    font-size: 11px;
+    line-height: 1.8;
+}
+.quickStart {
+    margin-bottom: 38px;
+}
+.quickStart h2 {
+    font-size: 16px;
+    font-weight: 550;
+}
+.resourceGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 22px;
+}
+.resourceGrid > a {
+    display: block;
+    border: 1px solid var(--guide-border);
+    border-radius: 10px;
+    padding: 18px;
+    background: var(--guide-panel);
+}
+.resourceGrid > a:hover {
+    border-color: var(--guide-accent);
+}
+.resourceGrid strong {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 550;
+    color: var(--guide-accent);
+}
+.resourceGrid svg {
+    flex-shrink: 0;
+}
+.resourceGrid span {
+    display: block;
+    font-size: 12px;
+    line-height: 1.8;
+    margin-top: 8px;
+    color: var(--guide-muted);
+}
+.relatedLink {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 20px;
+    font-size: 12px;
+    color: var(--guide-accent);
+    line-height: 1.8;
+}
+.relatedLink:hover {
+    text-decoration: underline;
+}
+.citations {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px 13px;
+    margin-top: 21px;
+    font-size: 10px;
+    line-height: 1.8;
+    color: var(--guide-muted);
+}
+.citations a {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+.faqList {
+    margin-top: 26px;
+    border-top: 1px solid var(--guide-border);
+}
+.faqList details {
+    border-bottom: 1px solid var(--guide-border);
+    padding: 19px 0;
+}
+.faqList summary {
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1.8;
+    font-weight: 550;
+}
+.faqList summary:focus-visible {
+    outline: 2px solid var(--guide-accent);
+    outline-offset: 0;
+}
+.faqList p {
+    margin-top: 15px;
+    color: var(--guide-muted);
+    font-size: 14px;
+    line-height: 1.95;
+}
+.sourceList {
+    list-style: decimal;
+    padding-inline-start: 24px;
+    margin-top: 28px;
+}
+.sourceList li {
+    padding-inline-start: 7px;
+    margin-top: 24px;
+    scroll-margin-top: 35px;
+    font-size: 12px;
+    color: var(--guide-muted);
+}
+.sourceList li > span {
+    display: block;
+    font-size: 10px;
+}
+.sourceList a {
+    display: inline-block;
+    color: var(--guide-accent);
+    margin-top: 8px;
+    font-size: 13px;
+    line-height: 1.7;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+.sourceList svg {
+    display: inline;
+    margin-inline-start: 6px;
+}
+.sourceList p {
+    margin-top: 7px;
+    line-height: 1.9;
+}
+
+@media (max-width: 1100px) {
+    .hero {
+        gap: 34px;
+    }
+    .contentLayout {
+        grid-template-columns: 180px minmax(0, 1fr);
+        gap: 36px;
+    }
+    .workflow {
+        padding: 21px;
+    }
+}
+@media (max-width: 900px) {
+    .toc {
+        max-height: none;
+        overflow-y: visible;
+    }
+    .hero {
+        padding: 48px 24px;
+        grid-template-columns: 1fr;
+        gap: 34px;
+    }
+    .heroIntro {
+        max-width: 650px;
+    }
+    .workflow {
+        max-width: 560px;
+    }
+    .contentLayout {
+        grid-template-columns: minmax(0, 1fr);
+        padding: 0 24px 50px;
+        gap: 0;
+    }
+    .contentLayout > aside {
+        padding-top: 24px;
+    }
+    .toc {
+        position: static;
+    }
+    .tocTitle {
+        margin-inline-start: 0;
+    }
+    .toc nav {
+        flex-direction: row;
+        overflow-x: auto;
+        padding: 3px 0 10px;
+    }
+    .toc nav a {
+        flex-shrink: 0;
+    }
+    .tocChecklist {
+        display: none;
+    }
+    .article {
+        padding-top: 25px;
+    }
+    .scrollHint {
+        display: block;
+    }
+}
+
+@media (max-width: 540px) {
+    .resourceGrid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+@media (max-width: 600px) {
+    .headerNav {
+        display: none;
+    }
+    .headerContent {
+        gap: 12px;
+    }
+    .headerCta {
+        font-size: 11px;
+        gap: 3px;
+    }
+    .brand {
+        font-size: 13px;
+        gap: 6px;
+    }
+    .hero {
+        padding: 36px 20px;
+    }
+    .hero h1 {
+        font-size: 34px;
+        margin-top: 18px;
+    }
+    .heroIntro {
+        font-size: 13px;
+        margin-top: 18px;
+    }
+    .meta {
+        gap: 13px;
+        margin-top: 19px;
+    }
+    .heroActions {
+        gap: 18px;
+    }
+    .workflow {
+        padding: 21px;
+    }
+    .workflow li {
+        font-size: 12px;
+    }
+    .contentLayout {
+        padding-inline-start: 20px;
+        padding-inline-end: 20px;
+    }
+    .caseStudy {
+        padding-inline-start: 17px;
+    }
+    .caseStudy > p {
+        font-size: 13px;
+    }
+    .chapter {
+        padding: 40px 0;
+    }
+    .chapter h2,
+    .checklistSection h2 {
+        font-size: 23px;
+    }
+    .intro {
+        font-size: 14px;
+    }
+    .principle {
+        font-size: 13px;
+        padding: 14px 16px;
+    }
+    .steps {
+        gap: 19px;
+    }
+    .steps h3 {
+        font-size: 14px;
+    }
+    .steps li {
+        gap: 10px;
+    }
+    .comparison {
+        grid-template-columns: 1fr;
+    }
+    .comparison > div + div {
+        border-inline-start: 0;
+        border-top: 1px solid var(--guide-border);
+    }
+    .figureBar {
+        font-size: 8px;
+    }
+    .checklistHeader,
+    .checklist fieldset,
+    .checklistStatus {
+        padding-inline-start: 16px;
+        padding-inline-end: 16px;
+    }
+    .checklist label {
+        font-size: 13px;
+    }
+    .closing h2 {
+        font-size: 23px;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .toc nav a {
+        transition: none;
+    }
+}

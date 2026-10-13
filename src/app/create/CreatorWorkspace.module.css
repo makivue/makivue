@@ -1,3 +1,72 @@
+.header {
+    z-index: 40;
+}
+.header :global(.site-header-shell) {
+    align-items: center;
+}
+.headerContent {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr) max-content;
+    align-items: center;
+    gap: 12px;
+}
+.headerIdentity,
+.headerAccount {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+.headerAccount {
+    justify-self: end;
+}
+@media (max-width: 1535px) {
+    .header :global(.site-header-github) {
+        display: none;
+    }
+}
+@media (max-width: 720px) {
+    .headerBrandName {
+        display: none;
+    }
+}
+@media (max-width: 600px) {
+    .header :global(.site-header-shell) {
+        gap: 4px;
+        padding-inline: 12px;
+    }
+    .header :global(.global-preferences-trigger) {
+        width: 36px;
+        height: 36px;
+    }
+    .headerContent,
+    .headerIdentity,
+    .headerAccount {
+        gap: 4px;
+    }
+    .headerAccount :global(.wallet-balance) {
+        min-width: 0;
+        max-width: 96px;
+        gap: 4px;
+        padding-inline: 6px;
+    }
+    .headerAccount :global(.wallet-balance) span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .headerAccount :global(.wallet-balance) > span:last-child {
+        display: none;
+    }
+}
+@media (max-width: 480px) {
+    .headerAccount :global(.wallet-balance) {
+        width: 32px;
+        padding-inline: 3px;
+    }
+    .headerAccount :global(.wallet-balance) span {
+        display: none;
+    }
+}
 .main {
     flex: 1;
     width: 100%;

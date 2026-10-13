@@ -27,6 +27,11 @@ export function contentLanguagePrompt(value: unknown): string {
     return `# Mandatory output language\nAll newly generated user-facing creative content must be written in ${language}. This includes titles, outlines, prose, synopses, dialogue, action descriptions, character and scene descriptions, image prompts, and continuity notes. Preserve the language of quoted source text only when a faithful quotation is necessary. JSON keys, numeric values, IDs, and fixed technical enum values must remain exactly as specified. Do not switch to the UI language or translate existing project content.`
 }
 
+export function extractionLanguagePrompt(value: unknown): string {
+    const language = contentLanguageName(value)
+    return `# Mandatory extraction language\nScene descriptions, character personality descriptions, and newly authored display names must be written in ${language}. Preserve character and scene names and aliases exactly as written in the source scripts or existing entity lists; do not translate or transliterate them. Apply these rules during both extraction and merging. Keep appearancePrompt and locationPrompt in English for image generation. JSON keys, IDs, numeric values, and fixed enum values (role, gender, timeOfDay) must remain as specified. The language of instructions, examples, visual style references, or the UI must not override these rules.`
+}
+
 export function defaultEpisodeTitle(episodeNumber: number, value: unknown): string {
     const locale = normalizeContentLanguage(value)
     const formats: Record<Locale, string> = {

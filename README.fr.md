@@ -42,6 +42,18 @@ Cette édition conserve le parcours de création complet et vous laisse vérifie
 
 La génération par lots, l’annulation, la reprise des tâches, les relances manuelles, la validation des entrées et la protection des modifications récentes restent disponibles. Les exigences de format et de sécurité des fournisseurs s’appliquent toujours. Les images de début et de fin restent utilisables lorsque le modèle les prend en charge nativement.
 
+## Exemples de vidéos générées
+
+Ces exemples publics ouvrent le premier épisode terminé sur le site MakiVue :
+
+| Œuvre | Épisode 1 |
+| --- | --- |
+| [STOP FIGHTING](https://makivue.com/works/640737770905568823/episodes/640737797782684657) | Regarder l’épisode 1 |
+| [The 300 Warriors](https://makivue.com/works/640630615397430930/episodes/640630615447762578) | Regarder *The Lord of War* |
+| [THE LAST IMPACT](https://makivue.com/works/639283952309284093/episodes/639283952326061309) | Regarder *The Anomaly* |
+| [丛林大冒险](https://makivue.com/works/639471750878378906/episodes/639471750895156122) | Regarder *迷雾荧光林* |
+| [星际大战](https://makivue.com/works/638260232912411993/episodes/638260232945966425) | Regarder *深空警报与破裂的穹顶* |
+
 ## Aperçu de l’interface
 
 ### English

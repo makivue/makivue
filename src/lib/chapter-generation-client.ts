@@ -9,6 +9,17 @@ export interface ChapterJobResult {
     targetWords?: number
     repairAttempts?: number
     warning?: string
+    reviewStatus?: 'passed' | 'needs_review'
+}
+
+export class ChapterDraftError extends Error {
+    constructor(
+        message: string,
+        readonly draftContent?: string,
+        readonly draftSourceVersion?: number
+    ) {
+        super(message)
+    }
 }
 
 class ChapterRequestError extends Error {
@@ -35,7 +46,7 @@ async function readChapterResponse(response: Response, fallback: string) {
 }
 
 export async function startChapterJob(episodeId: string): Promise<string> {
-    const recoveryDelays = [0, 1200, 2500, 5000]
+    const recoveryDelays = [0, 1200]
     for (let attempt = 0; ; attempt += 1) {
         if (recoveryDelays[attempt] > 0) await sleep(recoveryDelays[attempt])
         try {
@@ -83,7 +94,8 @@ export async function pollChapterJob(jobId: string, timeoutMs = 35 * 60 * 1000):
             if (!data.result?.chapterContent?.trim()) throw new Error('章节任务已完成但未返回结果')
             return data.result as ChapterJobResult
         }
-        if (data.phase === 'error' || data.phase === 'cancelled') throw new Error(data.error ?? '章节任务失败')
+        if (data.phase === 'error') throw new ChapterDraftError(data.error ?? '章节任务失败', data.result?.draftContent, data.result?.draftSourceVersion)
+        if (data.phase === 'cancelled') throw new Error(data.error ?? '章节任务失败')
         await sleep(Math.min(getPollingDelay({ baseMs: steps[Math.min(attempt++, steps.length - 1)] }), Math.max(0, deadline - Date.now())))
     }
     throw new Error('章节任务超时，请稍后查看章节状态或继续生成剩余章节')

@@ -42,6 +42,18 @@ makivue 将故事创作、素材管理和视频制作放进同一个项目。你
 
 保留批量生成、任务取消、断点续跑、手动重试、基础输入校验和防止覆盖新内容的保护。仍遵守供应商的格式和安全要求；模型支持时可使用原生首尾帧输入。
 
+## 生成视频示例
+
+下面的公开作品链接会直接打开 MakiVue 网站中已经完成的第一集：
+
+| 作品 | 第一集 |
+| --- | --- |
+| [STOP FIGHTING](https://makivue.com/works/640737770905568823/episodes/640737797782684657) | 观看第 1 集 |
+| [The 300 Warriors](https://makivue.com/works/640630615397430930/episodes/640630615447762578) | 观看《The Lord of War》 |
+| [THE LAST IMPACT](https://makivue.com/works/639283952309284093/episodes/639283952326061309) | 观看《The Anomaly》 |
+| [丛林大冒险](https://makivue.com/works/639471750878378906/episodes/639471750895156122) | 观看《迷雾荧光林》 |
+| [星际大战](https://makivue.com/works/638260232912411993/episodes/638260232945966425) | 观看《深空警报与破裂的穹顶》 |
+
 ## 界面预览
 
 ### English

@@ -1,12 +1,14 @@
 'use client'
 
+import { getProjectContentWorkflow } from '@/lib/project-content-workflow'
+
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, Clock3, Sparkles, Wand2, Split, UserPlus, CheckCircle2, Lock, Unlock, RefreshCw, Plus, Trash2, Save, ChevronDown, ChevronRight, Upload, Square } from 'lucide-react'
 import type { NovelSetup, NovelCharacterInput, EpisodeFormat } from '@/lib/novel'
 import { listEpisodeFormats, getEpisodeFormatSpec, parseNovelSetup } from '@/lib/novel'
 import { clientFetch, readApiJson } from '@/lib/client-fetch'
 import { getPollingDelay } from '@/lib/polling'
-import { pollChapterJob, startChapterJob } from '@/lib/chapter-generation-client'
+import { ChapterDraftError, pollChapterJob, startChapterJob } from '@/lib/chapter-generation-client'
 import { useConfirmDialog } from '@/components/ConfirmDialog'
 import ModelSwitcher from '@/components/ModelSwitcher'
 import WalletBalance from '@/components/WalletBalance'
@@ -14,6 +16,7 @@ import StudioSidebarActions from '@/components/StudioSidebarActions'
 import ExtractReviewModal from './ExtractReviewModal'
 import CustomSelect from '@/components/CustomSelect'
 import { useI18n } from '@/i18n/I18nProvider'
+import DiagnosticMessage from '@/components/DiagnosticMessage'
 import { buildStoryboardGenerationRequest } from '@/lib/storyboard-generation-request'
 import { GEMINI_FLASH_TEXT_MODEL_ID } from '@/lib/gemini-models'
 import { createEpisodeContentRequestTracker, isEpisodeContentCurrent } from '@/lib/episode-content-cache'
@@ -24,6 +27,9 @@ import GenerationFailureNotice from '@/components/GenerationFailureNotice'
 import ScriptRuntimeNotice from '@/components/ScriptRuntimeNotice'
 import { resetOutlineProgress } from '@/lib/outline-reset'
 import { canonicalProjectGenreLabel, PROJECT_GENRES } from '@/lib/project-genres'
+import { mergeEditorDraft } from '@/lib/editor-draft'
+import { scriptContinuityNoticePredecessor, scriptContinuityPredecessor, scriptContinuityReviewPredecessor } from '@/lib/script-continuity'
+import ScriptContinuityNotice from '@/components/ScriptContinuityNotice'
 
 interface ChapterEpisode {
     id: string
@@ -39,10 +45,12 @@ interface ChapterEpisode {
     sourceVersion?: number
     hasChapterContent?: boolean
     hasScript?: boolean
+    chapterReview?: { status: 'passed' | 'needs_review'; warnings: string[] } | null
+    mergedVideoDurationSeconds?: number | null
     _count?: { storyboards: number }
 }
 
-type EpisodeContent = Pick<ChapterEpisode, 'id' | 'title' | 'synopsis' | 'chapterContent' | 'script' | 'intensity' | 'status' | 'finalizedAt' | 'staleReason' | 'sourceVersion'>
+type EpisodeContent = Pick<ChapterEpisode, 'id' | 'title' | 'synopsis' | 'chapterContent' | 'script' | 'intensity' | 'status' | 'finalizedAt' | 'staleReason' | 'sourceVersion' | 'chapterReview'>
 
 function episodeHasChapterContent(episode: ChapterEpisode): boolean {
     return Boolean(episode.chapterContent?.trim() || episode.hasChapterContent || isChapterFinalized(episode.status))
@@ -50,6 +58,14 @@ function episodeHasChapterContent(episode: ChapterEpisode): boolean {
 
 function episodeHasScript(episode: ChapterEpisode): boolean {
     return Boolean(episode.script?.trim() || episode.hasScript || isScriptGenerated(episode.status))
+}
+
+function canUnfinalizeChapter(episode: ChapterEpisode): boolean {
+    return episode.status === 'finalized' && !episodeHasScript(episode) && (episode._count?.storyboards ?? 0) === 0
+}
+
+function episodeContinuityReviewPredecessor(episode: ChapterEpisode): number | null {
+    return scriptContinuityReviewPredecessor(episode.staleReason, { hasChapterContent: episodeHasChapterContent(episode), hasScript: episodeHasScript(episode) })
 }
 
 interface ProjectSlim {
@@ -69,6 +85,7 @@ interface ProjectSlim {
 interface Props {
     project: ProjectSlim
     onRefetch: () => void | Promise<void>
+    onProjectSaved?: (saved: Pick<ProjectSlim, 'novelSetup' | 'totalEpisodes'>) => void
     onMessage: (msg: { type: 'success' | 'error'; text: string } | null) => void
     onExtractCommitted?: (payload: { characterIds: string[]; sceneIds: string[]; newChars: number; newScenes: number; replaceAll: boolean }) => void | Promise<void>
     onOpenCharacters?: () => void
@@ -211,7 +228,7 @@ interface SetupJobResult {
     setup: NovelSetup
 }
 
-async function pollSetupJob(jobId: string, timeoutMs = 5 * 60 * 1000): Promise<SetupJobResult> {
+async function pollSetupJob(jobId: string, timeoutMs = 35 * 60 * 1000): Promise<SetupJobResult> {
     const deadline = Date.now() + timeoutMs
     let attempt = 0
     while (Date.now() < deadline) {
@@ -226,10 +243,10 @@ async function pollSetupJob(jobId: string, timeoutMs = 5 * 60 * 1000): Promise<S
         if (data.phase === 'error') throw new Error(data.error ?? '小说架构任务失败')
         await new Promise(r => setTimeout(r, nextPollInterval(attempt++)))
     }
-    throw new Error('小说架构任务超时（5 分钟未完成）')
+    throw new Error('AI 生成仍在后台进行，请稍后刷新查看')
 }
 
-async function pollOutlineTextJob(jobId: string, timeoutMs = 5 * 60 * 1000): Promise<string> {
+async function pollOutlineTextJob(jobId: string, timeoutMs = 35 * 60 * 1000): Promise<string> {
     const deadline = Date.now() + timeoutMs
     let attempt = 0
     while (Date.now() < deadline) {
@@ -245,10 +262,11 @@ async function pollOutlineTextJob(jobId: string, timeoutMs = 5 * 60 * 1000): Pro
         if (data.phase === 'error') throw new Error(data.error ?? '任务失败')
         await new Promise(resolve => setTimeout(resolve, nextPollInterval(attempt++)))
     }
-    throw new Error('任务超时（5 分钟未完成）')
+    throw new Error('AI 生成仍在后台进行，请稍后刷新查看')
 }
 
 interface ScriptJobResult {
+    warning?: string
     episodeId: string
     episodeNumber: number
     title: string | null
@@ -257,7 +275,7 @@ interface ScriptJobResult {
     allScripted: boolean
 }
 
-async function pollScriptJob(jobId: string, timeoutMs = 10 * 60 * 1000): Promise<ScriptJobResult> {
+async function pollScriptJob(jobId: string, timeoutMs = 35 * 60 * 1000): Promise<ScriptJobResult> {
     const deadline = Date.now() + timeoutMs
     let attempt = 0
     while (Date.now() < deadline) {
@@ -272,7 +290,7 @@ async function pollScriptJob(jobId: string, timeoutMs = 10 * 60 * 1000): Promise
         if (data.phase === 'error') throw new ScriptRequestError(data.error ?? '剧本任务失败', res.status, data.retryable)
         await new Promise(r => setTimeout(r, nextPollInterval(attempt++)))
     }
-    throw new Error('剧本任务超时（10 分钟未完成）')
+    throw new Error('AI 生成仍在后台进行，请稍后刷新查看')
 }
 
 async function startScriptJob(episodeId: string) {
@@ -288,11 +306,18 @@ async function startScriptJob(episodeId: string) {
     return jobId
 }
 
-export default function NovelTab({ project: projectSummary, onRefetch, onMessage, onExtractCommitted, onOpenCharacters, novelStageView, setNovelStageView }: Props) {
+export default function NovelTab({ project: projectSummary, onRefetch, onProjectSaved, onMessage, onExtractCommitted, onOpenCharacters, novelStageView, setNovelStageView }: Props) {
     const { t, locale } = useI18n()
     const ui = (source: string, english: string) => (locale === 'zh' ? source : locale === 'en' ? english : t(source))
     const [episodeDetails, setEpisodeDetails] = useState<Record<string, EpisodeContent>>({})
+    // Hide pre-reset summaries and late detail responses until a newer script is saved.
+    const [scriptResetVersions, setScriptResetVersions] = useState<Record<string, number>>({})
     const [contentRequests] = useState(createEpisodeContentRequestTracker)
+    const chapterSnapshots = useRef<Record<string, { title: string; synopsis: string; chapterContent: string }>>({})
+    const scriptSnapshots = useRef<Record<string, { script: string }>>({})
+    const savedEpisodeVersions = useRef<Record<string, number>>({})
+    const episodeSaveQueues = useRef<Record<string, Promise<boolean>>>({})
+    const setupSnapshot = useRef(parseSetup(projectSummary.novelSetup))
     // 章节详情是按需加载的，可能比项目摘要更旧；定稿/解除定稿后先用本地覆盖值
     // 保证下一步按钮立即反映操作结果，待项目摘要刷新后仍以最新状态为准。
     const [episodeStatusOverrides, setEpisodeStatusOverrides] = useState<Record<string, { status: string; finalizedAt: string | null; sourceVersion?: number }>>({})
@@ -301,16 +326,24 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
     const project = useMemo(
         () => ({
             ...projectSummary,
-            episodes: projectSummary.episodes.map(episode => ({
-                ...episode,
-                ...(isEpisodeContentCurrent(episode, episodeDetails[episode.id]) ? episodeDetails[episode.id] : {}),
-                status: isEpisodeContentCurrent(episode, episodeStatusOverrides[episode.id]) ? episodeStatusOverrides[episode.id].status : episode.status,
-                finalizedAt: isEpisodeContentCurrent(episode, episodeStatusOverrides[episode.id]) ? episodeStatusOverrides[episode.id].finalizedAt : episode.finalizedAt,
-                staleReason: episode.staleReason,
-                _count: episode._count
-            }))
+            episodes: projectSummary.episodes.map(episode => {
+                const resetVersion = scriptResetVersions[episode.id]
+                const detail = isEpisodeContentCurrent(episode, episodeDetails[episode.id]) ? episodeDetails[episode.id] : undefined
+                const resetPending = resetVersion !== undefined && Math.max(episode.sourceVersion ?? 0, detail?.sourceVersion ?? 0) <= resetVersion
+                return {
+                    ...episode,
+                    ...detail,
+                    status: isEpisodeContentCurrent(episode, episodeStatusOverrides[episode.id]) ? episodeStatusOverrides[episode.id].status : episode.status,
+                    finalizedAt: isEpisodeContentCurrent(episode, episodeStatusOverrides[episode.id]) ? episodeStatusOverrides[episode.id].finalizedAt : episode.finalizedAt,
+                    staleReason: episode.staleReason,
+                    mergedVideoDurationSeconds: episode.mergedVideoDurationSeconds,
+                    _count: episode._count,
+                    ...(resetPending ? { script: null, hasScript: false, status: 'finalized', staleReason: null, mergedVideoDurationSeconds: null, _count: { storyboards: 0 } } : {})
+                }
+            }),
+            ...(Object.values(scriptResetVersions).includes(Infinity) ? { characters: [], scenes: [] } : {})
         }),
-        [projectSummary, episodeDetails, episodeStatusOverrides]
+        [projectSummary, episodeDetails, episodeStatusOverrides, scriptResetVersions]
     )
     const missingOutlineNumbers = useMemo(() => getMissingChapterOutlineNumbers(project.episodes, project.totalEpisodes), [project.episodes, project.totalEpisodes])
     const hasAnyOutline = project.episodes.some(episode => Boolean(episode.synopsis?.trim()))
@@ -327,12 +360,14 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
     const [savingChapterId, setSavingChapterId] = useState<string | null>(null)
     const [autoSavedFlash, setAutoSavedFlash] = useState<Record<string, number>>({})
     const autoSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+    const pendingEpisodeEdits = useRef<Record<string, Partial<ChapterEpisode>>>({})
     const [batchRunning, setBatchRunning] = useState(false)
     const [chapterBatchTotal, setChapterBatchTotal] = useState(0)
     const [chapterBatchDone, setChapterBatchDone] = useState(0)
     const [chapterBatchCurrentId, setChapterBatchCurrentId] = useState<string | null>(null)
     const [chapterBatchPaused, setChapterBatchPaused] = useState<{ episodeNumber: number; reason: string } | null>(null)
     const [batchFinalizing, setBatchFinalizing] = useState(false)
+    const [batchUnfinalizing, setBatchUnfinalizing] = useState<{ completed: number; total: number } | null>(null)
     const [scriptingIds, setScriptingIds] = useState<Set<string>>(new Set())
     const [scriptQueuedIds, setScriptQueuedIds] = useState<Set<string>>(new Set())
     const [storyboardingIds, setStoryboardingIds] = useState<Set<string>>(new Set())
@@ -518,15 +553,7 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
             const detail = json.data as EpisodeContent
             if (!contentRequests.isCurrent(episodeId, token)) return
             setEpisodeDetails(prev => ({ ...prev, [episodeId]: detail }))
-            setChapterDrafts(prev => ({
-                ...prev,
-                [episodeId]: {
-                    title: detail.title ?? '',
-                    synopsis: detail.synopsis ?? '',
-                    chapterContent: detail.chapterContent ?? ''
-                }
-            }))
-            setScriptDrafts(prev => ({ ...prev, [episodeId]: detail.script ?? '' }))
+            return detail
         } catch (error) {
             if (contentRequests.isCurrent(episodeId, token)) onMessage({ type: 'error', text: error instanceof Error ? error.message : '章节内容加载失败' })
         } finally {
@@ -541,8 +568,10 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
     }
 
     useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setSetup(parseSetup(project.novelSetup))
+        const previous = setupSnapshot.current
+        const saved = parseSetup(project.novelSetup)
+        setupSnapshot.current = saved
+        setSetup(current => mergeEditorDraft(current, previous, saved))
     }, [project.novelSetup])
 
     useEffect(() => {
@@ -565,6 +594,7 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
     const selectedScriptVersion = projectSummary.episodes.find(episode => episode.id === selectedScriptId)?.sourceVersion
 
     useEffect(() => {
+        // The loader sets the selected episode's loading state before awaiting the request.
         // eslint-disable-next-line react-hooks/set-state-in-effect
         if (novelStageView === 'drafting' && selectedChapterId) void loadEpisodeContent(selectedChapterId)
         // loadEpisodeContent is intentionally keyed by the selected id; the cache prevents duplicate requests.
@@ -583,33 +613,33 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
     }, [project.episodes, selectedScriptId])
 
     useEffect(() => {
+        // The loader sets the selected episode's loading state before awaiting the request.
         // eslint-disable-next-line react-hooks/set-state-in-effect
         if (novelStageView === 'finalized' && selectedScriptId) void loadEpisodeContent(selectedScriptId)
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [novelStageView, selectedScriptId, selectedScriptVersion])
 
     useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+        const previous = chapterSnapshots.current
+        const saved = Object.fromEntries(project.episodes.map(ep => [ep.id, { title: ep.title ?? '', synopsis: ep.synopsis ?? '', chapterContent: ep.chapterContent ?? '' }]))
+        chapterSnapshots.current = saved
         setChapterDrafts(prev => {
             const drafts: Record<string, { title: string; synopsis: string; chapterContent: string }> = {}
             for (const ep of project.episodes) {
-                drafts[ep.id] = {
-                    title: ep.title ?? '',
-                    synopsis: ep.synopsis ?? '',
-                    chapterContent: episodeHasChapterContent(ep) ? (ep.chapterContent ?? (isEpisodeContentCurrent(ep, episodeDetails[ep.id]) ? prev[ep.id]?.chapterContent : '') ?? '') : ''
-                }
+                drafts[ep.id] = mergeEditorDraft(prev[ep.id], previous[ep.id], saved[ep.id])
             }
             return drafts
         })
     }, [project.episodes, episodeDetails])
 
     useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+        const previous = scriptSnapshots.current
+        const saved = Object.fromEntries(project.episodes.map(ep => [ep.id, { script: ep.script ?? '' }]))
+        scriptSnapshots.current = saved
         setScriptDrafts(prev => {
             const next: Record<string, string> = {}
             for (const ep of project.episodes) {
-                // 保留用户正在编辑的内容，仅当 ep.script 更新时才覆盖
-                next[ep.id] = episodeHasScript(ep) ? (ep.script ?? (isEpisodeContentCurrent(ep, episodeDetails[ep.id]) ? prev[ep.id] : '') ?? '') : ''
+                next[ep.id] = mergeEditorDraft(prev[ep.id] === undefined ? undefined : { script: prev[ep.id] }, previous[ep.id], saved[ep.id]).script
             }
             return next
         })
@@ -624,12 +654,14 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
     }, [contentRequests])
 
     const currentStage = novelStageView
+    const { importedScript } = getProjectContentWorkflow(project)
     const projectCharacterCount = project.characters?.length ?? 0
     const projectSceneCount = project.scenes?.length ?? 0
     const hasProjectEntities = projectCharacterCount + projectSceneCount > 0
     const chapterProgress = getChapterProgress(project.episodes)
     const { allFinalized } = chapterProgress
-    const chapterActionsBusy = batchRunning || batchFinalizing || generatingChapterIds.size > 0 || savingChapterId !== null
+    const chapterActionsBusy = batchRunning || batchFinalizing || batchUnfinalizing !== null || generatingChapterIds.size > 0 || savingChapterId !== null
+    const unfinalizableChapterCount = project.episodes.filter(canUnfinalizeChapter).length
     const unfinalizedChapterCount = project.episodes.filter(ep => !isChapterFinalized(ep.status) && episodeHasChapterContent(ep)).length
     const hasOutline = project.episodes.some(e => e.synopsis)
     const chapterBatchCurrent = chapterBatchCurrentId ? project.episodes.find(e => e.id === chapterBatchCurrentId) : null
@@ -657,10 +689,12 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
 
     function clearDownstreamClientState() {
         contentRequests.clear()
+        setScriptResetVersions({})
         setLoadingEpisodeIds(new Set())
         for (const timer of [...Object.values(autoSaveTimers.current), ...Object.values(scriptAutoSaveTimers.current)]) clearTimeout(timer)
         autoSaveTimers.current = {}
         scriptAutoSaveTimers.current = {}
+        pendingEpisodeEdits.current = {}
         setEpisodeDetails({})
         setEpisodeStatusOverrides({})
         setChapterDrafts({})
@@ -711,7 +745,7 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
             const persistedSetup = typeof json.data?.novelSetup === 'string' ? JSON.stringify(parseSetup(json.data.novelSetup)) : null
             const requestedSetup = JSON.stringify(parseSetup(serializedSetup))
             if (persistedSetup !== requestedSetup) throw new Error(t('故事架构保存失败，请稍后重试'))
-            await onRefetch()
+            onProjectSaved?.(json.data)
             onMessage({ type: 'success', text: '设定已保存' })
             return true
         } catch (e) {
@@ -723,6 +757,7 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
     }
 
     async function runSetupArchitect() {
+        const startingSetup = setup
         setRunningAi('setup')
         onMessage(null)
         try {
@@ -736,7 +771,7 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
             const jobId = json.data?.jobId as string | undefined
             if (!jobId) throw new Error('小说架构任务未返回 jobId')
             const result = await pollSetupJob(jobId)
-            setSetup(result.setup)
+            setSetup(current => mergeEditorDraft(current, startingSetup, result.setup))
             setShowStoryBible(true)
             onMessage({ type: 'success', text: '小说架构已生成，可继续编辑后生成大纲' })
             await onRefetch()
@@ -748,7 +783,8 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
     }
 
     async function runOutlineTextAction(action: 'rewrite' | 'expand') {
-        const sourceOutline = setup.outline?.trim()
+        const startingOutline = setup.outline
+        const sourceOutline = startingOutline?.trim()
         if (!sourceOutline || runningAi) return
         const actionLabel = action === 'rewrite' ? t('改写') : t('扩写')
         setRunningAi(`outline-${action}`)
@@ -781,7 +817,7 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
             const jobId = json.data?.jobId as string | undefined
             if (!jobId) throw new Error('未返回 jobId')
             const improved = await pollOutlineTextJob(jobId)
-            setSetup(previous => ({ ...previous, outline: improved }))
+            setSetup(previous => (previous.outline === startingOutline ? { ...previous, outline: improved } : previous))
             onMessage({ type: 'success', text: `${actionLabel} ✓` })
         } catch (error) {
             onMessage({ type: 'error', text: error instanceof Error ? error.message : action === 'rewrite' ? t('改写失败') : t('扩写失败') })
@@ -1045,13 +1081,30 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
     }
 
     async function patchEpisode(episodeId: string, data: Partial<ChapterEpisode>): Promise<boolean> {
+        const edits = { ...pendingEpisodeEdits.current[episodeId], ...data }
+        delete pendingEpisodeEdits.current[episodeId]
+        for (const timers of [autoSaveTimers.current, scriptAutoSaveTimers.current]) {
+            clearTimeout(timers[episodeId])
+            delete timers[episodeId]
+        }
+        const previousSave = episodeSaveQueues.current[episodeId]
+        const pending = saveEpisodeContent(episodeId, edits, previousSave)
+        episodeSaveQueues.current[episodeId] = pending
+        return pending
+    }
+
+    async function saveEpisodeContent(episodeId: string, data: Partial<ChapterEpisode>, previousSave?: Promise<boolean>): Promise<boolean> {
+        if (previousSave) await previousSave
         setSavingChapterId(episodeId)
         onMessage(null)
         try {
             const res = await clientFetch(`/api/episodes/${episodeId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...data, expectedSourceVersion: project.episodes.find(episode => episode.id === episodeId)?.sourceVersion })
+                body: JSON.stringify({
+                    ...data,
+                    expectedSourceVersion: Math.max(savedEpisodeVersions.current[episodeId] ?? 0, project.episodes.find(episode => episode.id === episodeId)?.sourceVersion ?? 0) || undefined
+                })
             })
             const json = await readApiJson(res)
             if (!res.ok || !json.success) throw new Error(json.error ?? '章节内容保存失败')
@@ -1062,11 +1115,16 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
                 return (stored ?? null) !== (requested ?? null)
             })
             if (missingField) throw new Error(`章节内容保存失败：服务端未保存字段 ${missingField[0]}`)
-            if (episodeDetails[episodeId]) {
-                setEpisodeDetails(prev => ({ ...prev, [episodeId]: { ...prev[episodeId], ...json.data } }))
-            }
-            await loadEpisodeContent(episodeId, true)
-            await onRefetch()
+            if (typeof json.data.sourceVersion === 'number') savedEpisodeVersions.current[episodeId] = json.data.sourceVersion
+            const token = contentRequests.start(episodeId, json.data.sourceVersion, true)
+            if (token) contentRequests.finish(episodeId, token)
+            setLoadingEpisodeIds(previous => {
+                const next = new Set(previous)
+                next.delete(episodeId)
+                return next
+            })
+            setEpisodeDetails(prev => ({ ...prev, [episodeId]: json.data }))
+            await refetchProjectQuietly()
             return true
         } catch (e) {
             onMessage({ type: 'error', text: e instanceof Error ? e.message : String(e) })
@@ -1077,11 +1135,12 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
     }
 
     function scheduleAutoSave(episodeId: string, data: Partial<ChapterEpisode>, delayMs = 800) {
+        pendingEpisodeEdits.current[episodeId] = { ...pendingEpisodeEdits.current[episodeId], ...data }
         const timers = autoSaveTimers.current
         if (timers[episodeId]) clearTimeout(timers[episodeId])
         timers[episodeId] = setTimeout(async () => {
             delete timers[episodeId]
-            if (!(await patchEpisode(episodeId, data))) return
+            if (!(await patchEpisode(episodeId, {}))) return
             setAutoSavedFlash(prev => ({ ...prev, [episodeId]: Date.now() }))
             setTimeout(() => {
                 setAutoSavedFlash(prev => {
@@ -1094,11 +1153,12 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
     }
 
     function scheduleScriptAutoSave(episodeId: string, script: string, delayMs = 1200) {
+        pendingEpisodeEdits.current[episodeId] = { ...pendingEpisodeEdits.current[episodeId], script }
         const timers = scriptAutoSaveTimers.current
         if (timers[episodeId]) clearTimeout(timers[episodeId])
         timers[episodeId] = setTimeout(async () => {
             delete timers[episodeId]
-            if (!(await patchEpisode(episodeId, { script }))) return
+            if (!(await patchEpisode(episodeId, {}))) return
             setScriptAutoSavedFlash(prev => ({ ...prev, [episodeId]: Date.now() }))
             setTimeout(() => {
                 setScriptAutoSavedFlash(prev => {
@@ -1117,11 +1177,24 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
         }
     }, [])
 
-    function cancelPendingAutoSaves(episodeId: string) {
-        for (const timers of [autoSaveTimers.current, scriptAutoSaveTimers.current]) {
-            if (timers[episodeId]) clearTimeout(timers[episodeId])
-            delete timers[episodeId]
-        }
+    async function flushPendingAutoSaves(episodeId: string): Promise<boolean> {
+        if (pendingEpisodeEdits.current[episodeId]) return patchEpisode(episodeId, {})
+        return (await episodeSaveQueues.current[episodeId]) ?? true
+    }
+
+    async function recoverChapterDraft(episodeId: string, error: unknown) {
+        if (!(error instanceof ChapterDraftError) || !error.draftContent?.trim() || pendingEpisodeEdits.current[episodeId]) return
+        const latest = await loadEpisodeContent(episodeId, true)
+        // A candidate from an older version must not replace a newer edit or finalized text.
+        if (!latest || latest.sourceVersion !== error.draftSourceVersion || isChapterFinalized(latest.status) || pendingEpisodeEdits.current[episodeId]) return
+        // Failed rewrite candidates stay in the job checkpoint. Keep a saved
+        // chapter in the editor so blur/autosave cannot publish the failed draft.
+        if (latest.chapterContent?.trim()) return
+        setChapterDrafts(prev => ({
+            ...prev,
+            [episodeId]: { title: latest.title ?? '', synopsis: latest.synopsis ?? '', chapterContent: error.draftContent! }
+        }))
+        setSelectedChapterId(episodeId)
     }
 
     async function generateChapter(episodeId: string) {
@@ -1131,7 +1204,7 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
             onMessage({ type: 'error', text: `请先生成前文正文：第 ${missingPrevious.map(e => e.episodeNumber).join('、')} 章。小说必须按顺序承接生成。` })
             return
         }
-        cancelPendingAutoSaves(episodeId)
+        if (!(await flushPendingAutoSaves(episodeId))) return
         setGeneratingChapterIds(prev => {
             const next = new Set(prev)
             next.add(episodeId)
@@ -1144,12 +1217,13 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
             clearExtractionClientState()
             await loadEpisodeContent(episodeId, true)
             onMessage({
-                type: result.warning ? 'error' : 'success',
+                type: 'success',
                 text: result.warning ? `${t('已生成草稿')}: ${result.warning}` : t('第{number}章已生成', { number: current?.episodeNumber ?? '' })
             })
             setSelectedChapterId(episodeId)
             await onRefetch()
         } catch (e) {
+            await recoverChapterDraft(episodeId, e)
             onMessage({ type: 'error', text: e instanceof Error ? e.message : String(e) })
         } finally {
             setGeneratingChapterIds(prev => {
@@ -1181,7 +1255,7 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
             return true
         })
         if (pending.length === 0) return
-        pending.forEach(episode => cancelPendingAutoSaves(episode.id))
+        for (const episode of pending) if (!(await flushPendingAutoSaves(episode.id))) return
 
         setBatchRunning(true)
         setChapterBatchTotal(pending.length)
@@ -1193,7 +1267,7 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
         try {
             let completed = 0
             let pausedFailure: { num: number; msg: string } | null = null
-            const warnings: string[] = []
+            let pendingReviewCount = 0
             for (const ep of pending) {
                 setSelectedChapterId(ep.id)
                 setChapterBatchCurrentId(ep.id)
@@ -1211,10 +1285,11 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
                 try {
                     const jobId = await startChapterJob(ep.id)
                     const result = await pollChapterJob(jobId)
-                    if (result.warning) warnings.push(result.warning)
+                    if (result.warning || result.reviewStatus === 'needs_review') pendingReviewCount += 1
                     await loadEpisodeContent(ep.id, true)
                     generated = true
                 } catch (e) {
+                    await recoverChapterDraft(ep.id, e)
                     pausedFailure = { num: ep.episodeNumber, msg: e instanceof Error ? e.message : String(e) }
                 }
                 setGeneratingChapterIds(prev => {
@@ -1237,8 +1312,10 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
             } else {
                 setChapterBatchPaused(null)
                 onMessage({
-                    type: warnings.length > 0 ? 'error' : 'success',
-                    text: warnings.length > 0 ? `${t('批量生成完成，共 {count} 章', { count: pending.length })}; ${warnings.join('; ')}` : t('批量生成完成，共 {count} 章', { count: pending.length })
+                    type: 'success',
+                    text:
+                        t('批量生成完成，共 {count} 章', { count: completed }) +
+                        (pendingReviewCount > 0 ? `；${t('其中 {count} 章待复核，可在章节正文中查看提醒。', { count: pendingReviewCount })}` : '')
                 })
             }
         } finally {
@@ -1257,7 +1334,7 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
         if (draft) {
             const ep = project.episodes.find(e => e.id === episodeId)
             if (ep && (draft.title !== (ep.title ?? '') || draft.synopsis !== (ep.synopsis ?? '') || draft.chapterContent !== (ep.chapterContent ?? ''))) {
-                await patchEpisode(episodeId, { title: draft.title, synopsis: draft.synopsis, chapterContent: draft.chapterContent })
+                if (!(await patchEpisode(episodeId, { title: draft.title, synopsis: draft.synopsis, chapterContent: draft.chapterContent }))) return
             }
         }
         setSavingChapterId(episodeId)
@@ -1309,28 +1386,16 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
         const confirmedIds = new Set(project.episodes.filter(ep => isLocked(ep.status)).map(ep => ep.id))
         let skippedFinalized = 0
         try {
-            // Save edits before any status update refreshes the chapter drafts.
-            for (const ep of candidates) {
-                clearTimeout(autoSaveTimers.current[ep.id])
-                delete autoSaveTimers.current[ep.id]
-            }
+            // Submit pending edits through the same queue as automatic and manual saves.
             for (const ep of candidates) {
                 const draft = chapterDrafts[ep.id]
-                if (!draft || !isEpisodeContentCurrent(ep, episodeDetails[ep.id])) continue
-                const needPatch = draft.title !== (ep.title ?? '') || draft.synopsis !== (ep.synopsis ?? '') || draft.chapterContent !== (ep.chapterContent ?? '')
-                if (!needPatch) continue
-                try {
-                    const res = await clientFetch(`/api/episodes/${ep.id}`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ title: draft.title, synopsis: draft.synopsis, chapterContent: draft.chapterContent, expectedSourceVersion: ep.sourceVersion })
-                    })
-                    const json = await readApiJson(res)
-                    if (!res.ok || !json.success) throw new Error(json.error ?? t('保存失败'))
-                } catch (error) {
-                    onMessage({ type: 'error', text: `${t('第')}${ep.episodeNumber}${t('章')} · ${error instanceof Error ? error.message : t('保存失败')}` })
-                    return
-                }
+                const needPatch =
+                    draft &&
+                    isEpisodeContentCurrent(ep, episodeDetails[ep.id]) &&
+                    (draft.title !== (ep.title ?? '') || draft.synopsis !== (ep.synopsis ?? '') || draft.chapterContent !== (ep.chapterContent ?? ''))
+                if (needPatch) {
+                    if (!(await patchEpisode(ep.id, { title: draft.title, synopsis: draft.synopsis, chapterContent: draft.chapterContent }))) return
+                } else if (!(await flushPendingAutoSaves(ep.id))) return
             }
             for (const ep of candidates) {
                 // 项目列表可能是旧快照；批量操作前以服务端状态为准，避免对已定稿章节发 PATCH 导致 409。
@@ -1386,6 +1451,7 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
     }
 
     async function unfinalizeChapter(episodeId: string) {
+        if (chapterActionsBusy) return
         setSavingChapterId(episodeId)
         onMessage(null)
         try {
@@ -1399,6 +1465,48 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
             onMessage({ type: 'error', text: e instanceof Error ? e.message : String(e) })
         } finally {
             setSavingChapterId(null)
+        }
+    }
+
+    async function batchUnfinalize() {
+        if (chapterActionsBusy) return
+        const candidates = project.episodes.filter(canUnfinalizeChapter)
+        if (candidates.length === 0) return
+        const protectedCount = chapterProgress.finalized - candidates.length
+        const skippedMessage = protectedCount > 0 ? t('另有 {count} 章已有剧本或分镜，将跳过；请先重置下游内容。', { count: protectedCount }) : ''
+        const ok = await confirm({
+            title: t('全部解除定稿'),
+            message: t('确认解除 {count} 章的定稿？正文将保留，解除后可继续编辑。', { count: candidates.length }) + skippedMessage,
+            confirmText: t('全部解除定稿'),
+            tone: 'warning'
+        })
+        if (!ok) return
+
+        setBatchUnfinalizing({ completed: 0, total: candidates.length })
+        onMessage(null)
+        const failed: Array<{ num: number; msg: string }> = []
+        try {
+            for (const [index, episode] of candidates.entries()) {
+                try {
+                    const res = await clientFetch(`/api/episodes/${episode.id}/unfinalize`, { method: 'POST' })
+                    const json = await readApiJson(res)
+                    if (!res.ok || !json.success) throw new Error(json.error ?? t('解除定稿失败'))
+                    setEpisodeStatusOverrides(prev => ({ ...prev, [episode.id]: { status: 'drafted', finalizedAt: null, sourceVersion: episode.sourceVersion } }))
+                } catch (error) {
+                    failed.push({ num: episode.episodeNumber, msg: error instanceof Error ? error.message : String(error) })
+                }
+                setBatchUnfinalizing({ completed: index + 1, total: candidates.length })
+            }
+            onMessage({
+                type: failed.length > 0 ? 'error' : 'success',
+                text:
+                    t('解除定稿：成功 {success} 章，失败 {failed} 章。', { success: candidates.length - failed.length, failed: failed.length }) +
+                    skippedMessage +
+                    failed.map(item => `${t('第{number}章', { number: item.num })}: ${t(item.msg)}`).join('；')
+            })
+            await refetchProjectQuietly()
+        } finally {
+            setBatchUnfinalizing(null)
         }
     }
 
@@ -1430,8 +1538,23 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
         setNovelStageView('drafting')
     }
 
+    function editScriptIssueChapter() {
+        if (!scriptBatchIssue) return
+        setSelectedChapterId(scriptBatchIssue.episodeId)
+        setNovelStageView('drafting')
+    }
+
     async function generateSingleScript(episodeId: string) {
         const current = project.episodes.find(episode => episode.id === episodeId)
+        if (current && episodeContinuityReviewPredecessor(current) !== null) {
+            const accepted = await confirm({
+                title: t('确认后续内容已检查'),
+                message: t('请先检查本集章节、剧本及与前一集的衔接。需要修改时先调整章节；确认内容正确后再重新拆解。'),
+                confirmText: t('已检查，继续拆解'),
+                tone: 'warning'
+            })
+            if (!accepted) return
+        }
         if (current && (episodeHasScript(current) || (current._count?.storyboards ?? 0) > 0)) {
             const accepted = await confirm({
                 title: '重新拆本集剧本',
@@ -1442,7 +1565,7 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
             if (!accepted) return
         }
         if (scriptBatchIssue?.episodeId === episodeId) setScriptBatchIssue(null)
-        cancelPendingAutoSaves(episodeId)
+        if (!(await flushPendingAutoSaves(episodeId))) return
         setScriptingIds(prev => {
             const next = new Set(prev)
             next.add(episodeId)
@@ -1454,10 +1577,11 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
             const result = await pollScriptJob(jobId)
             clearExtractionClientState()
             await loadEpisodeContent(episodeId, true)
-            onMessage({ type: 'success', text: t('第{number}集剧本已生成', { number: result.episodeNumber }) })
+            onMessage({ type: result.warning ? 'error' : 'success', text: result.warning ? `${t('已生成草稿')}: ${result.warning}` : t('第{number}集剧本已生成', { number: result.episodeNumber }) })
             await onRefetch()
         } catch (e) {
             const reason = e instanceof Error ? e.message : String(e)
+            if (scriptContinuityPredecessor(reason) !== null) await refetchProjectQuietly()
             if (current) {
                 setScriptBatchIssue({
                     episodeId,
@@ -1491,10 +1615,19 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
             })
             return
         }
+        if (initialCandidates.some(episode => episodeContinuityReviewPredecessor(episode) !== null)) {
+            const accepted = await confirm({
+                title: t('确认后续内容已检查'),
+                message: t('请先检查待拆解的后续章节、已有剧本及首尾衔接。需要修改时先调整章节；确认内容正确后再继续批量拆解。'),
+                confirmText: t('已检查，继续拆解'),
+                tone: 'warning'
+            })
+            if (!accepted) return
+        }
         if (mode === 'all') {
             const ok = await confirm({
                 title: '重新生成剧本',
-                message: `将重新生成全部 ${initialCandidates.length} 集剧本。每集新剧本成功保存后，会清空旧角色、场景及参考图，以及该集旧分镜、插图、视频、字幕和合成成片，后续需要重新生成；大纲和定稿正文保留。`,
+                message: `将立即清空全部 ${initialCandidates.length} 集旧剧本、角色、场景及参考图，以及旧分镜、插图、视频、字幕和合成成片，然后重新生成剧本；大纲和定稿正文保留。`,
                 confirmText: '重新生成',
                 tone: 'warning'
             })
@@ -1502,19 +1635,46 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
         }
 
         onMessage(null)
-        initialCandidates.forEach(episode => cancelPendingAutoSaves(episode.id))
         setScriptQueuedIds(new Set(initialCandidates.map(e => e.id)))
         setScriptBatchTotal(initialCandidates.length)
         setScriptBatchDone(0)
         setScriptBatchRunning(true)
 
         setScriptBatchIssue(null)
+        let resetCommitted = false
         try {
+            if (mode === 'all') {
+                setScriptResetVersions(prev => ({ ...prev, ...Object.fromEntries(initialCandidates.map(episode => [episode.id, Infinity])) }))
+                contentRequests.clear()
+                setLoadingEpisodeIds(new Set())
+            }
+            // Finish old saves before resetting so they cannot restore a discarded script.
+            for (const episode of initialCandidates) if (!(await flushPendingAutoSaves(episode.id))) return
+            if (mode === 'all') {
+                const resetRes = await clientFetch(`/api/projects/${project.id}/reset-scripts`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ clearAllScripts: true, episodeIds: initialCandidates.map(episode => episode.id) }),
+                    timeoutMs: 75_000
+                })
+                const resetJson = await readApiJson(resetRes)
+                if (!resetRes.ok || !resetJson.success) throw new Error(resetJson.error ?? '清空旧剧本失败')
+                resetCommitted = true
+                if (Number(resetJson.data?.cleared ?? 0) !== initialCandidates.length) throw new Error('旧剧本未完整清空，请刷新页面后重试')
+                const versions = Object.fromEntries((resetJson.data.episodes as Array<{ id: string; sourceVersion: number }>).map(episode => [episode.id, episode.sourceVersion]))
+                setScriptResetVersions(prev => ({ ...prev, ...versions }))
+                for (const episode of initialCandidates) scriptSnapshots.current[episode.id] = { script: '' }
+                setScriptDrafts(prev => ({ ...prev, ...Object.fromEntries(initialCandidates.map(episode => [episode.id, ''])) }))
+                clearExtractionClientState()
+                await refetchProjectQuietly()
+            }
+            const warnings: string[] = []
             const issue = await runScriptBatch({
                 episodes: initialCandidates,
                 generate: async ep => {
                     const jobId = await startScriptJob(ep.id)
-                    await pollScriptJob(jobId)
+                    const result = await pollScriptJob(jobId)
+                    if (result.warning) warnings.push(result.warning)
                 },
                 onAttempt: ep => {
                     setScriptBatchIssue(null)
@@ -1540,9 +1700,22 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
                 }
             })
             setScriptBatchIssue(issue)
-            if (!issue) onMessage({ type: 'success', text: t('拆剧本完成，共 {count} 集', { count: initialCandidates.length }) })
+            if (!issue)
+                onMessage({
+                    type: warnings.length ? 'error' : 'success',
+                    text: `${t('拆剧本完成，共 {count} 集', { count: initialCandidates.length })}${warnings.length ? `; ${warnings.join('; ')}` : ''}`
+                })
             await refetchProjectQuietly()
+        } catch (e) {
+            onMessage({ type: 'error', text: e instanceof Error ? e.message : String(e) })
         } finally {
+            if (mode === 'all' && !resetCommitted) {
+                setScriptResetVersions(prev => {
+                    const next = { ...prev }
+                    for (const episode of initialCandidates) delete next[episode.id]
+                    return next
+                })
+            }
             setScriptQueuedIds(new Set())
             setScriptingIds(new Set())
             setScriptBatchRunning(false)
@@ -1623,10 +1796,8 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
                         <div className="flex flex-wrap items-center justify-end gap-2">
                             <WalletBalance compact />
                             <div className="min-w-[170px]">
-                                <ModelSwitcher
-                                    title="架构与大纲模型"
-                                    prefix="架构/大纲"
-                                />
+                                <ModelSwitcher title="架构与大纲模型"
+                                    prefix="架构/大纲" />
                             </div>
                         </div>
                     </div>
@@ -1684,7 +1855,7 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
                             onClick={() => setShowStyleOptions(v => !v)}
                             className="flex items-center gap-1 text-xs text-gray-300 font-medium mb-2 hover:text-white">
                             {showStyleOptions ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                            类型与写作参数（高级）
+                            <span>{t('类型与写作参数（高级）')}</span>
                         </button>
                         {showStyleOptions && (
                             <>
@@ -1876,7 +2047,7 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
                                 onClick={() => setShowStoryBible(v => !v)}
                                 className="flex items-center gap-1 text-xs text-gray-300 font-medium hover:text-white">
                                 {showStoryBible ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                                故事架构
+                                <span>{t('故事架构')}</span>
                                 {setup.episodeStatePlan?.length ? <span className="text-gray-500 font-normal">已生成 {setup.episodeStatePlan.length} 集状态计划</span> : null}
                             </button>
                             <button
@@ -2144,10 +2315,8 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
                         <div className="flex gap-2 items-center flex-wrap">
                             <WalletBalance compact />
                             <div className="min-w-[160px]">
-                                <ModelSwitcher
-                                    title="架构与大纲模型"
-                                    prefix="架构/大纲"
-                                />
+                                <ModelSwitcher title="架构与大纲模型"
+                                    prefix="架构/大纲" />
                             </div>
                             <button
                                 onClick={runOutline}
@@ -2238,7 +2407,8 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
                                                                           aria-controls={`chapter-synopsis-${ep.id}`}
                                                                           className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-purple-300 hover:bg-purple-500/10">
                                                                           {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                                                                          {expanded ? '收起' : '展开'}
+                                                                          {/* Browser translators replace text nodes; keep a stable element beside the changing icon. */}
+                                                                          <span>{t(expanded ? '收起' : '展开')}</span>
                                                                       </button>
                                                                   </div>
                                                                   {!expanded && (
@@ -2309,6 +2479,17 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
                             </dd>
                         </div>
                     </dl>
+                    {(chapterProgress.finalized > 0 || batchUnfinalizing !== null) && (
+                        <button
+                            type="button"
+                            onClick={() => void batchUnfinalize()}
+                            disabled={chapterActionsBusy || unfinalizableChapterCount === 0}
+                            title={unfinalizableChapterCount === 0 ? t('本集已经生成剧本或分镜，不能直接解除定稿；请先通过受保护的重置流程处理下游资产') : undefined}
+                            className="flex items-center gap-1.5 rounded-lg bg-gray-800 px-3 py-1.5 text-xs text-white hover:bg-gray-700 disabled:opacity-50">
+                            {batchUnfinalizing ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Unlock className="h-3.5 w-3.5" />}
+                            {batchUnfinalizing ? t('解除定稿中... ({completed}/{total})', batchUnfinalizing) : t('全部解除定稿')}
+                        </button>
+                    )}
                     {batchRunning && (
                         <div
                             className="flex min-w-[180px] max-w-[520px] flex-1 items-center gap-2"
@@ -2342,6 +2523,7 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
                                 else void batchGenerate('missing')
                             }}
                             disabled={chapterActionsBusy}
+                            aria-busy={chapterActionsBusy}
                             className="studio-primary disabled:cursor-not-allowed disabled:opacity-50">
                             {chapterActionsBusy ? (
                                 <RefreshCw className="h-3.5 w-3.5 animate-spin" />
@@ -2472,7 +2654,9 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
                                                 <div className="mt-1 text-[10px] leading-relaxed text-amber-200/70">
                                                     {t('第 {chapter} 章生成中断，已完成的正文已保留。请使用顶部按钮继续生成。').replace('{chapter}', String(chapterBatchPaused.episodeNumber))}
                                                 </div>
-                                                <div className="mt-1 max-h-20 overflow-y-auto break-words text-[10px] leading-relaxed text-amber-200/70">{chapterBatchPaused.reason}</div>
+                                                <div className="mt-1 max-h-20 overflow-y-auto break-words text-[10px] leading-relaxed text-amber-200/70">
+                                                    <DiagnosticMessage message={chapterBatchPaused.reason} />
+                                                </div>
                                             </div>
                                         )}
                                         {unfinalizedChapterCount > 0 && (
@@ -2506,6 +2690,24 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
                             <section className="flex-1 min-w-0 flex flex-col bg-gray-950">
                                 {/* 主体 */}
                                 <div className="flex-1 min-h-0 overflow-y-auto novel-scroll px-6 py-4 flex flex-col gap-4">
+                                    {selected.chapterReview?.status === 'needs_review' && draft.chapterContent === selected.chapterContent && (
+                                        <div
+                                            role="status"
+                                            className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                                            <div className="font-medium">{t('已生成 · 待复核')}</div>
+                                            <p className="mt-1">{t('正文已保存，可继续生成后续章节。请在定稿前检查以下提醒。')}</p>
+                                            {selected.chapterReview.warnings.map((warning, index) => (
+                                                <p
+                                                    key={index}
+                                                    className="mt-1 break-words">
+                                                    <DiagnosticMessage
+                                                        message={warning}
+                                                        kind="notice"
+                                                    />
+                                                </p>
+                                            ))}
+                                        </div>
+                                    )}
                                     <div className="flex-1 flex flex-col min-h-0">
                                         {draft.chapterContent && <div className="mb-1 text-end text-[11px] text-gray-500">{draft.chapterContent.length} 字</div>}
                                         {hasContent || gen || queued ? (
@@ -2517,7 +2719,7 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
                                                     // eslint-disable-next-line react-hooks/refs
                                                     if (next !== (selected.chapterContent ?? '')) scheduleAutoSave(selected.id, { chapterContent: next }, 2000)
                                                 }}
-                                                disabled={isFinalized || gen || queued || contentLoading || batchFinalizing}
+                                                disabled={isFinalized || gen || queued || contentLoading || batchFinalizing || batchUnfinalizing !== null}
                                                 placeholder={contentLoading ? '正在加载本章正文...' : gen ? '生成中...' : queued ? '即将开始...' : ''}
                                                 className="studio-chapter-editor flex-1 min-h-[420px] w-full bg-gray-900 border border-gray-800 text-white rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-purple-500 resize-none font-mono leading-relaxed novel-scroll disabled:opacity-80"
                                             />
@@ -2533,7 +2735,7 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
                                                 <button
                                                     // eslint-disable-next-line react-hooks/refs
                                                     onClick={() => generateChapter(selected.id)}
-                                                    disabled={gen || queued || batchRunning || !canGenerateSelected}
+                                                    disabled={chapterActionsBusy || queued || !canGenerateSelected}
                                                     className="flex items-center gap-1.5 px-4 py-2 studio-primary disabled:opacity-50 text-white text-sm rounded-lg">
                                                     {gen ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
                                                     {gen ? '生成中...' : queued ? '即将开始' : '生成本章'}
@@ -2550,14 +2752,14 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
                                             <>
                                                 <button
                                                     onClick={() => patchEpisode(selected.id, { chapterContent: draft.chapterContent, title: draft.title, synopsis: draft.synopsis })}
-                                                    disabled={saving || gen || queued || contentLoading || batchFinalizing}
+                                                    disabled={saving || gen || queued || contentLoading || batchFinalizing || batchUnfinalizing !== null}
                                                     className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white text-xs rounded-lg">
                                                     <Save className="w-3.5 h-3.5" />
                                                     保存草稿
                                                 </button>
                                                 <button
                                                     onClick={() => generateChapter(selected.id)}
-                                                    disabled={chapterActionsBusy || queued || !canGenerateSelected}
+                                                    disabled={chapterActionsBusy || queued || contentLoading || !canGenerateSelected}
                                                     className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white text-xs rounded-lg">
                                                     <RefreshCw className={`w-3.5 h-3.5 ${gen ? 'animate-spin' : ''}`} />
                                                     {gen ? '生成中...' : queued ? '即将开始' : '重新生成'}
@@ -2574,7 +2776,7 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
                                         {isFinalized && (
                                             <button
                                                 onClick={() => unfinalizeChapter(selected.id)}
-                                                disabled={chapterActionsBusy || selected.status === 'scripted' || selected.status === 'storyboarded'}
+                                                disabled={chapterActionsBusy || !canUnfinalizeChapter(selected)}
                                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white text-xs rounded-lg ms-auto">
                                                 <Unlock className="w-3.5 h-3.5" />
                                                 解除定稿
@@ -2609,6 +2811,16 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
                     const selStoryboardCount = sel._count?.storyboards ?? 0
                     const selectedScriptIssue = scriptBatchIssue?.episodeId === sel.id ? scriptBatchIssue : null
                     const selectedScriptIssueGuidance = selectedScriptIssue ? getGenerationErrorGuidance(selectedScriptIssue.reason) : null
+                    const scriptBatchIssueGuidance = scriptBatchIssue ? getGenerationErrorGuidance(scriptBatchIssue.reason) : null
+                    const continuityPredecessor = scriptContinuityNoticePredecessor({
+                        issueReason: selectedScriptIssue?.reason,
+                        staleReason: sel.staleReason,
+                        hasChapterContent: episodeHasChapterContent(sel),
+                        hasScript: selHasScript,
+                        generating: selScripting,
+                        queued: selQueued
+                    })
+                    const batchContinuityPredecessor = scriptBatchRunning ? null : scriptContinuityPredecessor(scriptBatchIssue?.reason)
                     const selectedRuntimeMatch = selectedScriptIssue?.reason.match(/按对白语速和可见动作估算[仅约]\s*([\d.]+)\s*秒，明显(?:低于|超过)\s*([^；]+)/)
 
                     return (
@@ -2627,17 +2839,26 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
                                             />
                                         </div>
                                     </div>
-                                    <div className="mt-3">
-                                        <ModelSwitcher
-                                            providerKey="script_model"
-                                            title="拆剧本模型"
-                                            prefix="拆剧本"
-                                            defaultModel={GEMINI_FLASH_TEXT_MODEL_ID}
-                                        />
-                                    </div>
+                                    {!importedScript && (
+                                        <div className="mt-3">
+                                            <ModelSwitcher
+                                                providerKey="script_model"
+                                                title="拆剧本模型"
+                                                prefix="拆剧本"
+                                                defaultModel={GEMINI_FLASH_TEXT_MODEL_ID}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                                 {scriptBatchIssue &&
-                                    (getGenerationErrorGuidance(scriptBatchIssue.reason).configurationIssue ? (
+                                    (batchContinuityPredecessor !== null ? (
+                                        <div className="mx-3 mt-3">
+                                            <ScriptContinuityNotice
+                                                predecessor={batchContinuityPredecessor}
+                                                paused
+                                            />
+                                        </div>
+                                    ) : scriptBatchIssueGuidance?.configurationIssue ? (
                                         <div className="mx-3 mt-3 overflow-hidden rounded-lg border border-amber-500/25">
                                             <GenerationFailureNotice
                                                 errorMessage={scriptBatchIssue.reason}
@@ -2655,9 +2876,17 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
                                                     .replace('{state}', scriptBatchRunning ? ui('正在重试', 'retrying') : ui('已暂停', 'paused'))}
                                             </div>
                                             <div
-                                                className="mt-1 max-h-24 overflow-y-auto break-words leading-relaxed"
+                                                className={`mt-1 break-words leading-relaxed ${scriptBatchIssueGuidance?.editTarget === 'chapter' || scriptBatchIssueGuidance?.kind === 'script_quality' ? '' : 'max-h-24 overflow-y-auto'}`}
                                                 data-i18n-skip>
-                                                {scriptBatchIssue.reason}
+                                                {scriptBatchIssueGuidance?.editTarget === 'chapter' || scriptBatchIssueGuidance?.kind === 'script_quality' ? (
+                                                    <GenerationFailureNotice
+                                                        errorMessage={scriptBatchIssue.reason}
+                                                        taskLabel="拆剧本"
+                                                        onEdit={scriptBatchIssueGuidance?.editTarget === 'chapter' ? editScriptIssueChapter : undefined}
+                                                    />
+                                                ) : (
+                                                    <DiagnosticMessage message={scriptBatchIssue.reason} />
+                                                )}
                                             </div>
                                             <div className="mt-2 text-[10px] leading-relaxed text-amber-200/70">
                                                 {ui('已尝试 {attempts} 次，后续 {remaining} 集等待中。', 'Attempted {attempts} time(s); {remaining} later episode(s) are waiting.')
@@ -2719,7 +2948,7 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
                                                 ) : done ? (
                                                     <CheckCircle2
                                                         className="h-4 w-4 flex-shrink-0 text-emerald-400"
-                                                        aria-label={ui('已拆剧本', 'Adapted')}
+                                                        aria-label={importedScript ? t('剧本已全部就绪') : ui('已拆剧本', 'Adapted')}
                                                     />
                                                 ) : (
                                                     <span className="flex-shrink-0 whitespace-nowrap rounded border border-gray-700 bg-gray-800/80 px-1.5 py-0.5 text-[10px] text-gray-400">
@@ -2731,26 +2960,36 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
                                     })}
                                 </nav>
                                 <StudioSidebarActions busy={scriptBatchRunning}>
-                                    <button
-                                        onClick={() => batchScripts('missing')}
-                                        disabled={scriptBatchRunning || scriptingIds.size > 0 || !hasMissingScripts}
-                                        className="w-full flex items-center justify-center gap-1.5 px-3 py-2 studio-secondary disabled:opacity-50 text-white text-xs rounded-lg">
-                                        <Split className="w-3.5 h-3.5" />
-                                        {scriptBatchRunning
-                                            ? scriptBatchTotal > 0
-                                                ? `${ui('拆剧本中', 'Adapting scripts')} ${scriptBatchDone}/${scriptBatchTotal}`
-                                                : ui('拆剧本中...', 'Adapting scripts...')
-                                            : hasMissingScripts
-                                              ? ui('拆剩余剧本', 'Adapt remaining scripts')
-                                              : ui('剧本已全部就绪', 'All scripts ready')}
-                                    </button>
-                                    <button
-                                        onClick={() => batchScripts('all')}
-                                        disabled={scriptBatchRunning || scriptingIds.size > 0}
-                                        className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white text-xs rounded-lg">
-                                        <RefreshCw className="w-3.5 h-3.5" />
-                                        {ui('全部重拆（覆盖）', 'Re-adapt all (overwrite)')}
-                                    </button>
+                                    {!importedScript && (
+                                        <>
+                                            <button
+
+
+
+                                                onClick={() => batchScripts('missing')}
+                                                disabled={scriptBatchRunning || scriptingIds.size > 0 || !hasMissingScripts}
+                                                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 studio-secondary disabled:opacity-50 text-white text-xs rounded-lg">
+                                                <Split className="w-3.5 h-3.5" />
+                                                {scriptBatchRunning
+                                                    ? scriptBatchTotal > 0
+                                                        ? `${ui('拆剧本中', 'Adapting scripts')} ${scriptBatchDone}/${scriptBatchTotal}`
+                                                        : ui('拆剧本中...', 'Adapting scripts...')
+                                                    : hasMissingScripts
+                                                      ? ui('拆剩余剧本', 'Adapt remaining scripts')
+                                                      : ui('剧本已全部就绪', 'All scripts ready')}
+                                            </button>
+                                            <button
+
+
+
+                                                onClick={() => batchScripts('all')}
+                                                disabled={scriptBatchRunning || scriptingIds.size > 0}
+                                                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white text-xs rounded-lg">
+                                                <RefreshCw className="w-3.5 h-3.5" />
+                                                {ui('全部重拆（覆盖）', 'Re-adapt all (overwrite)')}
+                                            </button>
+                                        </>
+                                    )}
                                     <div className="space-y-1">
                                         <button
                                             onClick={openExtractModal}
@@ -2819,14 +3058,26 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
                                     ) : sel.status === 'storyboarded' || selStoryboardCount > 0 ? (
                                         <span className="text-xs text-yellow-400 bg-yellow-500/10 px-2 py-0.5 rounded">已分镜 · {selStoryboardCount} 个</span>
                                     ) : selHasScript ? (
-                                        <span className="text-xs text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded">已拆剧本</span>
+                                        <span className="text-xs text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded">{importedScript ? t('已导入') : t('已拆剧本')}</span>
                                     ) : (
                                         <span className="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded">未拆</span>
                                     )}
                                 </div>
 
                                 <div className="flex-1 min-h-0 flex flex-col px-6 py-4">
-                                    {selectedScriptIssue && !selScripting && !selQueued && (
+                                    {continuityPredecessor !== null && (
+                                        <div className="mb-4">
+                                            <ScriptContinuityNotice
+                                                predecessor={continuityPredecessor}
+                                                paused={scriptContinuityPredecessor(selectedScriptIssue?.reason) !== null}
+                                                onReviewChapter={() => {
+                                                    setSelectedChapterId(sel.id)
+                                                    setNovelStageView('drafting')
+                                                }}
+                                            />
+                                        </div>
+                                    )}
+                                    {selectedScriptIssue && continuityPredecessor === null && !selScripting && !selQueued && (
                                         <div className="mb-4 overflow-hidden rounded-lg border border-red-500/30 bg-red-500/5">
                                             {selectedRuntimeMatch && (
                                                 <dl className="grid grid-cols-2 gap-3 border-b border-red-500/20 px-3 py-2 text-xs">
@@ -2846,8 +3097,6 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
                                                 errorMessage={selectedScriptIssue.reason}
                                                 taskLabel="拆剧本"
                                                 onRetry={() => {
-                                                    // Timer refs are read only in this click handler, never while rendering the enclosing stage view.
-                                                    // eslint-disable-next-line react-hooks/refs
                                                     void generateSingleScript(sel.id)
                                                 }}
                                                 retryLabel={ui('重新拆本集', 'Re-adapt this episode')}
@@ -2875,10 +3124,17 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
                                                 <span>本集剧本（{(scriptDrafts[sel.id] ?? sel.script ?? '').length} 字）</span>
                                                 {scriptAutoSavedFlash[sel.id] && <span className="text-[10px] text-green-400">✓ 已保存</span>}
                                             </div>
-                                            {sel.staleReason && <p className="mb-2 rounded-lg border border-amber-700/40 bg-amber-900/20 p-3 text-xs text-amber-200">{sel.staleReason}</p>}
+                                            {sel.staleReason && scriptContinuityPredecessor(sel.staleReason) === null && !selScripting && !selQueued && (
+                                                <p className="mb-2 rounded-lg border border-amber-700/40 bg-amber-900/20 p-3 text-xs text-amber-200">
+                                                    <DiagnosticMessage
+                                                        message={sel.staleReason}
+                                                        kind="notice"
+                                                    />
+                                                </p>
+                                            )}
                                             <ScriptRuntimeNotice
-                                                script={scriptDrafts[sel.id] ?? sel.script ?? ''}
-                                                episodeFormat={setup.episodeFormat}
+                                                measuredSeconds={sel.mergedVideoDurationSeconds}
+                                                hasScriptChanges={scriptDrafts[sel.id] !== undefined && scriptDrafts[sel.id] !== (sel.script ?? '')}
                                             />
                                             <textarea
                                                 value={scriptDrafts[sel.id] ?? sel.script ?? ''}
@@ -2916,13 +3172,18 @@ export default function NovelTab({ project: projectSummary, onRefetch, onMessage
                                 {/* 底部操作：进入分镜 */}
                                 {selHasScript && (
                                     <div className="studio-writing-footer px-6 py-3 border-t border-gray-800 flex items-center gap-3 flex-wrap">
-                                        <button
-                                            onClick={() => generateSingleScript(sel.id)}
-                                            disabled={selScripting || scriptBatchRunning}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white text-xs rounded-lg">
-                                            <RefreshCw className={`w-3.5 h-3.5 ${selScripting ? 'animate-spin' : ''}`} />
-                                            {selScripting ? ui('拆剧本中...', 'Adapting script...') : ui('重新拆剧本', 'Re-adapt script')}
-                                        </button>
+                                        {!importedScript && (
+                                            <button
+
+
+
+                                                onClick={() => generateSingleScript(sel.id)}
+                                                disabled={selScripting || scriptBatchRunning}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white text-xs rounded-lg">
+                                                <RefreshCw className={`w-3.5 h-3.5 ${selScripting ? 'animate-spin' : ''}`} />
+                                                {selScripting ? ui('拆剧本中...', 'Adapting script...') : ui('重新拆剧本', 'Re-adapt script')}
+                                            </button>
+                                        )}
                                         <div className="ms-auto flex items-center gap-3">
                                             {selStoryboardCount > 0 && (
                                                 <a

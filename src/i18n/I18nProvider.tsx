@@ -3,7 +3,18 @@
 import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useRef, useSyncExternalStore, type ReactNode } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { translateMessage, type MessageValues } from './catalog'
-import { defaultLocale, localeCookieName, localeStorageKey, localizePath, localeDirection, localeFromPathname, storedLocaleForUnlocalizedPath, type Locale } from './config'
+import {
+    defaultLocale,
+    localeCookieName,
+    localeStorageKey,
+    localizePath,
+    localeDirection,
+    localeFromPathname,
+    parseLocalePreference,
+    serializeLocalePreference,
+    storedLocaleForUnlocalizedPath,
+    type Locale
+} from './config'
 
 type I18nValue = {
     locale: Locale
@@ -18,6 +29,14 @@ const translatedAttributes = ['placeholder', 'title', 'aria-label', 'alt'] as co
 const subscribeToPathLocale = () => () => undefined
 
 function readStoredLocale(): string | null {
+    // The server may have just recorded an explicit /en URL. Prefer its cookie
+    // over an older localStorage value when restoring the canonical English URL.
+    const cookie = document.cookie
+        .split(';')
+        .map(value => value.trim())
+        .find(value => value.startsWith(`${localeCookieName}=`))
+        ?.slice(localeCookieName.length + 1)
+    if (parseLocalePreference(cookie)) return cookie!
     try {
         return localStorage.getItem(localeStorageKey)
     } catch {
@@ -26,9 +45,10 @@ function readStoredLocale(): string | null {
 }
 
 function persistLocale(locale: Locale) {
-    document.cookie = `${localeCookieName}=${locale};path=/;max-age=31536000;samesite=lax`
+    const preference = serializeLocalePreference(locale)
+    document.cookie = `${localeCookieName}=${preference};path=/;max-age=31536000;samesite=lax`
     try {
-        localStorage.setItem(localeStorageKey, locale)
+        localStorage.setItem(localeStorageKey, preference)
     } catch {
         // Cookie persistence still keeps the preference when storage is unavailable.
     }
@@ -108,9 +128,7 @@ export default function I18nProvider({ children, initialLocale = defaultLocale }
         restoringLocale.current = null
         document.documentElement.lang = locale
         document.documentElement.dir = localeDirection(locale)
-        persistLocale(locale)
         translateDom(document.body, locale)
-        document.documentElement.classList.remove('i18n-pending')
         const observer = new MutationObserver(records => {
             for (const record of records) {
                 if (record.type === 'characterData') translateDom(record.target.parentNode ?? document.body, locale)
@@ -125,6 +143,14 @@ export default function I18nProvider({ children, initialLocale = defaultLocale }
     }, [locale])
 
     useLayoutEffect(() => {
+        if (restoringLocale.current) return
+        // RootLayout can restore its server-rendered cloak during router.refresh()
+        // while this provider stays mounted with the same locale. Clear it after
+        // every commit, once translation/restoration above has finished.
+        document.documentElement.classList.remove('i18n-pending')
+    })
+
+    useLayoutEffect(() => {
         if (metadataLocale.current === locale) return
         metadataLocale.current = locale
         // Locale prefixes rewrite to shared routes. Refresh the retained server layouts
@@ -136,8 +162,8 @@ export default function I18nProvider({ children, initialLocale = defaultLocale }
     const href = useCallback((path: string) => localizePath(path, locale), [locale])
     const setLocale = useCallback(
         (next: Locale) => {
-            if (next === locale) return
             persistLocale(next)
+            if (next === locale) return
             document.documentElement.classList.add('i18n-pending')
             const query = searchParams.toString()
             router.push(`${localizePath(pathname, next)}${query ? `?${query}` : ''}${window.location.hash}`)

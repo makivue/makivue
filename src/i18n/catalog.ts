@@ -14,6 +14,8 @@ export type MessageValues = Record<string, string | number>
 const catalogs: Record<Locale, Catalog> = { en, zh, fr, ar, id, hi, fil, ja, ko }
 
 const orderedKeys = new Map<Locale, string[]>()
+const diagnosticKeys = new Map<Locale, string[]>()
+const localizedValues = new Map<Locale, { exact: Set<string>; templates: RegExp[] }>()
 
 // Product and model names are trademarks/identifiers, not UI copy. Catalogs may
 // still contain legacy machine translations for them, so restore the source
@@ -67,6 +69,28 @@ function normalizeMessage(source: string) {
     return source.replace(/\s+/g, ' ').trim()
 }
 
+export function isLocalizedCatalogMessage(locale: Locale, source: string): boolean {
+    let known = localizedValues.get(locale)
+    if (!known) {
+        const values = Object.values(catalogs[locale]).map(normalizeMessage)
+        known = {
+            exact: new Set(values),
+            templates: values
+                .filter(value => /\{[A-Za-z][A-Za-z0-9_]*\}/.test(value))
+                .map(value => {
+                    const pattern = value
+                        .split(/\{[A-Za-z][A-Za-z0-9_]*\}/)
+                        .map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+                        .join('[0-9.,/%+\\-]+')
+                    return new RegExp(`^${pattern}$`, 'u')
+                })
+        }
+        localizedValues.set(locale, known)
+    }
+    const normalized = normalizeMessage(source)
+    return known.exact.has(normalized) || known.templates.some(pattern => pattern.test(normalized))
+}
+
 function translateCoveredFragments(locale: Locale, source: string, keys: string[]) {
     if (!/\p{Script=Han}/u.test(source)) return source
 
@@ -110,6 +134,16 @@ function interpolateMessage(message: string, values?: MessageValues): string {
 }
 
 export function translateMessage(locale: Locale, source: string, values?: MessageValues): string {
+    return translateCatalogMessage(locale, source, values, false)
+}
+
+// Only diagnostic UI may use the catalog's single-character units (第/章/个).
+// Ordinary UI and authored story text retain the stricter coverage rule.
+export function translateDiagnosticFragments(locale: Locale, source: string): string {
+    return translateCatalogMessage(locale, source, undefined, true)
+}
+
+function translateCatalogMessage(locale: Locale, source: string, values: MessageValues | undefined, diagnostic: boolean): string {
     if (!source) return source
     const catalog = catalogs[locale]
     const normalized = normalizeMessage(source)
@@ -123,12 +157,13 @@ export function translateMessage(locale: Locale, source: string, values?: Messag
     // Dynamic UI messages can combine translated labels with an id/count. Only
     // use fragment translation when every source-language fragment is covered;
     // otherwise keep the source intact instead of producing mixed-language UI.
-    let keys = orderedKeys.get(locale)
+    const keyCache = diagnostic ? diagnosticKeys : orderedKeys
+    let keys = keyCache.get(locale)
     if (!keys) {
         keys = Object.keys(catalog)
-            .filter(key => key.length > 1 && key.length <= 200 && /\p{Script=Han}/u.test(key))
+            .filter(key => key.length >= (diagnostic ? 1 : 2) && key.length <= 600 && /\p{Script=Han}/u.test(key))
             .sort((a, b) => b.length - a.length)
-        orderedKeys.set(locale, keys)
+        keyCache.set(locale, keys)
     }
     const translated = translateCoveredFragments(locale, source, keys)
     return interpolateMessage(translated === null ? source : restoreModelNames(locale, source, translated), values)

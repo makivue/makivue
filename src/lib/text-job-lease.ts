@@ -2,15 +2,31 @@ const TEXT_JOB_LEASE_MS = 15 * 60 * 1000
 export const TEXT_JOB_EXPIRED_ERROR = '任务租约过期，已自动回收，请重试'
 
 /** Keep long, multi-pass model calls leased without overlapping DB heartbeats. */
-export function startTextJobHeartbeat(heartbeat: () => Promise<void>): () => void {
+export function startTextJobHeartbeat(heartbeat: () => Promise<void>, label = 'text-job'): () => void {
     let pending = false
+    let pendingSince = 0
+    let warnedPending = false
+    let lastTickAt = Date.now()
+    const context = () => ({ job: label, pid: process.pid, uptimeSeconds: Math.round(process.uptime()), rssMb: Math.round(process.memoryUsage().rss / 1024 / 1024) })
     const timer = setInterval(async () => {
-        if (pending) return
+        const now = Date.now()
+        const delayMs = now - lastTickAt - 60_000
+        lastTickAt = now
+        if (delayMs > 60_000) console.warn('[text-job] heartbeat timer delayed:', { ...context(), delayMs })
+        if (pending) {
+            if (!warnedPending && now - pendingSince >= 120_000) {
+                warnedPending = true
+                console.warn('[text-job] heartbeat database write is still pending:', { ...context(), pendingMs: now - pendingSince })
+            }
+            return
+        }
         pending = true
+        pendingSince = now
+        warnedPending = false
         try {
             await heartbeat()
         } catch (error) {
-            console.warn('[text-job] heartbeat failed:', error)
+            console.warn('[text-job] heartbeat failed:', context(), error)
         } finally {
             pending = false
         }

@@ -1,5 +1,6 @@
 import { isLocale, locales, type Locale } from '@/i18n/config'
 import type { EpisodeFormat, NovelSetup } from '@/lib/novel'
+import { hasMergedEpisodeVideo } from '@/lib/project-progress'
 
 export const SEO_TITLE_MAX_LENGTH = 120
 export const SEO_DESCRIPTION_MAX_LENGTH = 500
@@ -100,21 +101,53 @@ type PublishableProject = {
 
 type PublishableAuthor = { displayName: string | null; avatarUrl: string | null }
 
-export function projectPublicationIssues(project: PublishableProject, author: PublishableAuthor): string[] {
-    const issues: string[] = []
-    if (!project.genreLabel?.trim()) issues.push('请选择作品类型')
-    if (!normalizeSeoTitle(project.seoTitle)) issues.push('请填写 SEO 标题')
-    if (!normalizeSeoDescription(project.seoDescription)) issues.push('请填写 SEO 描述')
-    if (readStringList(project.seoKeywords).length === 0) issues.push('请至少填写一个关键词')
-    if (!project.coverUrl) issues.push('请上传作品封面')
-    if (!project.trailerUrl) issues.push('请上传作品预告片')
-    if (!isProjectVideoAspectRatio(project.videoAspectRatio)) issues.push('请确认作品画幅比例')
-    if (!project.visualStyle) issues.push('请确认作品视觉风格')
-    if (!isLocale(project.contentLanguage)) issues.push('请确认作品内容语言')
-    if (normalizeSubtitleLanguages(project.subtitleLanguages).length === 0) issues.push('请至少选择一种字幕语言')
-    if (!isProjectEpisodeFormat(project.episodeFormat)) issues.push('请确认剧集形态')
-    if (!project.totalEpisodes || project.totalEpisodes < 1) issues.push('请确认作品集数')
-    if (!author.displayName) issues.push('请先完善作者昵称')
-    if (!author.avatarUrl) issues.push('请先完善作者头像')
+export type PublicationField = keyof PublishableProject | 'authorDisplayName' | 'authorAvatarUrl'
+
+export function projectPublicationFieldIssues(project: PublishableProject, author: PublishableAuthor): Partial<Record<PublicationField, string>> {
+    const issues: Partial<Record<PublicationField, string>> = {}
+    if (!project.genreLabel?.trim()) issues.genreLabel = '请选择作品类型'
+    if (!normalizeSeoTitle(project.seoTitle)) issues.seoTitle = '请填写作品标题'
+    if (!normalizeSeoDescription(project.seoDescription)) issues.seoDescription = '请填写作品简介'
+    if (readStringList(project.seoKeywords).length === 0) issues.seoKeywords = '请至少填写一个关键词'
+    if (!project.coverUrl) issues.coverUrl = '请上传作品封面'
+    if (!project.trailerUrl) issues.trailerUrl = '请上传作品预告片'
+    if (!isProjectVideoAspectRatio(project.videoAspectRatio)) issues.videoAspectRatio = '请确认作品画幅比例'
+    if (!project.visualStyle) issues.visualStyle = '请确认作品视觉风格'
+    if (!isLocale(project.contentLanguage)) issues.contentLanguage = '请确认作品内容语言'
+    if (normalizeSubtitleLanguages(project.subtitleLanguages).length === 0) issues.subtitleLanguages = '请至少选择一种字幕语言'
+    if (!isProjectEpisodeFormat(project.episodeFormat)) issues.episodeFormat = '请确认剧集形态'
+    if (!project.totalEpisodes || project.totalEpisodes < 1) issues.totalEpisodes = '请确认作品集数'
+    if (!author.displayName) issues.authorDisplayName = '请先完善作者昵称'
+    if (!author.avatarUrl) issues.authorAvatarUrl = '请先完善作者头像'
     return issues
+}
+
+export function projectPublicationIssues(project: PublishableProject, author: PublishableAuthor): string[] {
+    return Object.values(projectPublicationFieldIssues(project, author))
+}
+
+export type PublicationEpisodeCheck = {
+    id: string | null
+    episodeNumber: number
+    title: string | null
+    hasMergedVideo: boolean
+}
+
+/** Include planned episodes that do not exist yet, without exposing video URLs. */
+export function projectPublicationEpisodeChecks(project: {
+    totalEpisodes: number | null
+    episodes: readonly { id: bigint; episodeNumber: number; title: string | null; videoUrl: string | null }[]
+}): PublicationEpisodeCheck[] {
+    const checks = project.episodes.map(episode => ({
+        id: String(episode.id),
+        episodeNumber: episode.episodeNumber,
+        title: episode.title,
+        hasMergedVideo: hasMergedEpisodeVideo(episode.videoUrl)
+    }))
+    const existingNumbers = new Set(checks.map(episode => episode.episodeNumber))
+    const missing: PublicationEpisodeCheck[] = []
+    for (let episodeNumber = 1; episodeNumber <= (project.totalEpisodes ?? 0); episodeNumber++) {
+        if (!existingNumbers.has(episodeNumber)) missing.push({ id: null, episodeNumber, title: null, hasMergedVideo: false })
+    }
+    return [...checks, ...missing].sort((a, b) => a.episodeNumber - b.episodeNumber)
 }

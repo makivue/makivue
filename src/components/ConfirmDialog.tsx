@@ -102,7 +102,7 @@ export function useConfirmDialog() {
                             <h2
                                 id={titleId}
                                 className="text-lg font-semibold leading-snug">
-                                {pending.title}
+                                {t(pending.title)}
                             </h2>
                         </div>
                         <button
@@ -117,7 +117,7 @@ export function useConfirmDialog() {
                     <div
                         id={messageId}
                         className={`${styles.message} text-sm leading-7`}>
-                        {pending.message}
+                        {typeof pending.message === 'string' ? t(pending.message) : pending.message}
                     </div>
 
                     <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
@@ -126,13 +126,13 @@ export function useConfirmDialog() {
                             type="button"
                             onClick={() => close(false)}
                             className={`${styles.cancel} min-h-10 rounded-lg border px-4 py-2 text-sm font-medium transition-colors`}>
-                            {pending.cancelText ?? t('取消')}
+                            {t(pending.cancelText ?? '取消')}
                         </button>
                         <button
                             type="button"
                             onClick={() => close(true)}
                             className={`${styles.confirm} flex min-h-10 items-center justify-center rounded-lg border px-4 py-2 text-sm font-medium transition-colors`}>
-                            {pending.confirmText ?? t('确认')}
+                            {t(pending.confirmText ?? '确认')}
                         </button>
                     </div>
                 </div>

@@ -1,3 +1,5 @@
+import { parseScriptSpeaker } from './script-format'
+
 export interface ScriptCharacterCandidate {
     name: string
     canonicalName?: string | null
@@ -6,6 +8,8 @@ export interface ScriptCharacterCandidate {
 
 export interface ScriptCharacterScope {
     allowedCharacterNames: string[]
+    /** Explicit identities from the registered roster, never inferred by substring. */
+    characterNameGroups: string[][]
     referenceOnlyCharacterNames: string[]
     outOfScopeCharacterNames: string[]
 }
@@ -68,6 +72,11 @@ export function deriveScriptCharacterScope(params: {
     const normalizedMetadata = normalizeForMatch([params.chapterTitle, params.chapterSynopsis].filter(Boolean).join('\n'))
     const normalizedCurrentState = normalizeForMatch([currentState?.openingState, currentState?.endingState, currentState?.characterStateChanges].filter(Boolean).join('\n'))
     const allowedCharacterNames: string[] = []
+    const characterNameGroups: string[][] = []
+    const labelOwners = new Map<string, number>()
+    for (const character of params.characters) {
+        for (const label of new Set(characterLabels(character).map(normalizeForMatch))) labelOwners.set(label, (labelOwners.get(label) ?? 0) + 1)
+    }
     const allowedLabels = new Set<string>()
     const referenceOnlyCharacterNames: string[] = []
     const referenceOnlyLabels = new Set<string>()
@@ -81,6 +90,9 @@ export function deriveScriptCharacterScope(params: {
         const mentions = [...contentMentions, ...metadataMentions, ...stateMentions]
         if (mentions.some(result => !result.referenceOnly)) {
             allowedCharacterNames.push(character.name)
+            // An alias shared with an absent character is still ambiguous.
+            // Keep it usable by exact source spelling, never as an identity link.
+            characterNameGroups.push(labels.filter(label => labelOwners.get(normalizeForMatch(label)) === 1))
             for (const label of labels) allowedLabels.add(normalizeForMatch(label))
         } else if (mentions.length > 0) {
             referenceOnlyCharacterNames.push(...labels)
@@ -100,6 +112,7 @@ export function deriveScriptCharacterScope(params: {
 
     return {
         allowedCharacterNames: [...new Set(allowedCharacterNames)],
+        characterNameGroups,
         referenceOnlyCharacterNames: [...new Set(referenceOnlyCharacterNames)],
         outOfScopeCharacterNames
     }
@@ -130,19 +143,34 @@ export function findActingOrSpeakingCharacterNames(script: string, characterName
         if (normalized && !namesByNormalized.has(normalized)) namesByNormalized.set(normalized, name)
     }
     const active = new Set<string>()
-    const speakers = [...script.matchAll(/^([^\n：:（）()【】]{1,30})[：:]/gm)].map(match => normalizeForMatch(match[1]))
+    const lines = script.split(/\r?\n/).map(line => line.trim())
+    const speakers = lines.flatMap(line => {
+        const match = line.match(/^(?![（(【\[])([^\n：:]{1,80})[：:]/)
+        return match ? [normalizeForMatch(parseScriptSpeaker(match[1]).name ?? '')] : []
+    })
     for (const speaker of speakers) {
         const name = namesByNormalized.get(speaker)
         if (name) active.add(name)
     }
 
-    const structuredPayloads = [...script.matchAll(/^[（(]\s*(?:Opening state|Ending state|场景描述|人物状态|动作|表情)\s*[：:]\s*([^）)\n]+)/gim)].map(match => match[1])
+    const structuredPayloads = [
+        ...lines.join('\n').matchAll(/^[（(]\s*(?:Opening state|Ending state|场景描述|人物状态|动作|表情|Scene description|Character state|Action|Expression)\s*[：:]\s*([^）)\n]+)/gim)
+    ].map(match => match[1])
     for (const payload of structuredPayloads) {
         for (const clause of payload.split(/[，,；;。]/u)) {
             const normalizedClause = normalizeForMatch(clause)
             for (const [normalizedName, name] of namesByNormalized) {
                 const index = normalizedClause.indexOf(normalizedName)
-                if (index < 0 || index > 16 || isReferenceOnlyMention(normalizedClause, index, normalizedName.length)) continue
+                if (index < 0 || isReferenceOnlyMention(normalizedClause, index, normalizedName.length)) continue
+                const before = normalizedClause.slice(0, index)
+                const after = normalizedClause.slice(index + normalizedName.length)
+                // A name near the start can still be a memory or the owner of
+                // a letter. Only unambiguous subjects/physical participants
+                // belong in this deterministic gate; review handles meaning.
+                if (/^(?:的|['’]s)|^(?:留下|寄来|写下)的|^(?:在|出现在)?(?:照片|画像|档案|回忆)/u.test(after)) continue
+                const subject = /^(?:[“”"'‘’]|而|但|随后|此时|这时|同时|接着|and|but|then)*$/u.test(before)
+                const physicalObject = /(?:把|将|抓住|扶住|搀扶着?|搂住|抱住)$/u.test(before) && !/^(?:曾|过去|以前)/u.test(after)
+                if (!subject && !physicalObject) continue
                 active.add(name)
             }
         }

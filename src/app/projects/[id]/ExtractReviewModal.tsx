@@ -1,10 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { X, RefreshCw, Users, MapPin, CheckCircle2, Trash2, AlertCircle, Sparkles } from 'lucide-react'
 import { clientFetch, readApiJson } from '@/lib/client-fetch'
 import { getPollingDelay } from '@/lib/polling'
+import { shouldRestartSavedExtraction } from '@/lib/extract-job-recovery'
 import { useI18n } from '@/i18n/I18nProvider'
+import DiagnosticMessage from '@/components/DiagnosticMessage'
 import CustomSelect from '@/components/CustomSelect'
 import { useConfirmDialog } from '@/components/ConfirmDialog'
 
@@ -116,12 +118,14 @@ export default function ExtractReviewModal({ projectId, initialJobId = null, exi
     const restoredJobId = initialJobId ?? (typeof window !== 'undefined' ? window.localStorage.getItem(extractJobStorageKey(projectId)) : null)
     const [viewingExisting, setViewingExisting] = useState(hasExistingEntities && !restoredJobId)
     const [jobId, setJobId] = useState<string | null>(restoredJobId)
+    const restoringJobRef = useRef(restoredJobId)
     const [phase, setPhase] = useState<Phase>(hasExistingEntities && !restoredJobId ? 'done' : 'analyzing')
     const [chunksDone, setChunksDone] = useState(0)
     const [chunksTotal, setChunksTotal] = useState(0)
     const [checkpointAvailable, setCheckpointAvailable] = useState(false)
     const [progressDelayed, setProgressDelayed] = useState(false)
     const [resumeFromJobId, setResumeFromJobId] = useState<string | null>(null)
+    const [startAttempt, setStartAttempt] = useState(0)
     const [err, setErr] = useState<string | null>(null)
     const [chars, setChars] = useState<EditableChar[]>(() => existingCharacters.map(raw => ({ ...normalizeExtractedChar(raw), _selected: false, _mode: 'ignore' })))
     const [scenes, setScenes] = useState<EditableScene[]>(() => existingScenes.map(raw => ({ ...normalizeExtractedScene(raw), _selected: false, _mode: 'ignore' })))
@@ -138,6 +142,23 @@ export default function ExtractReviewModal({ projectId, initialJobId = null, exi
             else window.localStorage.removeItem(extractJobStorageKey(projectId))
         },
         [onJobIdChange, projectId]
+    )
+
+    const retryExtraction = useCallback(
+        (checkpointJobId: string | null = null) => {
+            restoringJobRef.current = null
+            setViewingExisting(false)
+            setResumeFromJobId(checkpointJobId)
+            rememberJobId(null)
+            setPhase('analyzing')
+            setChunksDone(0)
+            setChunksTotal(0)
+            setCheckpointAvailable(false)
+            setProgressDelayed(false)
+            setErr(null)
+            setStartAttempt(attempt => attempt + 1)
+        },
+        [rememberJobId]
     )
 
     // 启动任务
@@ -166,7 +187,7 @@ export default function ExtractReviewModal({ projectId, initialJobId = null, exi
         return () => {
             cancelled = true
         }
-    }, [jobId, projectId, rememberJobId, resumeFromJobId, viewingExisting])
+    }, [jobId, projectId, rememberJobId, resumeFromJobId, startAttempt, viewingExisting])
 
     // 轮询状态
     useEffect(() => {
@@ -178,9 +199,21 @@ export default function ExtractReviewModal({ projectId, initialJobId = null, exi
             try {
                 const res = await clientFetch(`/api/ai/extract/status/${jobId}`)
                 const json = await readApiJson(res)
-                if (!json.success) throw new Error(json.error)
                 if (cancelled) return
+                const restoring = restoringJobRef.current === jobId
+                // Only recover the saved failure on open. A failure from this
+                // attempt stays visible and requires an explicit retry.
+                if (shouldRestartSavedExtraction(restoring, res.status, json.success ? json.data : undefined)) {
+                    retryExtraction()
+                    return
+                }
+                if (!json.success) throw new Error(json.error)
                 const d = json.data
+                restoringJobRef.current = null
+                if (d.phase === 'error' && d.checkpointAvailable !== true) {
+                    window.localStorage.removeItem(extractJobStorageKey(projectId))
+                    onJobIdChange?.(null)
+                }
                 setPhase(d.phase)
                 setChunksDone(d.chunksDone)
                 setChunksTotal(d.chunksTotal)
@@ -230,7 +263,7 @@ export default function ExtractReviewModal({ projectId, initialJobId = null, exi
             cancelled = true
             if (timer) clearTimeout(timer)
         }
-    }, [existingCharacters, existingScenes, jobId, replaceAllOnCommit])
+    }, [existingCharacters, existingScenes, jobId, onJobIdChange, projectId, replaceAllOnCommit, retryExtraction])
 
     const selectedCharCount = useMemo(() => chars.filter(c => c._selected).length, [chars])
     const selectedSceneCount = useMemo(() => scenes.filter(s => s._selected).length, [scenes])
@@ -432,10 +465,12 @@ export default function ExtractReviewModal({ projectId, initialJobId = null, exi
                         <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
                             <AlertCircle className="w-12 h-12 text-red-500 mb-3" />
                             <p className="text-red-400 font-medium mb-2">提取失败</p>
-                            <p className="text-xs text-gray-400 max-w-md">{err}</p>
+                            <p className="text-xs text-gray-400 max-w-md">
+                                <DiagnosticMessage message={err ?? ''} />
+                            </p>
                             <div className="mt-4 flex items-center gap-2">
                                 <button
-                                    onClick={restartExtraction}
+                                    onClick={() => retryExtraction(checkpointAvailable ? jobId : null)}
                                     className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-lg">
                                     {checkpointAvailable ? t('从 {completed}/{total} 继续提取', { completed: chunksDone, total: chunksTotal }) : t('重新提取')}
                                 </button>
@@ -620,7 +655,12 @@ export default function ExtractReviewModal({ projectId, initialJobId = null, exi
                                     {replaceAllOnCommit ? (
                                         <span className="text-amber-300">将彻底删除全部旧角色、旧场景及其参考图，再将本次结果全新入库并自动生成参考图。</span>
                                     ) : replacingCharacters || replacingScenes ? (
-                                        <span className="text-amber-300">{replacementWarning}</span>
+                                        <span className="text-amber-300">
+                                            <DiagnosticMessage
+                                                message={replacementWarning ?? ''}
+                                                kind="notice"
+                                            />
+                                        </span>
                                     ) : (
                                         <>
                                             将入库 <b className="text-purple-300">{selectedCharCount}</b> 个角色、<b className="text-purple-300">{selectedSceneCount}</b> 个场景；每条按“新增 / 合并 /

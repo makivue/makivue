@@ -11,23 +11,13 @@
 .header :global(.site-header-shell) {
     min-height: 56px;
     padding-block: 8px;
+    align-items: center;
 }
 .headerContent {
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr) max-content;
     align-items: center;
-    gap: 1rem;
-}
-.headerContent > nav {
-    order: 0;
-    grid-column: auto;
-    margin: 0;
-    min-width: 0;
-    flex-wrap: wrap;
-}
-.headerContent > nav a {
-    flex: 0 0 auto;
-    white-space: nowrap;
+    gap: 0.75rem;
 }
 .brand {
     display: flex;
@@ -38,12 +28,18 @@
     font-size: 1rem;
     font-weight: 650;
     letter-spacing: -0.03em;
+    white-space: nowrap;
 }
 .account {
     display: flex;
     align-items: center;
     justify-self: end;
     gap: 0.5rem;
+    white-space: nowrap;
+}
+.account :global([role='menu']) {
+    width: 200px;
+    white-space: normal;
 }
 .projectLink,
 .faqLink {
@@ -64,154 +60,111 @@
 }
 .hero {
     position: relative;
-    padding: 1.5rem 1.5rem 2.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    padding: 1.5rem 1.5rem 4.5rem;
     isolation: isolate;
 }
-.hero::before {
-    content: '';
+.heroBackground {
+    position: absolute;
+    z-index: -2;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+.heroBackdrop {
     position: absolute;
     z-index: -1;
-    inset: 6rem 0 -3rem;
-    pointer-events: none;
-    background: radial-gradient(ellipse 380px 250px at 50% 50%, color-mix(in srgb, var(--app-accent) 19%, transparent), transparent 95%);
+    inset: -32px;
+    background-size: cover;
+    background-position: center;
+    filter: blur(24px) brightness(0.6);
 }
-:global(
-        html:is(
-            [data-app-theme='aurora'],
-            [data-app-theme='graphite'],
-            [data-app-theme='amber'],
-            [data-app-theme='plasma'],
-            [data-app-theme='ion'],
-            [data-app-theme='glacier'],
-            [data-app-theme='polar']
-        )
-    )
-    .hero::before {
-    inset: 0;
-    background: radial-gradient(ellipse 55% 65% at 50% 45%, var(--home-glow-primary), transparent 85%), radial-gradient(ellipse 38% 45% at 65% 62%, var(--home-glow-secondary), transparent 85%);
-}
-:global(html[data-app-theme='juhuo']) .hero::before {
-    inset: 0;
-    background:
-        radial-gradient(ellipse 24% 48% at 50% 62%, var(--home-glow-tertiary), transparent 80%), radial-gradient(ellipse 42% 62% at 50% 65%, var(--home-glow-primary), transparent 80%),
-        radial-gradient(ellipse 52% 70% at 50% 70%, var(--home-glow-secondary), transparent 85%);
-}
-.sceneStrip {
-    --scene-count: 5;
-    --scene-gap: 1rem;
-    --scene-duration: 900ms;
-    --scene-easing: cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    max-width: 840px;
-    margin: 0 auto;
-}
-.sceneViewport {
-    overflow: hidden;
-    border-radius: 1rem;
-}
-.sceneTrack {
-    display: flex;
-    gap: var(--scene-gap);
-    transform: translate3d(calc((100% + var(--scene-gap)) / var(--scene-count) * -1), 0, 0);
-    will-change: transform;
-}
-.sceneTrack[data-direction='1'],
-.sceneTrack[data-direction='-1'] {
-    transition: transform var(--scene-duration) var(--scene-easing);
-}
-.sceneTrack[data-direction='1'] .scene,
-.sceneTrack[data-direction='-1'] .scene {
-    transition:
-        transform var(--scene-duration) var(--scene-easing),
-        opacity var(--scene-duration) var(--scene-easing);
-}
-.sceneTrack[data-direction='1'] {
-    transform: translate3d(calc((100% + var(--scene-gap)) / var(--scene-count) * -2), 0, 0);
-}
-.sceneTrack[data-direction='-1'] {
-    transform: translate3d(0, 0, 0);
-}
-.scene {
-    position: relative;
-    flex: 0 0 calc((100% - (var(--scene-count) - 1) * var(--scene-gap)) / var(--scene-count));
-    min-width: 0;
-    overflow: hidden;
-    border: 1px solid var(--app-border);
-    border-radius: 1rem;
-    background: var(--app-surface-muted);
-    transform: scale(0.74);
-    opacity: 0.65;
-    will-change: transform, opacity;
-}
-.scene[data-desktop-distance='1'] {
-    transform: scale(0.86);
-    opacity: 0.86;
-}
-.scene[data-desktop-distance='0'] {
-    transform: scale(1);
-    opacity: 1;
-}
-.scene img {
+.heroBackground video {
     display: block;
     width: 100%;
     height: auto;
-    aspect-ratio: 4 / 7;
+    aspect-ratio: 16 / 9;
+    /* Fit the full frame to the page width; the blurred poster fills any extra content height. */
     object-fit: contain;
+    object-position: center;
 }
-.scene span {
+.heroMediaControls {
     position: absolute;
-    inset-inline: 0;
-    bottom: 0;
-    display: block;
-    padding: 1.75rem 0.625rem 0.75rem;
-    overflow: hidden;
-    color: #fff;
-    background: linear-gradient(transparent, rgb(0 0 0 / 76%));
-    text-shadow: 0 1px 3px rgb(0 0 0 / 40%);
-    font-size: 0.75rem;
-    font-weight: 500;
-    text-align: center;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    z-index: 3;
+    inset-inline-end: 1.5rem;
+    bottom: 1rem;
+    display: flex;
+    gap: 0.5rem;
 }
-.sceneArrow {
-    position: absolute;
-    top: 45%;
-    z-index: 2;
+.heroMediaControls button {
     display: grid;
     place-items: center;
-    width: 2.25rem;
-    height: 2.25rem;
+    width: 2.75rem;
+    height: 2.75rem;
     border: 1px solid var(--app-border-strong);
     border-radius: 50%;
-    background: color-mix(in srgb, var(--app-surface) 92%, transparent);
     color: var(--app-text);
-    box-shadow: 0 4px 16px var(--app-shadow);
+    background: color-mix(in srgb, var(--app-surface) 80%, transparent);
+    backdrop-filter: blur(12px);
     cursor: pointer;
-    transform: translateY(-50%);
 }
-.sceneArrow:hover {
-    background: var(--app-action);
-    color: var(--app-on-action);
+.heroMediaControls button:hover {
+    border-color: var(--app-accent);
+    color: var(--app-accent);
 }
-.sceneArrow:focus-visible {
+.heroMediaControls button:focus-visible {
     outline: 2px solid var(--app-accent);
     outline-offset: -2px;
 }
-.sceneArrow:disabled {
-    cursor: default;
+.heroVisualSpace {
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    padding-block: 1.25rem;
+    flex-shrink: 0;
 }
-.scenePrevious {
-    left: -1.125rem;
-}
-.sceneNext {
-    right: -1.125rem;
+/* Preserve the removed carousel's card ratio, gaps and borders as empty space. */
+.heroVisualSpace::before {
+    content: '';
+    display: block;
+    box-sizing: content-box;
+    width: calc((100% - 4rem) / 5 - 2px);
+    aspect-ratio: 4 / 7;
+    border: 1px solid transparent;
 }
 .heroContent {
     position: relative;
-    margin: 2rem auto 0;
+    width: 100%;
+    margin: 1.5rem auto 0;
     text-align: center;
     max-width: 1020px;
+}
+.heroContent[data-reveal='hidden'] {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+}
+.heroContent[data-reveal='timer'] {
+    animation: heroContentReveal 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes heroContentReveal {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .heroContent[data-reveal='timer'] {
+        animation: none;
+    }
 }
 .heroContent h1 {
     display: flex;
@@ -223,16 +176,18 @@
     font-weight: 650;
     letter-spacing: -0.055em;
     line-height: 1.3;
+    text-shadow: 0 2px 14px color-mix(in srgb, var(--app-bg) 45%, transparent);
 }
 .heroContent h1 span {
     color: var(--app-accent);
 }
 .subtitle {
     max-width: 680px;
-    margin: 0.875rem auto 1.75rem;
+    margin: 0.875rem auto 1.5rem;
     color: var(--app-text-muted);
     font-size: 0.875rem;
     line-height: 1.8;
+    text-shadow: 0 1px 8px color-mix(in srgb, var(--app-bg) 65%, transparent);
 }
 .offer {
     display: flex;
@@ -258,101 +213,67 @@
 .offer svg {
     color: var(--app-accent);
 }
-@media (max-width: 1100px) {
+@media (min-width: 901px) {
+    .heroVisualSpace {
+        max-width: clamp(800px, 88svh, 960px);
+    }
+    .heroContent {
+        margin-top: clamp(1.5rem, 4svh, 3rem);
+    }
+}
+@media (max-width: 1535px) {
+    .faqLink,
+    .header :global(.site-header-github),
     .projectLink span {
         display: none;
     }
-    .faqLink {
-        display: none;
-    }
+}
+@media (max-width: 1279px) {
     .headerContent {
         gap: 0.5rem;
     }
 }
-@media (max-width: 1535px) {
-    .headerContent {
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 0.5rem 0.75rem;
-    }
-    .headerContent > nav {
-        grid-column: 1/-1;
-        order: 3;
-    }
-    .account {
-        grid-column: 2;
-    }
-}
-@media (max-width: 767px) {
-    .header :global(.site-header-shell) {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        align-items: center;
-    }
-    .headerContent {
-        display: contents;
-    }
-    .account {
-        grid-column: 1 / -1;
-        grid-row: 2;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-        max-width: 100%;
-    }
-    .headerContent > nav {
-        grid-column: 1 / -1;
-        grid-row: 3;
+@media (max-width: 720px) {
+    .brand span {
+        display: none;
     }
 }
 @media (max-width: 600px) {
-    .headerContent > nav {
-        justify-content: flex-start;
-        flex-wrap: nowrap;
-        overflow-x: auto;
+    .header :global(.site-header-shell) {
+        gap: 4px;
+        padding-inline: 12px;
     }
-    .headerContent > nav a {
-        flex: 1 0 auto;
-        gap: 0;
-        padding-inline: 0.5rem;
-        font-size: 0.75rem;
+    .header :global(.global-preferences-trigger) {
+        width: 36px;
+        height: 36px;
     }
-    .headerContent > nav svg {
+    .account {
+        gap: 4px;
+    }
+    .account :global(.wallet-balance) {
+        min-width: 0;
+        max-width: 96px;
+        gap: 4px;
+        padding-inline: 6px;
+    }
+    .account :global(.wallet-balance) span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .account :global(.wallet-balance) > span:last-child {
         display: none;
     }
     .hero {
-        padding: 1rem 1rem 2rem;
+        padding: 1rem 1rem 4.5rem;
     }
-    .sceneStrip {
-        --scene-count: 3;
-        --scene-gap: 0.5rem;
+    .heroMediaControls {
+        inset-inline-end: 1rem;
     }
-    .sceneViewport,
-    .scene {
-        border-radius: 0.75rem;
-    }
-    .scene[data-desktop-distance] {
-        transform: scale(0.78);
-        opacity: 0.75;
-    }
-    .scene[data-mobile-distance='0'] {
-        transform: scale(1);
-        opacity: 1;
-    }
-    .scene span {
-        font-size: 0.625rem;
-        padding: 1.25rem 0.375rem 0.5rem;
-    }
-    .sceneArrow {
-        width: 1.75rem;
-        height: 1.75rem;
-    }
-    .scenePrevious {
-        left: -0.625rem;
-    }
-    .sceneNext {
-        right: -0.625rem;
+    .heroVisualSpace::before {
+        width: calc((100% - 1rem) / 3 - 2px);
     }
     .heroContent {
-        margin-top: 1.75rem;
+        margin-top: 1.25rem;
     }
     .heroContent h1 {
         flex-direction: column;
@@ -366,5 +287,18 @@
     .brand {
         gap: 0.375rem;
         font-size: 0.875rem;
+    }
+}
+@media (max-width: 480px) {
+    .account :global(.wallet-balance) {
+        width: 32px;
+        padding-inline: 3px;
+    }
+    .account :global(.wallet-balance) span {
+        display: none;
+    }
+    .projectLink {
+        min-height: 2rem;
+        padding: 0.375rem;
     }
 }

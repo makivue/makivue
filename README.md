@@ -42,6 +42,18 @@ This edition keeps the complete creation workflow with manual control over resul
 
 Batch generation, cancellation, resumable jobs, manual retries, basic input validation and protection against overwriting newer edits remain available. Provider format and safety requirements still apply. Native first/last-frame inputs remain available where the model supports them.
 
+## Generated video examples
+
+These public examples open the completed first episode on the MakiVue website:
+
+| Work | Episode 1 |
+| --- | --- |
+| [STOP FIGHTING](https://makivue.com/works/640737770905568823/episodes/640737797782684657) | Watch episode 1 |
+| [The 300 Warriors](https://makivue.com/works/640630615397430930/episodes/640630615447762578) | Watch *The Lord of War* |
+| [THE LAST IMPACT](https://makivue.com/works/639283952309284093/episodes/639283952326061309) | Watch *The Anomaly* |
+| [丛林大冒险](https://makivue.com/works/639471750878378906/episodes/639471750895156122) | 观看《迷雾荧光林》 |
+| [星际大战](https://makivue.com/works/638260232912411993/episodes/638260232945966425) | 观看《深空警报与破裂的穹顶》 |
+
 ## Interface previews
 
 ### English
