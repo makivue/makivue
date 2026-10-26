@@ -1,102 +1,116 @@
-**Choose your language / 选择文档语言 / Choisir la langue**
-
-| English | 简体中文 | Français |
-| :---: | :---: | :---: |
-| **English documentation** | **[阅读完整中文文档](README.zh-CN.md)** | **[Lire la documentation française](README.fr.md)** |
-
 <div align="center">
 
+<p><strong>English</strong> · <a href="README.zh-CN.md">简体中文</a> · <a href="README.fr.md">Français</a></p>
+
 <a href="https://makivue.com?utm_source=github">
-  <img src="public/brand/logo.png" width="88" alt="makivue" />
+  <img src="public/brand/logo.png" width="72" alt="makivue" />
 </a>
+<h1>makivue</h1>
 
-# makivue
+**Turn ideas into AI short dramas, anime, images, and videos.**
 
-**Turn a story idea into an AI short drama.**
+One local workspace for stories, characters, scenes, storyboards, video, and subtitles.
 
-Scripts · Characters · Scenes · Storyboards · Video · Subtitles
+[Quick start](#quick-start) · [Features](#features) · [Interface](#interface-previews)
 
-A local AI creation workspace built with Next.js, React, and TypeScript.
+[Website](https://makivue.com?utm_source=github) · [Model configuration](MODEL_CONFIG.md) · [Contributing](CONTRIBUTING.md)
 
-[Website](https://makivue.com?utm_source=github) · [Quick start](#quick-start) · [Model configuration](MODEL_CONFIG.md) · [Contributing](CONTRIBUTING.md)
-
-**Join the community:** [WhatsApp](https://chat.whatsapp.com/LGcDrlKUrZ3AbJdO8WSPox?mode=gi_t) · [Telegram](https://t.me/+piA50HGZMaAxNTU1)
+**Community:** [WhatsApp](https://chat.whatsapp.com/LGcDrlKUrZ3AbJdO8WSPox?mode=gi_t) · [Telegram](https://t.me/+piA50HGZMaAxNTU1)
 
 </div>
 
 ---
 
-makivue brings story development, asset management, and video production into one project. Start with an idea or import an existing novel or script, then develop characters, storyboard shots, and assemble an episode.
+makivue brings story development, image creation, asset management, and video production into one workspace. Start with an idea, import a novel or script, create an anime project, or work directly with images and video clips.
 
-**Your projects and media stay on your computer. Models use your own supplier accounts.** The local edition needs no online login, database service, or cloud storage. The local server sends generation requests directly to your selected supplier.
+**Your projects and media stay on your computer. Models use your own supplier accounts.** Records and media live in local files; generation requests go directly from the local server to your selected supplier.
 
-## Basic generation edition
+| 306 preset styles | 9 interface languages |
+| :---: | :---: |
+| **Local JSON + media** | **Your own model accounts** |
 
-This edition keeps the complete creation workflow with manual control over results:
+<a id="features"></a>
 
-- **Characters:** one full-body reference image per generation, with candidate selection and manual regeneration.
-- **Storyboards:** an initial draft from the script; long scripts are processed in batches. Edit actions, dialogue and duration yourself.
-- **Illustrations:** a simple prompt with selected character references, without automatic prompt polishing or cross-shot continuity repair.
-- **Videos:** generate each shot with your selected model, without automatic model recommendations, comparison runs or multi-segment assembly.
-- **Review:** check the output yourself. There is no AI quality scoring, visual inspection, narrative review or quality-triggered regeneration.
+## Features
 
-Batch generation, cancellation, resumable jobs, manual retries, basic input validation and protection against overwriting newer edits remain available. Provider format and safety requirements still apply. Native first/last-frame inputs remain available where the model supports them.
+### Story and project production
 
-## Generated video examples
-
-These public examples open the completed first episode on the MakiVue website:
-
-| Work | Episode 1 |
+| Capability | What you can do |
 | --- | --- |
-| [STOP FIGHTING](https://makivue.com/works/640737770905568823/episodes/640737797782684657) | Watch episode 1 |
-| [The 300 Warriors](https://makivue.com/works/640630615397430930/episodes/640630615447762578) | Watch *The Lord of War* |
-| [THE LAST IMPACT](https://makivue.com/works/639283952309284093/episodes/639283952326061309) | Watch *The Anomaly* |
-| [丛林大冒险](https://makivue.com/works/639471750878378906/episodes/639471750895156122) | 观看《迷雾荧光林》 |
-| [星际大战](https://makivue.com/works/638260232912411993/episodes/638260232945966425) | 观看《深空警报与破裂的穹顶》 |
+| **Stories and document import** | Develop outlines and episode scripts, or import TXT, Markdown, DOCX, and PDF documents; review the detected structure before creating the project. |
+| **Characters and scenes** | Extract characters and locations, edit their details, manage reference images, and reuse assets across a project. |
+| **Storyboard editing** | Adjust shot descriptions, actions, dialogue, framing, camera motion, duration, and first/last-frame prompts. |
+| **Styles and themes** | Search **306 presets** by style group and subject category, or save custom styles and regional themes with up to three local reference images. |
+| **Anime studio** | Create an anime project or prepare character sheets, storyboard keyframes, and poster prompts, then continue in the image workspace. |
+| **Production tasks** | Run batch generation, inspect progress, cancel jobs, resume interrupted supported tasks, and retry individual items manually. |
+
+### Image and video workspaces
+
+| Capability | What you can do |
+| --- | --- |
+| **Standalone image creation** | Choose a configured image model, prompt, aspect ratio, and supported reference inputs without creating a drama project. |
+| **Video generation** | Use text-to-video, image-to-video, reference media, native audio, and first/last frames where supported by the selected model. |
+| **Theme video planning** | Turn a travel, product, knowledge, or micro-story topic into an editable visual and audio script; choose narration or ambience before generating a model clip. |
+| **Local clip assembly** | Select **2–20 videos from the creator gallery**, reorder or remove clips, and merge up to **10 minutes** with FFmpeg. Choose an output ratio while retaining original audio and fitting frames with padding. |
+| **Reference-video tools** | Analyze sampled frames, generate a similar clip, or cut highlights locally. Frame analysis does not transcribe the source audio. |
+| **Creator asset gallery** | Preview and download results, reuse prompts and references, change video covers, and select multiple assets for deletion. |
+| **Episode export and subtitles** | Assemble shots locally, generate multilingual SRT subtitles from dialogue, switch available subtitle tracks during playback, and download video and subtitle files. |
+
+### Local library and everyday use
+
+| Capability | What you can do |
+| --- | --- |
+| **Upload library** | Import covers, MP4/MOV/WebM episodes, SRT/VTT subtitles, and cast details. Reorder episodes before saving, track upload progress, and browse the completed work locally. |
+| **Workspace storage** | Keep projects, preferences, task progress, model usage records, and media in `LOCAL_DATA_DIR`; back up the complete directory with the service stopped. |
+| **Guides and tools** | Browse creation guides and focused image/video tool explainers. |
+| **Local feedback** | Save feedback with optional image/video attachments in the local workspace. |
+| **Installable app and mobile UI** | Install the PWA where the browser supports it and use responsive creation pages; an offline fallback explains how to reconnect to the local server. |
+| **Languages and appearance** | Use English, Chinese, French, Arabic, Indonesian, Hindi, Filipino, Japanese, or Korean, with interface appearance preferences. |
+
+Model formats, duration, resolution, references, and audio depend on the selected model and supplier account. AI generation and subtitle translation require configured suppliers. The PWA does not provide offline model generation.
+
+### Find the right workspace
+
+After starting the local server, open these paths in your browser:
+
+| Start with | Local path | Next step |
+| --- | --- | --- |
+| A story or script | `/` → `/projects` | Create or import a project, prepare references, then edit and generate shots. |
+| A visual style | `/styles` | Explore presets or create a custom style/theme and apply it to a project. |
+| An anime idea | `/anime` | Start a project or send a character, keyframe, or poster prompt to the image studio. |
+| A picture | `/aiimage` | Generate an image or reuse a result as a reference. |
+| A video or topic | `/aivideo` | Choose direct generation, theme planning, or local clip assembly. |
+| Existing finished videos | `/upload` → `/uploads` | Upload and organize your own episodes and subtitles. |
+| Guidance or feedback | `/guides`, `/tools`, `/feedback` | Read the workflow, explore tools, or save local feedback. |
+
+### Bundled style previews
+
+The repository includes **306 preset styles**: **278 existing model previews** with thumbnails and **28 editorial concept covers**. Concept covers illustrate a style direction rather than a generated result. All previews load from local files without a model key or remote image service.
+
+| Ink painting | Cyberpunk | Claymation | Miniature diorama |
+| :---: | :---: | :---: | :---: |
+| <img src="public/style-previews/thumbs/256/chinese-ink.webp" width="160" alt="Ink painting" /> | <img src="public/style-previews/thumbs/256/cyberpunk.webp" width="160" alt="Cyberpunk" /> | <img src="public/style-previews/thumbs/256/claymation.webp" width="160" alt="Claymation" /> | <img src="public/style-previews/thumbs/256/miniature-diorama.webp" width="160" alt="Miniature diorama" /> |
+
+<a id="interface-previews"></a>
 
 ## Interface previews
 
-### English
-
 ![makivue interface in English](docs/screenshots/home-en.webp)
+
+<details>
+<summary>See the Chinese and French interfaces</summary>
 
 ### 简体中文
 
-![makivue 简体中文界面](docs/screenshots/home-zh-CN.webp)
+![makivue interface in Simplified Chinese](docs/screenshots/home-zh-CN.webp)
 
 ### Français
 
 ![Interface de makivue en français](docs/screenshots/home-fr.webp)
 
-## Features
+</details>
 
-| Capability            | What you can do                                                                         |
-| --------------------- | --------------------------------------------------------------------------------------- |
-| Stories and scripts   | Develop outlines and episode scripts; import TXT, Markdown, DOCX, or PDF                |
-| Characters and scenes | Extract entities, manage reference images, and reuse assets                             |
-| Storyboard editing    | Adjust actions, dialogue, framing, camera movement, duration, and keyframe prompts      |
-| Image creation        | Generate character, scene, and storyboard images, or use the standalone image workspace |
-| Styles and themes     | Browse preset styles and save custom styles or themes with local reference images       |
-| Anime workspace       | Start anime projects or prepare character, keyframe, and poster image prompts            |
-| Video generation      | Use text, images, references, and native audio where the chosen model supports them     |
-| Theme videos          | Plan and edit a visual and audio script from a topic before generating a video           |
-| Assembly and export   | Manually merge selected local clips, compose episodes with FFmpeg, and process subtitles |
-| Reference video tools | Analyze sampled frames, generate a similar clip, or cut highlights                      |
-| Upload library        | Add your own covers, episode videos, and subtitles, then browse and play them locally     |
-| Local workspace       | Save project records, task progress, model usage records, and generated media           |
-| Guides and feedback   | Browse guides and tools; save feedback and its attachments in the local workspace        |
-| Installable app       | Install the PWA and show an offline fallback when the local server cannot be reached      |
-| Languages             | English, Chinese, French, Arabic, Indonesian, Hindi, Filipino, Japanese, and Korean     |
-
-Available formats, duration, resolution, and reference inputs depend on the selected model and your supplier account. Model generation still requires a connection to your supplier; the PWA fallback is an offline information page.
-
-### Bundled style previews
-
-The repository includes **306 preset styles**: **278 existing model previews** with thumbnails and **28 new editorial concept covers**. Concept covers illustrate a style direction rather than a generated result. All previews load from local files without a model key or remote image service.
-
-|                                          Ink painting                                          |                                         Cyberpunk                                         |                                         Claymation                                          |                                             Miniature diorama                                             |
-| :--------------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------: | :-------------------------------------------------------------------------------------------------------: |
-| <img src="public/style-previews/thumbs/256/chinese-ink.webp" width="160" alt="Ink painting" /> | <img src="public/style-previews/thumbs/256/cyberpunk.webp" width="160" alt="Cyberpunk" /> | <img src="public/style-previews/thumbs/256/claymation.webp" width="160" alt="Claymation" /> | <img src="public/style-previews/thumbs/256/miniature-diorama.webp" width="160" alt="Miniature diorama" /> |
+<a id="quick-start"></a>
 
 ## Quick start
 
@@ -161,6 +175,33 @@ The configuration check makes no supplier requests and prints no secrets. It che
 6. Review the sequence and subtitles, then assemble and export locally.
 
 Start with a short project to confirm model access and output quality before submitting batch jobs.
+
+
+## Basic generation edition
+
+This edition keeps the complete creation workflow with manual control over results:
+
+- **Characters:** one full-body reference image per generation, with candidate selection and manual regeneration.
+- **Storyboards:** an initial draft from the script; long scripts are processed in batches. Edit actions, dialogue and duration yourself.
+- **Illustrations:** a simple prompt with selected character references, without automatic prompt polishing or cross-shot continuity repair.
+- **Videos:** generate each shot with your selected model, without automatic model recommendations, comparison runs or multi-segment assembly.
+- **Review:** check the output yourself. There is no AI quality scoring, visual inspection, narrative review or quality-triggered regeneration.
+
+Batch generation, cancellation, resumable jobs, manual retries, basic input validation and protection against overwriting newer edits remain available. Provider format and safety requirements still apply. Native first/last-frame inputs remain available where the model supports them.
+
+## Generated video examples
+
+These public examples open the completed first episode on the MakiVue website:
+
+| Work | Episode 1 |
+| --- | --- |
+| [STOP FIGHTING](https://makivue.com/works/640737770905568823/episodes/640737797782684657) | Watch episode 1 |
+| [The 300 Warriors](https://makivue.com/works/640630615397430930/episodes/640630615447762578) | Watch *The Lord of War* |
+| [THE LAST IMPACT](https://makivue.com/works/639283952309284093/episodes/639283952326061309) | Watch *The Anomaly* |
+| [丛林大冒险](https://makivue.com/works/639471750878378906/episodes/639471750895156122) | 观看《迷雾荧光林》 |
+| [星际大战](https://makivue.com/works/638260232912411993/episodes/638260232945966425) | 观看《深空警报与破裂的穹顶》 |
+
+<a id="models"></a>
 
 ## Models and credentials
 

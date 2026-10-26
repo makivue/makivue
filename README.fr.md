@@ -1,102 +1,114 @@
-**Choose your language / 选择文档语言 / Choisir la langue**
-
-| English | 简体中文 | Français |
-| :---: | :---: | :---: |
-| **[Read the English documentation](README.md)** | **[阅读完整中文文档](README.zh-CN.md)** | **Documentation française** |
-
 <div align="center">
 
+<p><a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a> · <strong>Français</strong></p>
+
 <a href="https://makivue.com?utm_source=github">
-  <img src="public/brand/logo.png" width="88" alt="makivue" />
+  <img src="public/brand/logo.png" width="72" alt="makivue" />
 </a>
+<h1>makivue</h1>
 
-# makivue
+**Transformez vos idées en mini-séries, anime, images et vidéos avec l’IA.**
 
-**Transformez une idée en mini-série avec l’IA.**
+Un atelier local pour les histoires, personnages, décors, storyboards, vidéos et sous-titres.
 
-Scénarios · Personnages · Décors · Storyboards · Vidéos · Sous-titres
+[Démarrage rapide](#quick-start) · [Fonctionnalités](#features) · [Interface](#interface-previews)
 
-Un atelier local de création de mini-séries, développé avec Next.js, React et TypeScript.
+[Site officiel](https://makivue.com?utm_source=github) · [Configuration des modèles](MODEL_CONFIG.md) · [Contribuer](CONTRIBUTING.md)
 
-[Site officiel](https://makivue.com?utm_source=github) · [Démarrage rapide](#quick-start) · [Configuration des modèles](MODEL_CONFIG.md) · [Contribuer](CONTRIBUTING.md)
-
-**Rejoignez la communauté :** [WhatsApp](https://chat.whatsapp.com/LGcDrlKUrZ3AbJdO8WSPox?mode=gi_t) · [Telegram](https://t.me/+piA50HGZMaAxNTU1)
+**Communauté :** [WhatsApp](https://chat.whatsapp.com/LGcDrlKUrZ3AbJdO8WSPox?mode=gi_t) · [Telegram](https://t.me/+piA50HGZMaAxNTU1)
 
 </div>
 
 ---
 
-makivue réunit l’écriture, la gestion des ressources et la production vidéo dans un même projet. Partez d’une idée ou importez votre roman ou scénario, puis préparez les personnages, les plans et le montage de chaque épisode.
+makivue réunit l’écriture, la création d’images, la gestion des ressources et la production vidéo dans un même atelier. Partez d’une idée, importez un roman ou scénario, créez un projet anime ou travaillez directement avec des images et des clips vidéo.
 
-**Vos projets et vos médias restent sur votre ordinateur. Les modèles utilisent vos propres comptes fournisseurs.** L’édition locale ne nécessite ni connexion à un compte en ligne, ni service de base de données, ni stockage cloud. Le serveur local envoie les demandes de génération directement au fournisseur choisi.
+**Vos projets et vos médias restent sur votre ordinateur. Les modèles utilisent vos propres comptes fournisseurs.** Les données sont enregistrées dans des fichiers locaux ; le serveur local envoie les demandes de génération directement au fournisseur choisi.
 
-## Édition de génération de base
+| 306 styles prédéfinis | 9 langues d’interface |
+| :---: | :---: |
+| **JSON et médias locaux** | **Vos comptes fournisseurs** |
 
-Cette édition conserve le parcours de création complet et vous laisse vérifier les résultats :
+<a id="features"></a>
 
-- **Personnages :** une image de référence en pied par génération, avec sélection des propositions et relance manuelle.
-- **Storyboard :** un premier brouillon tiré du scénario ; les textes longs sont traités par lots. Les actions, dialogues et durées se modifient manuellement.
-- **Illustrations :** une consigne simple et les références des personnages sélectionnés, sans réécriture automatique ni correction de continuité entre les plans.
-- **Vidéos :** chaque plan utilise le modèle choisi, sans recommandation automatique, comparaison de modèles ou assemblage de plusieurs segments générés.
-- **Vérification :** à effectuer vous-même. Aucun score de qualité par IA, contrôle visuel, relecture narrative ou nouvelle génération déclenchée par un contrôle qualité.
+## Fonctionnalités
 
-La génération par lots, l’annulation, la reprise des tâches, les relances manuelles, la validation des entrées et la protection des modifications récentes restent disponibles. Les exigences de format et de sécurité des fournisseurs s’appliquent toujours. Les images de début et de fin restent utilisables lorsque le modèle les prend en charge nativement.
+### Histoires et production de projets
 
-## Exemples de vidéos générées
-
-Ces exemples publics ouvrent le premier épisode terminé sur le site MakiVue :
-
-| Œuvre | Épisode 1 |
+| Fonction | Possibilités |
 | --- | --- |
-| [STOP FIGHTING](https://makivue.com/works/640737770905568823/episodes/640737797782684657) | Regarder l’épisode 1 |
-| [The 300 Warriors](https://makivue.com/works/640630615397430930/episodes/640630615447762578) | Regarder *The Lord of War* |
-| [THE LAST IMPACT](https://makivue.com/works/639283952309284093/episodes/639283952326061309) | Regarder *The Anomaly* |
-| [丛林大冒险](https://makivue.com/works/639471750878378906/episodes/639471750895156122) | Regarder *迷雾荧光林* |
-| [星际大战](https://makivue.com/works/638260232912411993/episodes/638260232945966425) | Regarder *深空警报与破裂的穹顶* |
+| **Histoires et import de documents** | Créer un plan narratif et des scénarios par épisode, ou importer des fichiers TXT, Markdown, DOCX et PDF ; vérifier la structure détectée avant de créer le projet. |
+| **Personnages et décors** | Extraire les personnages et les lieux, modifier leurs détails, gérer les images de référence et réutiliser les ressources du projet. |
+| **Édition du storyboard** | Modifier descriptions, actions, dialogues, cadrage, caméra, durée et consignes pour les images de début et de fin. |
+| **Styles et thèmes régionaux** | Rechercher parmi **306 styles** par groupe et catégorie, ou enregistrer un style ou thème personnel avec jusqu’à trois références locales. |
+| **Studio anime** | Créer un projet anime ou préparer des consignes pour une fiche de personnage, une image clé ou une affiche, puis poursuivre dans l’atelier d’images. |
+| **Suivi de production** | Lancer des générations par lots, suivre leur progression, annuler des tâches, reprendre les tâches interrompues prises en charge et relancer des éléments manuellement. |
+
+### Ateliers d’images et de vidéos
+
+| Fonction | Possibilités |
+| --- | --- |
+| **Création d’images indépendante** | Choisir un modèle configuré, une consigne, un format et des références compatibles sans créer de projet de mini-série. |
+| **Génération vidéo** | Utiliser texte, images, médias de référence, son natif et images de début/fin selon les capacités du modèle choisi. |
+| **Vidéos thématiques** | Transformer un sujet de voyage, produit, connaissance ou microfiction en script visuel et sonore modifiable ; choisir narration ou ambiance avant de générer un clip. |
+| **Assemblage de clips locaux** | Choisir **2 à 20 vidéos de la galerie de création**, les réordonner ou les retirer, puis assembler jusqu’à **10 minutes** avec FFmpeg. Choisir le format de sortie en conservant le son et en ajoutant des marges si nécessaire. |
+| **Outils de vidéo de référence** | Analyser des images extraites, générer un clip similaire ou sélectionner des moments forts en local. L’analyse des images ne transcrit pas la piste audio. |
+| **Galerie de création** | Prévisualiser et télécharger les résultats, réutiliser les consignes et références, changer les couvertures vidéo et supprimer plusieurs ressources à la fois. |
+| **Export et sous-titres** | Assembler les plans en local, générer des fichiers SRT multilingues à partir des dialogues, changer de piste disponible pendant la lecture et télécharger vidéos et sous-titres. |
+
+### Bibliothèque locale et utilisation quotidienne
+
+| Fonction | Possibilités |
+| --- | --- |
+| **Vidéothèque importée** | Ajouter couvertures, épisodes MP4/MOV/WebM, sous-titres SRT/VTT et distribution ; réordonner les épisodes avant l’enregistrement, suivre les transferts et lire les œuvres localement. |
+| **Stockage local** | Conserver projets, préférences, progression, relevés d’utilisation et médias dans `LOCAL_DATA_DIR` ; sauvegarder tout le dossier après l’arrêt du service. |
+| **Guides et outils** | Consulter les guides de création et les pages explicatives des outils d’images et de vidéos. |
+| **Retours locaux** | Enregistrer les retours avec des images ou vidéos jointes facultatives dans l’espace local. |
+| **Application installable et mobile** | Installer la PWA si le navigateur le permet, utiliser les pages adaptatives et consulter les instructions de reconnexion lorsque le serveur local est inaccessible. |
+| **Langues et apparence** | Utiliser l’anglais, le chinois, le français, l’arabe, l’indonésien, l’hindi, le filipino, le japonais ou le coréen, et régler les préférences d’apparence. |
+
+Formats, durées, résolutions, références et son dépendent du modèle et des droits du compte fournisseur. La génération et la traduction des sous-titres nécessitent des fournisseurs configurés. La PWA ne permet pas la génération hors ligne.
+
+### Choisir un espace de création
+
+Après le démarrage du serveur local, ouvrez ces chemins dans votre navigateur :
+
+| Point de départ | Chemin local | Étape suivante |
+| --- | --- | --- |
+| Une histoire ou un scénario | `/` → `/projects` | Créer ou importer un projet, préparer les références, puis éditer et générer les plans. |
+| Un style visuel | `/styles` | Parcourir les styles ou créer un style/thème personnel et l’appliquer au projet. |
+| Une idée anime | `/anime` | Créer un projet ou envoyer une consigne de personnage, d’image clé ou d’affiche à l’atelier d’images. |
+| Une image | `/aiimage` | Générer une image ou réutiliser un résultat comme référence. |
+| Une vidéo ou un sujet | `/aivideo` | Choisir la génération directe, la planification thématique ou l’assemblage local. |
+| Des vidéos terminées | `/upload` → `/uploads` | Importer et organiser vos épisodes et sous-titres. |
+| Un guide ou un retour | `/guides`, `/tools`, `/feedback` | Lire le parcours, explorer les outils ou enregistrer un retour local. |
+
+### Aperçus de styles inclus
+
+Le dépôt contient **306 styles prédéfinis** : **278 aperçus de modèles existants** avec leurs miniatures, et **28 couvertures conceptuelles éditoriales**. Ces couvertures illustrent une direction artistique, sans représenter un résultat généré. Tous les aperçus sont locaux : aucune clé de modèle ni aucun service d’images distant n’est nécessaire pour les afficher.
+
+| Peinture à l’encre | Cyberpunk | Animation en pâte à modeler | Diorama miniature |
+| :---: | :---: | :---: | :---: |
+| <img src="public/style-previews/thumbs/256/chinese-ink.webp" width="160" alt="Peinture à l’encre" /> | <img src="public/style-previews/thumbs/256/cyberpunk.webp" width="160" alt="Cyberpunk" /> | <img src="public/style-previews/thumbs/256/claymation.webp" width="160" alt="Animation en pâte à modeler" /> | <img src="public/style-previews/thumbs/256/miniature-diorama.webp" width="160" alt="Diorama miniature" /> |
+
+<a id="interface-previews"></a>
 
 ## Aperçu de l’interface
 
+![Interface de makivue en français](docs/screenshots/home-fr.webp)
+
+<details>
+<summary>Voir les interfaces en anglais et en chinois</summary>
+
 ### English
 
-![Interface de makivue en anglais](docs/screenshots/home-en.webp)
+![makivue interface in English](docs/screenshots/home-en.webp)
 
 ### 简体中文
 
 ![Interface de makivue en chinois simplifié](docs/screenshots/home-zh-CN.webp)
 
-### Français
-
-![Interface de makivue en français](docs/screenshots/home-fr.webp)
-
-## Fonctionnalités
-
-| Fonction              | Possibilités                                                                                                             |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Histoire et scénario  | Créer un plan narratif et des scénarios par épisode, ou importer des fichiers TXT, Markdown, DOCX et PDF                 |
-| Personnages et décors | Extraire les personnages et les lieux, gérer leurs images de référence et réutiliser les ressources                      |
-| Storyboard            | Modifier les descriptions des plans, les actions, les dialogues, les mouvements de caméra, la durée et les images clés   |
-| Images                | Générer des personnages, des décors et des illustrations de plans, ou utiliser l’espace de création d’images indépendant |
-| Styles et thèmes      | Parcourir les styles prédéfinis et enregistrer des styles ou thèmes personnalisés avec des images de référence locales    |
-| Espace anime          | Créer un projet anime ou préparer des consignes pour les personnages, les images clés et les affiches                     |
-| Vidéo                 | Générer à partir de texte, d’images ou de références, avec du son natif lorsque le modèle le permet                      |
-| Vidéos thématiques    | Préparer et modifier un script visuel et sonore à partir d’un sujet avant de générer la vidéo                             |
-| Montage et export     | Assembler manuellement des clips locaux, composer les épisodes avec FFmpeg et gérer les sous-titres                       |
-| Vidéo de référence    | Analyser des images extraites d’une vidéo, générer un clip similaire ou sélectionner des moments forts                   |
-| Vidéothèque locale    | Importer vos couvertures, vidéos d’épisodes et sous-titres, puis les parcourir et les lire en local                       |
-| Espace local          | Conserver les projets, l’avancement des tâches, les relevés d’utilisation des modèles et les médias générés              |
-| Guides et retours     | Consulter les guides et outils ; enregistrer les retours et leurs pièces jointes dans l’espace local                      |
-| Application installable | Installer la PWA et afficher une page de secours hors ligne lorsque le serveur local est inaccessible                  |
-| Langues               | Anglais, chinois, français, arabe, indonésien, hindi, filipino, japonais et coréen                                       |
-
-Les résolutions, les durées, les formats de référence et les possibilités audio dépendent du modèle et des droits de votre compte fournisseur. La génération nécessite toujours une connexion au fournisseur ; la page hors ligne de la PWA affiche uniquement des informations de connexion.
-
-### Aperçus de styles inclus
-
-Le dépôt contient **306 styles prédéfinis** : **278 aperçus de modèles existants** avec leurs miniatures, et **28 nouvelles couvertures conceptuelles éditoriales**. Ces couvertures illustrent une direction artistique, sans représenter un résultat généré. Tous les aperçus sont des fichiers locaux : aucune clé de modèle ni aucun service d’images distant n’est nécessaire pour les afficher.
-
-|                                          Peinture à l’encre                                          |                                         Cyberpunk                                         |                                         Animation en pâte à modeler                                          |                                             Diorama miniature                                             |
-| :--------------------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------: | :----------------------------------------------------------------------------------------------------------: | :-------------------------------------------------------------------------------------------------------: |
-| <img src="public/style-previews/thumbs/256/chinese-ink.webp" width="160" alt="Peinture à l’encre" /> | <img src="public/style-previews/thumbs/256/cyberpunk.webp" width="160" alt="Cyberpunk" /> | <img src="public/style-previews/thumbs/256/claymation.webp" width="160" alt="Animation en pâte à modeler" /> | <img src="public/style-previews/thumbs/256/miniature-diorama.webp" width="160" alt="Diorama miniature" /> |
+</details>
 
 <a id="quick-start"></a>
 
@@ -169,6 +181,33 @@ La vérification contrôle la présence de la configuration, sans contacter les 
 6. **Assembler et exporter** : vérifier l’ordre des plans et les sous-titres, puis réaliser le montage en local.
 
 Commencez par un projet court pour vérifier l’accès aux modèles et la qualité des résultats avant de lancer des traitements par lots.
+
+
+## Édition de génération de base
+
+Cette édition conserve le parcours de création complet et vous laisse vérifier les résultats :
+
+- **Personnages :** une image de référence en pied par génération, avec sélection des propositions et relance manuelle.
+- **Storyboard :** un premier brouillon tiré du scénario ; les textes longs sont traités par lots. Les actions, dialogues et durées se modifient manuellement.
+- **Illustrations :** une consigne simple et les références des personnages sélectionnés, sans réécriture automatique ni correction de continuité entre les plans.
+- **Vidéos :** chaque plan utilise le modèle choisi, sans recommandation automatique, comparaison de modèles ou assemblage de plusieurs segments générés.
+- **Vérification :** à effectuer vous-même. Aucun score de qualité par IA, contrôle visuel, relecture narrative ou nouvelle génération déclenchée par un contrôle qualité.
+
+La génération par lots, l’annulation, la reprise des tâches, les relances manuelles, la validation des entrées et la protection des modifications récentes restent disponibles. Les exigences de format et de sécurité des fournisseurs s’appliquent toujours. Les images de début et de fin restent utilisables lorsque le modèle les prend en charge nativement.
+
+## Exemples de vidéos générées
+
+Ces exemples publics ouvrent le premier épisode terminé sur le site MakiVue :
+
+| Œuvre | Épisode 1 |
+| --- | --- |
+| [STOP FIGHTING](https://makivue.com/works/640737770905568823/episodes/640737797782684657) | Regarder l’épisode 1 |
+| [The 300 Warriors](https://makivue.com/works/640630615397430930/episodes/640630615447762578) | Regarder *The Lord of War* |
+| [THE LAST IMPACT](https://makivue.com/works/639283952309284093/episodes/639283952326061309) | Regarder *The Anomaly* |
+| [丛林大冒险](https://makivue.com/works/639471750878378906/episodes/639471750895156122) | Regarder *迷雾荧光林* |
+| [星际大战](https://makivue.com/works/638260232912411993/episodes/638260232945966425) | Regarder *深空警报与破裂的穹顶* |
+
+<a id="models"></a>
 
 ## Modèles et identifiants personnels
 
