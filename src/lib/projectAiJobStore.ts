@@ -20,6 +20,8 @@ export type ProjectAiJobKind =
     | 'scene_references'
     | 'creator_image'
     | 'creator_video'
+    | 'creator_video_plan'
+    | 'creator_video_merge'
 
 export interface ProjectAiJob {
     id: string

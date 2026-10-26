@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { ArrowRight, ChevronDown, Film, Loader2, Play } from 'lucide-react'
+import { ArrowRight, Film, Loader2, Play } from 'lucide-react'
 import Link from '@/i18n/navigation'
 import { useI18n } from '@/i18n/I18nProvider'
 import OptimizedMediaImage from '@/components/OptimizedMediaImage'
@@ -55,25 +55,16 @@ function WorkGrid({ query, genre }: { query: string; genre: string }) {
     }
 
     const featured = !query && !genre ? works[0] : null
-    const currentGenreLabel = genre ? (PROJECT_GENRES.find(item => item.code === genre)?.label ?? '剧集') : '全部剧集'
     return (
         <main className="works-content">
-            <details className="works-genre-filter">
-                <summary>
-                    <span className="works-genre-filter-label">
-                        <Film
-                            size={15}
-                            aria-hidden
-                        />
-                        {t('题材')}
-                    </span>
-                    <span className="works-genre-current">{t(currentGenreLabel)}</span>
-                    <ChevronDown
-                        className="works-genre-chevron"
-                        size={16}
+            <div className="works-genre-filter">
+                <span className="works-genre-filter-label">
+                    <Film
+                        size={15}
                         aria-hidden
                     />
-                </summary>
+                    {t('题材')}
+                </span>
                 <nav
                     className="works-genre-options"
                     aria-label={t('题材')}>
@@ -91,7 +82,7 @@ function WorkGrid({ query, genre }: { query: string; genre: string }) {
                         </Link>
                     ))}
                 </nav>
-            </details>
+            </div>
             {featured && (
                 <section className="works-hero">
                     {featured.coverUrl && (

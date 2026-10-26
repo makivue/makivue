@@ -175,17 +175,102 @@ function joinPrompt(parts: Array<string | null | undefined>): string {
         .join(', ')
 }
 
+/** These media need explicit dimensions: generic cinema polish can erase their defining texture. */
+function resolveSocialMediaDimensions(key: string): Partial<VisualStyleProfile> {
+    if (key === 'retro-rubber-hose') {
+        return {
+            rendering: dimension('复古橡皮管动画', 'strict monochrome hand-drawn 2D rubber-hose cartoon, bold graphic silhouettes and elastic tube limbs, never 3D rendering'),
+            linework: dimension('复古橡皮管动画', 'bold stable hand-inked contours, simple black-and-white shapes and consistent line weight'),
+            colorPalette: dimension('复古橡皮管动画', 'strict black, white and restrained gray tones, no color accents'),
+            texture: dimension('复古橡皮管动画', 'subtle paper grain and vintage film texture over flat drawn shapes, no volumetric material shading'),
+            motionLanguage: dimension('复古橡皮管动画', 'rhythmic elastic tube-limb 2D motion, controlled squash and stretch, stable original character silhouettes')
+        }
+    }
+    if (key === 'modern-family-animation') {
+        return {
+            linework: dimension('亲子家庭动画', 'original stylized 3D forms defined by modelling and soft light, no drawn outlines or flat cel treatment')
+        }
+    }
+    if (['cooking-macro', 'product-commercial', 'architecture-tour'].includes(key)) {
+        const summary = key === 'cooking-macro' ? '美食微距' : key === 'product-commercial' ? '产品广告' : '建筑空间漫游'
+        return {
+            rendering: dimension(summary, 'photorealistic object and space photography, coherent geometry and optical response, no human casting'),
+            linework: dimension(summary, 'natural optical edges and precise material boundaries, no illustration outlines'),
+            texture: dimension(summary, 'retain the specified food, product or architectural surface detail and realistic material response, no human skin or beauty retouching')
+        }
+    }
+    if (['mockumentary-comedy', 'outdoor-sports'].includes(key)) {
+        const summary = key === 'mockumentary-comedy' ? '伪纪录喜剧' : '户外运动纪实'
+        return {
+            rendering: dimension(summary, 'live-action observational photography, natural individual adult faces and realistic body mechanics, no natural-history wildlife treatment'),
+            cameraLanguage: dimension(summary, 'motivated documentary-crew framing and practical handheld tracking, continuous geography and readable reactions or athletic technique'),
+            motionLanguage: dimension(summary, 'human behavior-led camera movement with readable timing, believable physical contact and restrained operator motion')
+        }
+    }
+    if (key === 'pixel-art') {
+        return {
+            rendering: dimension('像素艺术', 'strict two-dimensional pixel art with a fixed native resolution and nearest-neighbor scaling, never 3D voxel rendering'),
+            linework: dimension('像素艺术', 'silhouettes built from deliberate square pixel clusters on a uniform grid, no antialiasing or subpixel outlines'),
+            colorPalette: dimension('像素艺术', 'limited intentional color palette with stepped shading and controlled dithering, no smooth gradients'),
+            texture: dimension('像素艺术', 'preserve discrete crisp pixels and consistent pixel density across every surface'),
+            motionLanguage: dimension('像素艺术', 'stepped sprite animation locked to the pixel grid, stable silhouettes and no interpolated smoothing')
+        }
+    }
+    if (key === 'smartphone-pov' || key === 'found-footage') {
+        const summary = key === 'smartphone-pov' ? '手机手持 POV' : '拾得影像恐怖'
+        return {
+            rendering: dimension(summary, 'diegetic consumer-camera photography with plausible phone or camcorder optics, natural sensor response and no studio retouching'),
+            cameraLanguage: dimension(summary, 'one physically present camera operator, eye-level wide-angle lens, motivated reframing and believable autofocus and exposure adaptation'),
+            motionLanguage: dimension(summary, 'operator-driven handheld motion, restrained micro-jitter and continuous spatial geography, no dolly, crane or omniscient reverse angles'),
+            texture: dimension(summary, 'retain consumer-sensor noise and imperfect practical surfaces without unreadable blur or artificial film polish')
+        }
+    }
+    if (key === 'analog-horror') {
+        return {
+            rendering: dimension('模拟录像带恐怖', 'archival late-twentieth-century VHS camera imagery with deliberate low-fidelity signal reproduction, never clean digital cinema'),
+            lighting: dimension('模拟录像带恐怖', 'mundane period-appropriate domestic or institutional practical lighting, no glossy studio key lights'),
+            texture: dimension('模拟录像带恐怖', 'persistent CRT scanlines, interlacing, chroma bleed and restrained tape-tracking damage while keeping the scene legible'),
+            cameraLanguage: dimension('模拟录像带恐怖', 'fixed archival camera or slow in-world camcorder framing, no omniscient cinematic coverage'),
+            motionLanguage: dimension('模拟录像带恐怖', 'unsettling stillness and small coherent subject changes with occasional brief tape warps, no fluid cinematic dolly')
+        }
+    }
+    if (key === 'surreal-asmr') {
+        return {
+            rendering: dimension('超现实解压', 'macro object photography of deliberately impossible materials, realistic refraction and continuous material boundaries, no people'),
+            composition: dimension('超现实解压', 'object-led extreme close-up, one clear contact surface and uncluttered background'),
+            linework: dimension('超现实解压', 'material boundaries defined by optical contact and surface geometry, no drawn outlines'),
+            texture: dimension('超现实解压', 'crisp layers of refractive crystal and soft gels, coherent reflections and deformation, no skin or fabric details'),
+            cameraLanguage: dimension('超现实解压', 'stable macro lens focused on the tool-material contact point, no character coverage'),
+            motionLanguage: dimension('超现实解压', 'one slow satisfying slice, compression or flow at a time, continuous tool contact, no body parts')
+        }
+    }
+    if (key === 'photoreal-pet-drama') {
+        return {
+            rendering: dimension('写实萌宠短剧', 'photorealistic animal photography with species-accurate anatomy and realistic fur, never cartoon or humanoid casting'),
+            linework: dimension('写实萌宠短剧', 'natural photographic edges defined by individual fur strands and whiskers, no illustration outlines'),
+            texture: dimension('写实萌宠短剧', 'individual fur strands, whiskers and stable coat markings, no human skin or beauty retouching'),
+            cameraLanguage: dimension('写实萌宠短剧', 'animal-eye-level photography, miniature prop scale consistent with the species and natural lens perspective'),
+            motionLanguage: dimension('写实萌宠短剧', 'realistic quadruped locomotion and paw contact, expressions through ears, eyes and tails, no human limbs')
+        }
+    }
+    return {}
+}
+
 export function createVisualStyleProfile(style: VisualStyleDescriptor): VisualStyleProfile {
     const context = [style.key, style.label, style.hint, style.imagePromptPrefix, style.videoPromptPrefix].join(' ')
     const liveAction = isLiveActionHumanStyle(style)
-    const rendering = resolveRendering(context, liveAction)
-    const composition = resolveComposition(context)
-    const linework = resolveLinework(context, liveAction)
-    const lighting = resolveLighting(context)
-    const colorPalette = resolveColor(context)
-    const texture = resolveTexture(context, liveAction)
-    const cameraLanguage = resolveCamera(context, liveAction)
-    const motionLanguage = resolveMotion(context, liveAction)
+    const overrides = resolveSocialMediaDimensions(style.key)
+    const rendering = overrides.rendering ?? resolveRendering(context, liveAction)
+    const composition = overrides.composition ?? resolveComposition(context)
+    const newStyleLinework = /^(?:ancient-egypt-epic|mesoamerican-epic)$/.test(style.key)
+        ? dimension('自然摄影轮廓', 'photographic edges defined by focus, contrast and light; no illustration outlines or artificial edge halos')
+        : undefined
+    const linework = overrides.linework ?? newStyleLinework ?? resolveLinework(context, liveAction)
+    const lighting = overrides.lighting ?? resolveLighting(context)
+    const colorPalette = overrides.colorPalette ?? resolveColor(context)
+    const texture = overrides.texture ?? resolveTexture(context, liveAction)
+    const cameraLanguage = overrides.cameraLanguage ?? resolveCamera(context, liveAction)
+    const motionLanguage = overrides.motionLanguage ?? resolveMotion(context, liveAction)
     const artDirection = dimension(`${style.label}：${style.hint}`, style.imagePromptPrefix)
     const productionDesign = dimension('统一时代、地域、服装与场景设计', `coherent production design derived from ${style.label}; keep era, culture, wardrobe, architecture, props and environment mutually consistent`)
     const imagePromptPrefix = joinPrompt([
@@ -210,7 +295,8 @@ export function createVisualStyleProfile(style: VisualStyleDescriptor): VisualSt
         motionLanguage.prompt,
         productionDesign.prompt
     ])
-    const mediumMismatchNegative = liveAction
+    const photographicNewPreset = /^(?:smartphone-pov|found-footage|analog-horror|surreal-asmr|photoreal-pet-drama|cooking-macro|product-commercial|architecture-tour)$/.test(style.key)
+    const mediumMismatchNegative = liveAction || photographicNewPreset
         ? 'anime, cartoon, illustration, painterly rendering, plastic CGI skin'
         : 'unintended live action, accidental photorealistic humans, inconsistent rendering medium'
 

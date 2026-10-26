@@ -3,12 +3,19 @@ import { getRegionalStoryPreset, regionalVisualDirection } from './regional-stor
 
 export type VisualStyleFamily = 'modern' | 'historical-fantasy' | 'other'
 
+// Explicit families for newly added era-specific presets; legacy classification stays unchanged.
+const HISTORICAL_EPIC_PRESETS = new Set([
+    'ancient-indian-war', 'rajput-fortress-war', 'ancient-egypt-epic', 'ancient-greek-epic', 'roman-legion-epic',
+    'viking-saga', 'medieval-knights', 'ancient-persian-epic', 'three-kingdoms-epic', 'mesoamerican-epic'
+])
+
 const MODERN_SIGNAL = /(?:modern|urban|contemporary|office|family drama|city|street|live.action|photoreal|现代|都市|职场|办公室|家庭伦理|写实)/i
 const HISTORICAL_SIGNAL = /(?:xianxia|wuxia|hanfu|ancient|historical|cultivation|immortal|古风|古装|仙侠|武侠|修仙|玄幻)/i
 
 export function getVisualStyleFamily(style: Pick<VisualStylePreset, 'key' | 'label' | 'hint' | 'imagePromptPrefix'>): VisualStyleFamily {
     const regional = getRegionalStoryPreset(style.key)
     if (regional) return regional.family
+    if (HISTORICAL_EPIC_PRESETS.has(style.key)) return 'historical-fantasy'
     const context = [style.key, style.label, style.hint, style.imagePromptPrefix].join(' ')
     if (HISTORICAL_SIGNAL.test(context) && !MODERN_SIGNAL.test(context)) return 'historical-fantasy'
     if (MODERN_SIGNAL.test(context)) return 'modern'

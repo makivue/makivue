@@ -303,3 +303,26 @@
         padding: 1.25rem;
     }
 }
+
+@media (max-width: 767px) {
+    .primaryLink {
+        min-height: var(--app-primary-control-height);
+        gap: var(--app-control-gap);
+        padding: 7px 10px;
+        font-size: 13px;
+        line-height: 18px;
+    }
+}
+
+@media (max-width: 767px) {
+    .textLink {
+        min-height: var(--app-control-height);
+        gap: var(--app-control-gap);
+        font-size: var(--app-control-font-size);
+    }
+    .faqItem summary {
+        min-height: 44px;
+        padding-block: 12px;
+        font-size: 13px;
+    }
+}

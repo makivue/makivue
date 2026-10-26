@@ -76,17 +76,23 @@ Ces exemples publics ouvrent le premier épisode terminé sur le site MakiVue :
 | Personnages et décors | Extraire les personnages et les lieux, gérer leurs images de référence et réutiliser les ressources                      |
 | Storyboard            | Modifier les descriptions des plans, les actions, les dialogues, les mouvements de caméra, la durée et les images clés   |
 | Images                | Générer des personnages, des décors et des illustrations de plans, ou utiliser l’espace de création d’images indépendant |
+| Styles et thèmes      | Parcourir les styles prédéfinis et enregistrer des styles ou thèmes personnalisés avec des images de référence locales    |
+| Espace anime          | Créer un projet anime ou préparer des consignes pour les personnages, les images clés et les affiches                     |
 | Vidéo                 | Générer à partir de texte, d’images ou de références, avec du son natif lorsque le modèle le permet                      |
-| Montage et export     | Assembler les plans et les épisodes avec FFmpeg en local, gérer les sous-titres et télécharger le résultat               |
+| Vidéos thématiques    | Préparer et modifier un script visuel et sonore à partir d’un sujet avant de générer la vidéo                             |
+| Montage et export     | Assembler manuellement des clips locaux, composer les épisodes avec FFmpeg et gérer les sous-titres                       |
 | Vidéo de référence    | Analyser des images extraites d’une vidéo, générer un clip similaire ou sélectionner des moments forts                   |
+| Vidéothèque locale    | Importer vos couvertures, vidéos d’épisodes et sous-titres, puis les parcourir et les lire en local                       |
 | Espace local          | Conserver les projets, l’avancement des tâches, les relevés d’utilisation des modèles et les médias générés              |
+| Guides et retours     | Consulter les guides et outils ; enregistrer les retours et leurs pièces jointes dans l’espace local                      |
+| Application installable | Installer la PWA et afficher une page de secours hors ligne lorsque le serveur local est inaccessible                  |
 | Langues               | Anglais, chinois, français, arabe, indonésien, hindi, filipino, japonais et coréen                                       |
 
-Les résolutions, les durées, les formats de référence et les possibilités audio dépendent du modèle et des droits de votre compte fournisseur.
+Les résolutions, les durées, les formats de référence et les possibilités audio dépendent du modèle et des droits de votre compte fournisseur. La génération nécessite toujours une connexion au fournisseur ; la page hors ligne de la PWA affiche uniquement des informations de connexion.
 
 ### Aperçus de styles inclus
 
-Le dépôt contient **278 aperçus de styles**, accompagnés de leurs miniatures. Les exemples ci-dessous sont des fichiers locaux : aucune clé de modèle ni aucun service d’images distant n’est nécessaire pour les afficher.
+Le dépôt contient **306 styles prédéfinis** : **278 aperçus de modèles existants** avec leurs miniatures, et **28 nouvelles couvertures conceptuelles éditoriales**. Ces couvertures illustrent une direction artistique, sans représenter un résultat généré. Tous les aperçus sont des fichiers locaux : aucune clé de modèle ni aucun service d’images distant n’est nécessaire pour les afficher.
 
 |                                          Peinture à l’encre                                          |                                         Cyberpunk                                         |                                         Animation en pâte à modeler                                          |                                             Diorama miniature                                             |
 | :--------------------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------: | :----------------------------------------------------------------------------------------------------------: | :-------------------------------------------------------------------------------------------------------: |

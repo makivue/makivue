@@ -16,6 +16,7 @@ const MIME: Record<string, string> = {
     '.webp': 'image/webp',
     '.gif': 'image/gif',
     '.mp4': 'video/mp4',
+    '.mov': 'video/quicktime',
     '.webm': 'video/webm',
     '.mp3': 'audio/mpeg',
     '.wav': 'audio/wav',

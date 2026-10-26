@@ -1,11 +1,11 @@
 import { DEFAULT_VIDEO_PROVIDER, type ProductionImageProvider, type ProductionVideoProvider } from '@/lib/provider-capabilities'
 import type { StoryboardReferenceVideo } from '@/lib/storyboard-reference-videos'
 import type { SetStateAction } from 'react'
+import type { VideoCreationMode, VideoThemeDraft, VideoThemePlanDraft } from '@/lib/creator-video-plan'
 
 export type Mode = 'image' | 'video'
 export type ImageModel = ProductionImageProvider
 export type VideoModel = ProductionVideoProvider
-export type AssetFilter = 'all' | Mode
 export type AspectRatio = '1:1' | '21:9' | '16:9' | '9:16' | '4:3' | '3:4'
 
 export interface CreatorAsset {
@@ -21,9 +21,15 @@ export interface CreatorAsset {
 }
 export interface CreatorSession {
     prompt: string
-    ratios: AspectRatio[]
     imageModel: ImageModel
     videoModel: VideoModel
+    referenceError: string | null
+    videoCreationMode: VideoCreationMode
+    videoTheme: VideoThemeDraft
+    videoThemePlan: VideoThemePlanDraft | null
+    videoThemePlanJob: { id: string; sourceKey: string } | null
+    videoThemePlanning: boolean
+    ratios: AspectRatio[]
     duration: string
     files: File[]
     referenceAsset: CreatorAsset | null
@@ -38,7 +44,6 @@ export interface CreatorSession {
     error: string | null
     assets: CreatorAsset[]
     assetsLoading: boolean
-    assetFilter: AssetFilter
     nextCursor: string | null
     galleryError: string | null
     coverTargetId: string | null
@@ -51,9 +56,15 @@ export interface CreatorSession {
 function createSession(mode: Mode): CreatorSession {
     return {
         prompt: '',
-        ratios: [mode === 'image' ? '1:1' : '16:9'],
         imageModel: 'banana',
         videoModel: DEFAULT_VIDEO_PROVIDER,
+        referenceError: null,
+        videoCreationMode: 'direct',
+        videoTheme: { topic: '', purpose: 'travel', audio: 'narration', language: '' },
+        videoThemePlan: null,
+        videoThemePlanJob: null,
+        videoThemePlanning: false,
+        ratios: [mode === 'image' ? '1:1' : '16:9'],
         duration: '5',
         files: [],
         referenceAsset: null,
@@ -68,7 +79,6 @@ function createSession(mode: Mode): CreatorSession {
         error: null,
         assets: [],
         assetsLoading: false,
-        assetFilter: 'all',
         nextCursor: null,
         galleryError: null,
         coverTargetId: null,

@@ -8,8 +8,7 @@
 }
 
 .container {
-    max-width: 88rem;
-    margin-inline: auto;
+    width: 100%;
     padding: 4rem 1.5rem 4.5rem;
 }
 
@@ -61,7 +60,7 @@
 
 .grid {
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(clamp(12.5rem, 17vw, 15rem), 1fr));
     gap: 1.75rem 1rem;
 }
 
@@ -74,7 +73,7 @@
 .poster {
     position: relative;
     display: grid;
-    aspect-ratio: 9 / 16;
+    aspect-ratio: 3 / 4;
     place-items: center;
     overflow: hidden;
     border: 1px solid var(--home-border);
@@ -105,17 +104,6 @@
     object-fit: contain;
 }
 
-.status {
-    position: absolute;
-    inset-inline: 0;
-    bottom: 0;
-    padding: 2.75rem 0.75rem 0.75rem;
-    color: #fff;
-    background: linear-gradient(transparent, rgb(0 0 0 / 88%));
-    font-size: 0.75rem;
-    line-height: 1.25;
-}
-
 .play {
     position: absolute;
     display: grid;
@@ -144,7 +132,39 @@
     transform: scale(1);
 }
 
-.card h3 {
+.posterInfo {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    padding: 36px 10px 10px;
+    color: #fff;
+    background: linear-gradient(transparent, rgb(0 0 0 / 88%));
+}
+
+.posterInfo h3 {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    margin: 0 0 6px;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    color: inherit;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.45;
+    text-overflow: ellipsis;
+}
+.status {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    padding: 2.75rem 0.75rem 0.75rem;
+    color: #fff;
+    background: linear-gradient(transparent, rgb(0 0 0 / 88%));
+    font-size: 0.75rem;
+    line-height: 1.25;
+}
+.card > h3 {
     margin-top: 0.75rem;
     overflow: hidden;
     color: var(--home-text);
@@ -154,7 +174,6 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-
 .card > p {
     margin-top: 0.25rem;
     overflow: hidden;
@@ -166,7 +185,7 @@
 }
 
 .skeleton {
-    aspect-ratio: 9 / 16;
+    aspect-ratio: 3 / 4;
     overflow: hidden;
     border: 1px solid var(--home-border);
     border-radius: 0.75rem;
@@ -235,12 +254,34 @@
 
 @media (max-width: 767px) {
     .container {
-        padding-block: 3rem 3.5rem;
+        padding-block: 2rem 2.5rem;
+    }
+
+    .heading {
+        margin-bottom: 1rem;
+    }
+
+    .heading h2 {
+        font-size: 1.25rem;
     }
 
     .grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 1.25rem 0.75rem;
+        gap: 1rem 0.75rem;
+    }
+
+    .poster,
+    .skeleton {
+        border-radius: 0.75rem;
+    }
+
+    .poster > img {
+        object-fit: cover;
+    }
+
+    .posterInfo h3 {
+        font-size: 0.875rem;
+        line-height: 1.4;
     }
 }
 
@@ -252,10 +293,6 @@
     .grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
-
-    .heading {
-        margin-bottom: 1.25rem;
-    }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -266,5 +303,14 @@
 
     .skeleton::after {
         animation: none;
+    }
+}
+
+@media (max-width: 767px) {
+    .message button {
+        min-height: var(--app-control-height);
+        padding: 5px var(--app-control-padding-inline);
+        font-size: var(--app-control-font-size);
+        line-height: 18px;
     }
 }

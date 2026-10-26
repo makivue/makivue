@@ -6,6 +6,7 @@ import './globals.css'
 import CreatorSessionProvider from '@/app/create/CreatorSessionProvider'
 import SignInProvider from '@/components/SignInProvider'
 import ToastHost from '@/components/Toast'
+import PwaProvider from '@/components/PwaProvider'
 import I18nProvider from '@/i18n/I18nProvider'
 import { isLocale, localeDirection, localizePath, stripLocale } from '@/i18n/config'
 import { SEO_LOCALE } from '@/i18n/seo'
@@ -42,7 +43,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     const publicPathname = requestHeaders.get('x-app-pathname') || localizePath('/', locale)
     const unlocalizedPathname = stripLocale(publicPathname)
     const isPublicHome = unlocalizedPathname === '/'
-    const isServerLocalized = isPublicHome || unlocalizedPathname.startsWith('/features/') || unlocalizedPathname.startsWith('/legal/')
+    const isServerLocalized = isPublicHome || unlocalizedPathname.startsWith('/features/') || unlocalizedPathname.startsWith('/legal/') || unlocalizedPathname === '/tools' || unlocalizedPathname.startsWith('/tools/') || unlocalizedPathname === '/guides' || unlocalizedPathname.startsWith('/guides/')
     const jsonLd = isPublicHome ? buildHomeJsonLd(locale) : null
     return (
         <html
@@ -68,12 +69,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                                 dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
                             />
                         ) : null}
+                        <PwaProvider>
                         <SignInProvider>
                             <CreatorSessionProvider>
                                 <div className="global-i18n-content">{children}</div>
                             </CreatorSessionProvider>
                             <ToastHost />
                         </SignInProvider>
+                        </PwaProvider>
                     </I18nProvider>
                 </Suspense>
             </body>

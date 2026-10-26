@@ -13,7 +13,7 @@ let activeLocale: Locale = 'en'
 vi.mock('@/i18n/I18nProvider', () => ({
     useI18n: () => ({ locale: activeLocale, t: (source: string) => translateMessage(activeLocale, source), href: (path: string) => localizePath(path, activeLocale) })
 }))
-vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams() }))
+vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(), usePathname: () => '/settings' }))
 vi.mock('@/components/AuthBar', () => ({ default: () => null }))
 vi.mock('@/components/SiteFooter', () => ({ default: () => null }))
 

@@ -925,3 +925,51 @@ model FxRate {
   @@index([sourceDate], map: "idx_fx_rate_date")
   @@map("fx_rates")
 }
+
+
+model StyleLibraryEntry {
+  id              BigInt   @id
+  userId          BigInt   @map("user_id")
+  kind            String   @db.VarChar(10)
+  name            String   @db.VarChar(80)
+  description     String   @db.Text
+  baseStyle       String   @map("base_style") @db.VarChar(100)
+  region          String?  @db.VarChar(100)
+  genre           String?  @db.VarChar(50)
+  referenceImages Json     @map("reference_images")
+  createdAt       DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  @@index([userId, id], map: "idx_style_library_user_id")
+  @@map("style_library_entries")
+}
+
+
+model SiteFeedback {
+    id          BigInt   @id
+    userId      BigInt   @map("user_id")
+    content     String   @db.Text
+    attachments Json
+    email       String   @db.VarChar(255)
+    pageName    String   @map("page_name") @db.VarChar(1024)
+    status      String   @default("NEW") @db.VarChar(20)
+    createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
+    updatedAt   DateTime @default(now()) @map("updated_at") @db.DateTime(3)
+
+    @@map("site_feedback")
+}
+
+model SiteFeedbackCooldown {
+    userId      BigInt @id @map("user_id")
+    submissions Json
+
+    @@map("site_feedback_cooldowns")
+}
+
+model LocalFeedbackUpload {
+    id          String   @id
+    userId      BigInt
+    attachment  Json
+    expiresAt   DateTime
+
+    @@map("local_feedback_uploads")
+}

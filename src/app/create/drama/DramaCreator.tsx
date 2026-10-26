@@ -1,8 +1,9 @@
 'use client'
 
-import { useRef, useState, type FormEvent } from 'react'
+import { Suspense, useRef, useState, useSyncExternalStore, type FormEvent } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { ArrowUp, Check, ChevronDown, Loader2, Palette, SlidersHorizontal, Sparkles } from 'lucide-react'
-import { useRouter } from '@/i18n/navigation'
+import Link, { useRouter } from '@/i18n/navigation'
 import { useI18n } from '@/i18n/I18nProvider'
 import { localeDisplayName, locales, type Locale } from '@/i18n/config'
 import CustomSelect from '@/components/CustomSelect'
@@ -10,19 +11,47 @@ import { useCreationAuth } from '../useCreationAuth'
 
 import { clientFetch, readApiJson } from '@/lib/client-fetch'
 import { DEFAULT_FORM, STYLE_GROUPS, localizeStyleCluster } from '@/lib/drama-creation'
-import { VISUAL_STYLE_PRESETS } from '@/lib/novel'
+import { getVisualStyle, VISUAL_STYLE_PRESETS } from '@/lib/novel'
 import { PROJECT_GENRES } from '@/lib/project-genres'
 import { getRegionalStoryPreset, selectRegionalStoryStyle } from '@/lib/regional-story-presets'
 import LazyStylePreview from './LazyStylePreview'
 import DramaSettingsDialog from './DramaSettingsDialog'
 import styles from './DramaCreator.module.css'
 
+type CreatorDraft = { form: typeof DEFAULT_FORM; styleLibraryId: string | null }
+const DRAFT_KEY = 'local-drama-creator-draft'
+const subscribeToHydration = () => () => {}
+
+function readDraft(): CreatorDraft | null {
+    try {
+        const raw = sessionStorage.getItem(DRAFT_KEY)
+        if (!raw) return null
+        const draft = JSON.parse(raw) as CreatorDraft
+        return draft.form && typeof draft.form.description === 'string' ? draft : null
+    } catch {
+        return null
+    }
+}
+
 export default function DramaCreator() {
+    const clientReady = useSyncExternalStore(subscribeToHydration, () => true, () => false)
+    return (
+        <Suspense fallback={null}>
+            <DramaCreatorForm key={clientReady ? 'browser' : 'server'} draftReady={clientReady} />
+        </Suspense>
+    )
+}
+
+function DramaCreatorForm({ draftReady }: { draftReady: boolean }) {
     const router = useRouter()
+    const searchParams = useSearchParams()
+    const [draft] = useState(() => draftReady ? readDraft() : null)
+    const requestedStyle = getVisualStyle(searchParams.get('visualStyle') ?? draft?.form.visualStyle ?? DEFAULT_FORM.visualStyle)
+    const [styleLibraryId, setStyleLibraryId] = useState(searchParams.get('styleLibraryId') ?? (searchParams.has('visualStyle') ? null : draft?.styleLibraryId ?? null))
     const { t, locale } = useI18n()
     const { signingIn, requireAuth } = useCreationAuth()
-    const [form, setForm] = useState(() => ({ ...DEFAULT_FORM, contentLanguage: locale }))
-    const [styleGroup, setStyleGroup] = useState(() => STYLE_GROUPS.find(group => group.styles.includes(DEFAULT_FORM.visualStyle))?.key ?? STYLE_GROUPS[0].key)
+    const [form, setForm] = useState(() => ({ ...DEFAULT_FORM, contentLanguage: locale, ...draft?.form, visualStyle: requestedStyle.key }))
+    const [styleGroup, setStyleGroup] = useState(() => STYLE_GROUPS.find(group => group.styles.includes(requestedStyle.key))?.key ?? STYLE_GROUPS[0].key)
     const [showSettings, setShowSettings] = useState(false)
     const [showStyles, setShowStyles] = useState(false)
     const [creating, setCreating] = useState(false)
@@ -32,7 +61,16 @@ export default function DramaCreator() {
     const selectedStyleGroup = STYLE_GROUPS.find(group => group.key === styleGroup) ?? STYLE_GROUPS[0]
     const selectedStyle = VISUAL_STYLE_PRESETS.find(style => style.key === form.visualStyle)!
     const title = form.title.trim() || form.description.trim().slice(0, 60)
-    const valid = Boolean(title) && Number.isInteger(form.totalEpisodes) && form.totalEpisodes >= 1 && form.totalEpisodes <= 100
+    const valid = draftReady && Boolean(title) && Number.isInteger(form.totalEpisodes) && form.totalEpisodes >= 1 && form.totalEpisodes <= 100
+
+    function preserveDraft(event: React.MouseEvent<HTMLAnchorElement>) {
+        try {
+            sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ form, styleLibraryId }))
+        } catch {
+            event.preventDefault()
+            setError('无法保存创作草稿，请检查浏览器存储设置')
+        }
+    }
 
     async function createProject(event: FormEvent<HTMLFormElement>) {
         event.preventDefault()
@@ -46,11 +84,15 @@ export default function DramaCreator() {
             const response = await clientFetch('/api/projects', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...form, title })
+                body: JSON.stringify({ ...form, title, styleLibraryId })
             })
             const json = await readApiJson(response)
             if (!json.success || !json.data?.id) throw new Error(json.error ?? '项目创建失败')
-
+            try {
+                sessionStorage.removeItem(DRAFT_KEY)
+            } catch {
+                // Project creation succeeds even when optional browser storage is disabled.
+            }
             router.push(`/projects/${json.data.id}`)
         } catch (err) {
             setError(err instanceof Error ? err.message : String(err))
@@ -62,6 +104,7 @@ export default function DramaCreator() {
 
     return (
         <form
+            data-i18n-skip
             onSubmit={createProject}
             className={styles.form}>
             <fieldset
@@ -232,6 +275,7 @@ export default function DramaCreator() {
                                 {t('艺术风格与地域题材')}
                             </h2>
                             <p>{t(selectedStyleGroup.hint)}</p>
+                            <Link onClick={preserveDraft} href={`/styles?visualStyle=${encodeURIComponent(form.visualStyle)}${styleLibraryId ? `&styleLibraryId=${encodeURIComponent(styleLibraryId)}` : ''}`}>{t('风格库')}</Link>
                         </div>
                         <div
                             className={styles.groups}
@@ -275,7 +319,10 @@ export default function DramaCreator() {
                                         className={styles.styleCard}
                                         aria-label={t(style.label)}
                                         aria-pressed={active}
-                                        onClick={() => setForm(current => selectRegionalStoryStyle(current, key))}>
+                                        onClick={() => {
+                                            setStyleLibraryId(null)
+                                            setForm(current => selectRegionalStoryStyle(current, key))
+                                        }}>
                                         <div className={styles.poster}>
                                             <LazyStylePreview
                                                 style={style}

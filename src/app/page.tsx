@@ -97,6 +97,7 @@ export default function LandingPage() {
                 <Link
                     href="/"
                     aria-label={SITE_NAME}
+                    title={`${SITE_NAME} · ${t('返回首页')}`}
                     className={styles.brand}>
                     <BrandLogo />
                     <span translate="no">{SITE_NAME}</span>

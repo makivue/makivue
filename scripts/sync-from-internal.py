@@ -116,6 +116,7 @@ def main():
     parser.add_argument("--include", action="append", default=[], metavar="PATH", help="Review a newly tracked source file for inclusion")
     parser.add_argument("--remove", action="append", default=[], metavar="PATH", help="Confirm deletion of a managed file removed upstream")
     parser.add_argument("--source-ref", metavar="REF", help="Read a committed source snapshot, leaving concurrent source edits untouched")
+    parser.add_argument("--only", action="append", default=[], metavar="PATH", help="Sync only reviewed paths; keep unrelated changes pending")
     args = parser.parse_args()
     destination = Path(__file__).resolve().parent.parent
     state_path = destination / ".git" / "open-source-sync.json"
@@ -154,11 +155,19 @@ def main():
     excluded = set(state["excluded"])
     includes = set(args.include)
     removes = set(args.remove)
+    scope = set(args.only)
     problems = []
     pending = []
     updates = []
     deletions = []
     secrets = known_secrets(source, state.get("credential_source_files", ()))
+
+    for relative in sorted(scope):
+        safe_path(destination, relative)
+        if relative not in tracked | set(managed) | set(protected):
+            problems.append(relative + ": unknown scoped path")
+    if scope and (includes | removes) - scope:
+        problems.append("Include/remove paths must also appear in --only when using a scoped sync")
 
     for relative in sorted(includes):
         safe_path(source, relative)
@@ -168,13 +177,19 @@ def main():
         if relative not in managed or relative in tracked:
             problems.append(relative + ": removal requires a managed file deleted upstream")
     for relative in sorted(tracked - set(managed) - set(protected) - excluded - includes):
+        if scope and relative not in scope:
+            continue
         pending.append(relative + ": new source file; review and use --include PATH or update exclusions")
     for relative, baseline in sorted(protected.items()):
+        if scope and relative not in scope:
+            continue
         data = source_bytes(relative)
         if data is None or digest(data) != baseline:
             pending.append(relative + ": protected export file; merge manually and update the local baseline")
 
     for relative in sorted(set(managed) | includes):
+        if scope and relative not in scope:
+            continue
         if relative in protected or relative in excluded or forbidden(relative):
             problems.append(relative + ": forbidden by export policy")
             continue
@@ -236,7 +251,10 @@ def main():
     for relative in deletions:
         safe_path(destination, relative).unlink(missing_ok=True)
         del managed[relative]
-    state["source_commit"] = source_commit
+    if scope:
+        state["last_scoped_sync"] = {"source_commit": source_commit, "paths": sorted(scope)}
+    else:
+        state["source_commit"] = source_commit
     temporary = state_path.with_suffix(".tmp")
     temporary.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n")
     os.replace(temporary, state_path)

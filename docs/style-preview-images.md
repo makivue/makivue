@@ -14,3 +14,5 @@ npm run style-previews:generate -- --only chinese-ink
 本地 `GET/POST /api/admin/style-previews` 支持预检查和写入准备好的 PNG、JPEG、WebP：单张不超过 32 MiB / 40 百万像素，拒绝动画、损坏图片和不安全路径。接口返回本机 URL，不需要发布令牌或云存储账号。
 
 自定义项目参考图保存到 `data/media/style/`，属于用户数据，不提交到 Git。凭据仅放在 Git 忽略的环境文件或外部凭据文件中。
+
+新增的 28 个预设先附带本地编辑式封面，用风格名、关键词、色彩与图形说明方向；它们不是模型生成示例。使用上面的生成命令加 `--force` 可按需替换为自己的模型预览图。自定义风格库的参考图保存在 `LOCAL_DATA_DIR/media/style-library/`，记录保存在 `LOCAL_DATA_DIR/workspace.json`。

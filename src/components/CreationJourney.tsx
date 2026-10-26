@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useRef, type CSSProperties } from 'react'
+import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react'
 import { Check, ChevronRight } from 'lucide-react'
 import Link from '@/i18n/navigation'
 import { useI18n } from '@/i18n/I18nProvider'
 import GlobalPreferences from '@/components/GlobalPreferences'
+import FeedbackLink from '@/components/FeedbackLink'
 import type { ImportedContentStage } from '@/lib/project-content-workflow'
 
 const STAGES = [
@@ -27,7 +28,17 @@ function revealJourneyStep(nav: HTMLElement | null, step: HTMLAnchorElement | nu
     }
 }
 
-export default function CreationJourney({ current, steps, contentStage }: { current: CreationStage; steps: Record<CreationStage, Step>; contentStage?: ImportedContentStage | null }) {
+export default function CreationJourney({
+    current,
+    steps,
+    contentStage,
+    mobileNavigation
+}: {
+    current: CreationStage
+    steps: Record<CreationStage, Step>
+    contentStage?: ImportedContentStage | null
+    mobileNavigation?: ReactNode
+}) {
     const { locale, t } = useI18n()
     const importedScript = contentStage === 'script' || contentStage === 'storyboard'
     const visibleStages = STAGES.filter(stage => stage.key !== 'outline' || !contentStage || contentStage === 'outline')
@@ -47,11 +58,14 @@ export default function CreationJourney({ current, steps, contentStage }: { curr
         return () => resize.disconnect()
     }, [current, locale])
     return (
-        <header className="studio-journey-header flex shrink-0 items-center">
+        <header className="studio-journey-header grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center">
+            {mobileNavigation && (
+                <div className="studio-mobile-nav flex min-w-0 items-center gap-3 overflow-x-auto py-3 ps-4 text-xs whitespace-nowrap text-slate-400 md:hidden">{mobileNavigation}</div>
+            )}
             <nav
                 ref={navigation}
                 aria-label={t('短剧创作流程')}
-                className="studio-journey min-w-0 flex-1 overflow-x-auto novel-scroll">
+                className="studio-journey col-span-2 row-start-2 min-w-0 overflow-x-auto novel-scroll md:col-span-1 md:row-start-1">
                 <ol
                     className="studio-journey-list"
                     style={{ '--journey-step-count': visibleStages.length } as CSSProperties}>
@@ -91,7 +105,13 @@ export default function CreationJourney({ current, steps, contentStage }: { curr
                     })}
                 </ol>
             </nav>
-            <GlobalPreferences className="mx-3" />
+            <div className="col-start-2 row-start-1 my-2 me-4 ms-3 flex items-center gap-2 md:mx-3 md:my-0">
+                <FeedbackLink
+                    compact
+                    workspace
+                />
+                <GlobalPreferences />
+            </div>
         </header>
     )
 }

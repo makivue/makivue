@@ -1,0 +1,114 @@
+.outlineWorkspace:global(.studio-novel-scroll) {
+    padding-inline: 16px;
+}
+
+.outlineWorkspace :global(.studio-outline-card) {
+    padding-inline: 8px;
+}
+
+.outlineActions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+}
+
+.outlineActions :global(.wallet-balance) {
+    gap: 4px;
+    height: 32px;
+    min-width: 0;
+    padding-inline: 8px;
+    border-radius: 7px;
+    font-size: 12px;
+}
+
+.outlineActions :global(.wallet-balance) img {
+    width: 16px;
+    height: 16px;
+}
+
+.outlineModel {
+    width: 148px;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.outlineModel > div > button,
+.outlineActions .outlineAction {
+    gap: 4px;
+    min-height: 32px;
+    max-width: 100%;
+    padding: 5px 8px;
+    border-radius: 7px;
+    font-size: 12px;
+    line-height: 20px;
+}
+
+.outlineActions .outlineAction svg {
+    width: 14px;
+    height: 14px;
+}
+
+.setupActions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding-top: 16px;
+    border-top: 1px solid var(--studio-border);
+}
+
+.setupActions .setupAction {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 44px;
+    max-width: 100%;
+    text-align: center;
+}
+
+.setupAction svg {
+    flex-shrink: 0;
+}
+
+.setupAction span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.setupNext {
+    margin-inline-start: auto;
+}
+
+@media (max-width: 767px) {
+    .outlineWorkspace:global(.studio-novel-scroll) {
+        padding-inline: 8px;
+    }
+}
+
+@media (max-width: 639px) {
+    .setupActions {
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .setupActions .setupAction {
+        flex: 1 1 auto;
+        min-height: var(--app-control-height);
+        gap: var(--app-control-gap);
+        padding: 5px var(--app-control-padding-inline);
+        font-size: var(--app-control-font-size);
+        line-height: 18px;
+    }
+
+    .setupActions .setupCancel,
+    .setupActions .setupNext {
+        flex-basis: 100%;
+    }
+
+    .setupNext {
+        margin-inline-start: 0;
+    }
+}

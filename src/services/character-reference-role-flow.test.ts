@@ -64,7 +64,7 @@ describe('REF-011 character reference roles', () => {
     })
 
     it('keeps empty and populated sheet frames at the same aspect ratio and overlays their actions', () => {
-        expect(globalStyles).toMatch(/\.studio-character-sheet,\s*\.studio-character-sheet-empty\s*\{[^}]*aspect-ratio: 3 \/ 4;/)
+        expect(globalStyles).toMatch(/\.studio-character-sheet,\s*\.studio-character-sheet-empty\s*\{[^}]*aspect-ratio: 16 \/ 9;/)
         expect(globalStyles).toMatch(/\.studio-character-sheet-preview\s*\{[^}]*width: 100%;[^}]*height: 100%;/)
         expect(page).toContain('className="h-full w-full object-contain"')
         expect(globalStyles).toMatch(/\.studio-character-sheet-toolbar\s*\{[^}]*position: absolute;[^}]*bottom: 6px;/)

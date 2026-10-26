@@ -7,6 +7,7 @@ import Link from '@/i18n/navigation'
 import { CREATION_PRODUCTS } from '@/lib/creation-products'
 import { CREATION_MODELS } from '@/lib/creation-model-overview'
 import { seoPages } from '@/lib/seo-pages'
+import { toolNavigation } from '@/i18n/creation-tool-navigation'
 import styles from './HomeProductOverview.module.css'
 
 const CREATION_STEPS = [
@@ -265,6 +266,21 @@ export default function HomeProductOverview() {
                             </article>
                         ))}
                     </div>
+                </div>
+            </section>
+            <section data-i18n-skip className={styles.section} aria-labelledby="home-generation-tools-heading">
+                <div className={styles.container}>
+                    <div className={styles.intro}>
+                        <h2 id="home-generation-tools-heading">{toolNavigation[locale].heading}</h2>
+                        <p>{toolNavigation[locale].intro}</p>
+                    </div>
+                    <nav aria-label={toolNavigation[locale].label} className={styles.grid}>
+                        {Object.entries(toolNavigation[locale].tools).map(([slug, label]) => (
+                            <Link key={slug} href={`/tools/${slug}`} className={`${styles.card} ${styles.textLink}`}>
+                                {label}<ArrowRight size={16} aria-hidden />
+                            </Link>
+                        ))}
+                    </nav>
                 </div>
             </section>
             <section

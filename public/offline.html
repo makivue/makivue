@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1" />
+        <meta
+            name="theme-color"
+            content="#080b12" />
+        <meta
+            name="robots"
+            content="noindex" />
+        <title>makivue · Offline</title>
+        <style>
+            * {
+                box-sizing: border-box;
+            }
+            body {
+                margin: 0;
+                min-height: 100vh;
+                min-height: 100dvh;
+                display: grid;
+                place-items: center;
+                padding: 24px;
+                background: #080b12;
+                color: #f4f7fa;
+                font-family: system-ui, sans-serif;
+                text-align: center;
+            }
+            main {
+                width: 100%;
+                max-width: 440px;
+            }
+            .brand {
+                color: #68e8ff;
+                font-weight: 700;
+                letter-spacing: 0.04em;
+            }
+            svg {
+                display: block;
+                margin: 32px auto 24px;
+                color: #a6bdff;
+            }
+            h1 {
+                font-size: clamp(24px, 6vw, 32px);
+                line-height: 1.3;
+            }
+            p {
+                color: #b6c2d1;
+                line-height: 1.7;
+            }
+            a {
+                display: inline-block;
+                margin-top: 16px;
+                padding: 12px 24px;
+                border-radius: 12px;
+                background: #68e8ff;
+                color: #080b12;
+                font-weight: 700;
+                text-decoration: none;
+            }
+            a:focus-visible {
+                outline: 3px solid #a6bdff;
+                outline-offset: 4px;
+            }
+        </style>
+    </head>
+    <body>
+        <main>
+            <div class="brand">makivue</div>
+            <svg
+                width="56"
+                height="56"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                aria-hidden="true">
+                <path d="m2 2 20 20M8.5 16.5a5 5 0 0 1 7 0M5 13a10 10 0 0 1 3-2M16 11a10 10 0 0 1 3 2M2 9a16 16 0 0 1 3-2M9 5.3A16 16 0 0 1 22 9" />
+                <circle
+                    cx="12"
+                    cy="20"
+                    r=".5"
+                    fill="currentColor" />
+            </svg>
+            <h1 id="heading">You’re offline</h1>
+            <p id="description">Connect to the internet to access your projects and generate images or videos, then try again.</p>
+            <a
+                id="retry"
+                href=""
+                >Try again</a
+            >
+        </main>
+        <script>
+            // Self-contained so this page also works without app bundles or a CDN.
+            const messages = {
+                en: ['You’re offline', 'Connect to the internet to access your projects and generate images or videos, then try again.', 'Try again'],
+                zh: ['网络已断开', '查看项目和生成图片、视频需要网络连接。请连接网络后重试。', '重新尝试'],
+                fr: ['Vous êtes hors ligne', 'Connectez-vous à Internet pour accéder à vos projets et générer des images ou des vidéos, puis réessayez.', 'Réessayer'],
+                ar: ['أنت غير متصل بالإنترنت', 'اتصل بالإنترنت للوصول إلى مشاريعك وإنشاء الصور أو الفيديو، ثم حاول مجددًا.', 'حاول مجددًا'],
+                id: ['Anda sedang offline', 'Hubungkan ke internet untuk mengakses proyek dan membuat gambar atau video, lalu coba lagi.', 'Coba lagi'],
+                hi: ['आप ऑफ़लाइन हैं', 'अपने प्रोजेक्ट खोलने और चित्र या वीडियो बनाने के लिए इंटरनेट से कनेक्ट करें, फिर कोशिश करें।', 'फिर कोशिश करें'],
+                fil: ['Offline ka', 'Kumonekta sa internet para ma-access ang mga proyekto at gumawa ng larawan o video, pagkatapos ay subukang muli.', 'Subukang muli'],
+                ja: ['オフラインです', 'プロジェクトの閲覧や画像・動画の生成にはインターネット接続が必要です。接続してから再試行してください。', '再試行'],
+                ko: ['오프라인 상태입니다', '프로젝트를 열고 이미지나 영상을 생성하려면 인터넷에 연결한 뒤 다시 시도하세요.', '다시 시도']
+            }
+            const pathLocale = location.pathname.split('/')[1]
+            const savedLocale = document.cookie.match(/(?:^|;\s*)NEXT_LOCALE=manual\.([a-z]+)/)?.[1]
+            const browserLocales = (navigator.languages || [navigator.language]).map(language => language.split('-')[0])
+            const locale = [pathLocale, savedLocale, ...browserLocales].map(value => (value === 'tl' ? 'fil' : value)).find(value => Object.hasOwn(messages, value)) || 'en'
+            const copy = messages[locale]
+            document.documentElement.lang = locale
+            document.documentElement.dir = locale === 'ar' ? 'rtl' : 'ltr'
+            document.title = `makivue · ${copy[0]}`
+            document.getElementById('heading').textContent = copy[0]
+            document.getElementById('description').textContent = copy[1]
+            document.getElementById('retry').textContent = copy[2]
+        </script>
+    </body>
+</html>

@@ -1,0 +1,409 @@
+.page {
+    min-height: 100vh;
+    background: var(--app-bg);
+    color: var(--app-text);
+}
+.header {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr) max-content;
+    align-items: center;
+    gap: 16px;
+    max-width: 1280px;
+    margin-inline: auto;
+}
+.main {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 44px 24px 72px;
+}
+.intro {
+    margin-bottom: 30px;
+}
+.eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--app-accent);
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 2px;
+}
+.intro h1 {
+    margin: 12px 0;
+    font-size: clamp(26px, 4vw, 38px);
+    font-weight: 650;
+    letter-spacing: -1px;
+}
+.intro p,
+.note,
+.references p {
+    color: var(--app-text-muted);
+    font-size: 13px;
+    line-height: 1.7;
+}
+.workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 28px;
+}
+.composer {
+    min-width: 0;
+    padding: 24px;
+    border: 1px solid var(--app-border);
+    border-radius: 16px;
+    background: var(--app-card);
+}
+.fields {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 20px;
+    border: 0;
+    padding: 0;
+    margin: 0;
+}
+.modeGroup {
+    display: flex;
+    gap: 6px;
+    padding: 4px;
+    border-radius: 9px;
+    background: var(--app-bg);
+}
+.modeGroup button {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 42px;
+    border-radius: 7px;
+    color: var(--app-text-muted);
+    font-size: 13px;
+    cursor: pointer;
+}
+.modeGroup button[aria-pressed='true'] {
+    background: var(--app-accent-soft);
+    color: var(--app-accent);
+}
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.field label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    font-weight: 550;
+}
+.field label span {
+    color: var(--app-text-muted);
+    font-size: 11px;
+    font-weight: 400;
+}
+.field input,
+.field textarea {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    padding: 12px;
+    background: var(--app-bg);
+    color: var(--app-text);
+    font-size: 14px;
+    line-height: 1.7;
+}
+.field textarea {
+    resize: vertical;
+    min-height: 84px;
+}
+.field input::placeholder,
+.field textarea::placeholder {
+    color: var(--app-text-muted);
+}
+.options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
+    gap: 8px;
+}
+.episodeCount {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    background: var(--app-surface-muted);
+    color: var(--app-text);
+    font-size: 14px;
+}
+.episodeCount:focus-within {
+    border-color: var(--app-accent);
+}
+.episodeCount input {
+    width: 100%;
+    min-width: 0;
+    background: transparent;
+    outline: none;
+}
+.episodeCount span:last-child {
+    flex-shrink: 0;
+    color: var(--app-text-muted);
+}
+.references {
+    border-top: 1px solid var(--app-border);
+    padding-top: 15px;
+}
+.references summary {
+    display: flex;
+    justify-content: space-between;
+    cursor: pointer;
+    font-size: 13px;
+}
+.references summary span {
+    color: var(--app-text-muted);
+}
+.references p {
+    margin: 12px 0;
+}
+.assets {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+.assets button {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    background-size: cover;
+    background-position: center;
+    border: 2px solid transparent;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+}
+.assets button[aria-pressed='true'] {
+    border-color: var(--app-accent);
+}
+.assets svg {
+    background: var(--app-accent);
+    color: white;
+    border-radius: 50%;
+}
+.primary,
+.secondary {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.primary {
+    background: var(--app-action);
+    color: var(--app-on-action);
+}
+.secondary {
+    border: 1px solid var(--app-border);
+    background: var(--app-bg);
+    font-size: 12px;
+}
+.page button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+.page button:focus-visible,
+.page a:focus-visible,
+.page input:focus-visible,
+.page textarea:focus-visible,
+.page summary:focus-visible {
+    outline: 2px solid var(--app-accent);
+    outline-offset: -2px;
+}
+.note {
+    margin: 0;
+    font-size: 12px;
+}
+.error {
+    color: var(--app-danger, #ef4444);
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+.looks {
+    min-width: 0;
+}
+.sectionTitle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 3px 0 16px;
+}
+.sectionTitle h2,
+.flow h2 {
+    font-size: 14px;
+    font-weight: 600;
+}
+.sectionTitle > span {
+    margin-inline-start: auto;
+    color: var(--app-text-muted);
+    font-size: 12px;
+}
+.styleGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.styleCard {
+    position: relative;
+    min-width: 0;
+    padding: 4px 4px 10px;
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    background: var(--app-card);
+    text-align: start;
+    cursor: pointer;
+}
+.styleCard[aria-pressed='true'] {
+    border-color: var(--app-accent);
+    background: var(--app-accent-soft);
+}
+.poster {
+    display: block;
+    aspect-ratio: 4 / 5;
+    border-radius: 6px;
+    background-size: cover;
+    background-position: center;
+    margin-bottom: 8px;
+    background-color: var(--app-bg);
+}
+.styleCard > span:last-child {
+    display: block;
+    padding-inline: 5px;
+    font-size: 12px;
+}
+.styleCheck {
+    position: absolute;
+    top: 10px;
+    inset-inline-end: 10px;
+    padding: 2px;
+    width: 22px;
+    height: 22px;
+    background: var(--app-accent);
+    color: white;
+    border-radius: 50%;
+}
+.flow {
+    border-top: 1px solid var(--app-border);
+    margin-top: 24px;
+    padding-top: 20px;
+}
+.flow ol {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 20px;
+    list-style: none;
+    padding: 0;
+    margin: 16px 0;
+}
+.flow li {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--app-text-muted);
+    font-size: 12px;
+}
+.flow li span {
+    font-size: 10px;
+    color: var(--app-accent);
+    font-variant-numeric: tabular-nums;
+}
+.flow a {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--app-accent);
+    font-size: 12px;
+    min-height: 36px;
+}
+@media (max-width: 760px) {
+    .main {
+        padding: 28px 16px 48px;
+    }
+    .workspace {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 24px;
+    }
+    .looks {
+        grid-row: 1;
+    }
+    .styleGrid {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 6px;
+    }
+    .poster {
+        aspect-ratio: 3 / 4;
+    }
+    .styleCard {
+        padding: 3px 3px 7px;
+    }
+    .styleCard > span:last-child {
+        font-size: 10px;
+        padding: 0 2px;
+        overflow-wrap: anywhere;
+    }
+    .flow {
+        display: none;
+    }
+    .composer {
+        padding: 18px;
+    }
+    .intro {
+        margin-bottom: 24px;
+    }
+}
+@media (max-width: 460px) {
+    .styleGrid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .poster {
+        aspect-ratio: 3 / 2;
+    }
+    .header {
+        gap: 6px;
+    }
+}
+
+@media (max-width: 767px) {
+    .modeGroup button,
+    .secondary {
+        min-height: var(--app-control-height);
+        gap: var(--app-control-gap);
+        padding: 5px var(--app-control-padding-inline);
+        font-size: var(--app-control-font-size);
+        line-height: 18px;
+    }
+    .primary {
+        min-height: var(--app-primary-control-height);
+        gap: var(--app-control-gap);
+        padding: 7px 10px;
+        font-size: 13px;
+        line-height: 18px;
+    }
+    .primary svg,
+    .secondary svg,
+    .modeGroup svg {
+        width: 15px;
+        height: 15px;
+    }
+}

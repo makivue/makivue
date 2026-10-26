@@ -76,17 +76,23 @@ These public examples open the completed first episode on the MakiVue website:
 | Characters and scenes | Extract entities, manage reference images, and reuse assets                             |
 | Storyboard editing    | Adjust actions, dialogue, framing, camera movement, duration, and keyframe prompts      |
 | Image creation        | Generate character, scene, and storyboard images, or use the standalone image workspace |
+| Styles and themes     | Browse preset styles and save custom styles or themes with local reference images       |
+| Anime workspace       | Start anime projects or prepare character, keyframe, and poster image prompts            |
 | Video generation      | Use text, images, references, and native audio where the chosen model supports them     |
-| Assembly and export   | Compose shots and episodes with local FFmpeg, process subtitles, and download results   |
+| Theme videos          | Plan and edit a visual and audio script from a topic before generating a video           |
+| Assembly and export   | Manually merge selected local clips, compose episodes with FFmpeg, and process subtitles |
 | Reference video tools | Analyze sampled frames, generate a similar clip, or cut highlights                      |
+| Upload library        | Add your own covers, episode videos, and subtitles, then browse and play them locally     |
 | Local workspace       | Save project records, task progress, model usage records, and generated media           |
+| Guides and feedback   | Browse guides and tools; save feedback and its attachments in the local workspace        |
+| Installable app       | Install the PWA and show an offline fallback when the local server cannot be reached      |
 | Languages             | English, Chinese, French, Arabic, Indonesian, Hindi, Filipino, Japanese, and Korean     |
 
-Available formats, duration, resolution, and reference inputs depend on the selected model and your supplier account.
+Available formats, duration, resolution, and reference inputs depend on the selected model and your supplier account. Model generation still requires a connection to your supplier; the PWA fallback is an offline information page.
 
 ### Bundled style previews
 
-The repository includes **278 style previews** and their thumbnails. These examples load from local files without a model key or remote image service.
+The repository includes **306 preset styles**: **278 existing model previews** with thumbnails and **28 new editorial concept covers**. Concept covers illustrate a style direction rather than a generated result. All previews load from local files without a model key or remote image service.
 
 |                                          Ink painting                                          |                                         Cyberpunk                                         |                                         Claymation                                          |                                             Miniature diorama                                             |
 | :--------------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------: | :-------------------------------------------------------------------------------------------------------: |

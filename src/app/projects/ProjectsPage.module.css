@@ -1,0 +1,71 @@
+.header :global(.site-header-shell) {
+    align-items: center;
+}
+
+:global(.studio-library) > .workspace {
+    padding-top: 16px;
+}
+
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+}
+
+.toolbar .title {
+    font-size: 18px;
+    line-height: 24px;
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.toolbar .action {
+    display: inline-flex;
+    min-height: 32px;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 5px 8px;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 20px;
+    white-space: nowrap;
+}
+
+@media (max-width: 639px) {
+    .header :global(.site-header-shell) {
+        gap: 4px;
+        padding-inline: 12px;
+    }
+
+    .header :global(.site-header-github),
+    .header :global(.global-preferences-trigger) {
+        width: var(--app-icon-control-size);
+        height: var(--app-icon-control-size);
+    }
+
+    .header :global(.wallet-balance) {
+        width: 84px;
+        min-width: 0;
+        gap: 4px;
+        padding-inline: 4px;
+    }
+
+    .header :global(.wallet-balance) img {
+        width: 20px;
+        height: 20px;
+    }
+
+    .header :global(.wallet-balance) > span:last-child {
+        display: none;
+    }
+}

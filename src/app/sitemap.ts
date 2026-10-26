@@ -3,6 +3,8 @@ import { locales, localizePath } from '@/i18n/config'
 import { SEO_LOCALE } from '@/i18n/seo'
 import { getSiteUrl } from '@/lib/seo'
 import { seoPageSlugs } from '@/lib/seo-pages'
+import { creationToolSitemap } from '@/lib/creation-tool-seo'
+import { creationGuideSitemap } from '@/lib/creation-guide-seo'
 
 export default function sitemap(): MetadataRoute.Sitemap {
     const baseUrl = getSiteUrl()
@@ -33,5 +35,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
         priority: 0.8,
         alternates: { languages: faqLanguages }
     }))
-    return [...homepageEntries, ...featureEntries, ...faqEntries]
+    return [...homepageEntries, ...featureEntries, ...faqEntries, ...creationToolSitemap(), ...creationGuideSitemap()]
 }

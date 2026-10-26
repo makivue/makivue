@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { Settings, X } from 'lucide-react'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 import GlobalThemeSettings from '@/components/GlobalThemeSettings'
+import PwaInstall from '@/components/PwaInstall'
 import { useI18n } from '@/i18n/I18nProvider'
 
 export default function GlobalPreferences({ className = '' }: { className?: string }) {
@@ -53,7 +54,7 @@ export default function GlobalPreferences({ className = '' }: { className?: stri
                 aria-controls={id}
                 aria-expanded={open}
                 popoverTarget={id}
-                className="global-preferences-trigger grid h-10 w-10 place-items-center rounded-xl border transition">
+                className="global-preferences-trigger grid h-10 w-10 place-items-center rounded-lg transition">
                 <Settings
                     aria-hidden="true"
                     className="h-[18px] w-[18px]"
@@ -81,6 +82,7 @@ export default function GlobalPreferences({ className = '' }: { className?: stri
                         className="h-4 w-4"
                     />
                 </button>
+                <PwaInstall />
                 <LanguageSwitcher onChoose={() => panelRef.current?.hidePopover()} />
                 <div className="global-preferences-divider my-2.5 border-t" />
                 <GlobalThemeSettings />

@@ -389,7 +389,7 @@ export default function EpisodeBatchModal({ episodeId, requestId, mode, imagePro
                         <button
                             onClick={handleCancel}
                             disabled={cancelling}
-                            className="px-4 py-2 text-sm bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 text-white rounded-lg flex items-center gap-1.5">
+                            className="app-action px-4 py-2 text-sm bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 text-white rounded-lg flex items-center gap-1.5">
                             <StopCircle className="w-4 h-4" />
                             {cancelling ? t('正在停止...') : t('暂停生成')}
                         </button>
@@ -398,14 +398,14 @@ export default function EpisodeBatchModal({ episodeId, requestId, mode, imagePro
                     {(phase === 'done' || phase === 'error') && (failed > 0 || skipped > 0) && (
                         <button
                             onClick={handleRetryMissing}
-                            className="flex items-center gap-1.5 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700">
+                            className="app-action flex items-center gap-1.5 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700">
                             <RefreshCw className="h-4 w-4" />
                             {t('重试未完成')}
                         </button>
                     )}
                     <button
                         onClick={handleClose}
-                        className="px-4 py-2 text-sm bg-gray-800 hover:bg-gray-700 text-white rounded-lg">
+                        className="app-action px-4 py-2 text-sm bg-gray-800 hover:bg-gray-700 text-white rounded-lg">
                         {phase === 'running' ? t('后台运行') : t('关闭')}
                     </button>
                 </div>

@@ -134,7 +134,9 @@ describe('structured data and discovery', () => {
 
     it('publishes only public home and feature URLs on the same canonical origin', () => {
         const entries = sitemap()
-        expect(entries).toHaveLength(locales.length * (seoPageSlugs.length + 2))
+        expect(entries).toHaveLength(locales.length * (seoPageSlugs.length + 14))
+        expect(entries.some(entry => entry.url.endsWith('/tools'))).toBe(true)
+        expect(entries.some(entry => entry.url.endsWith('/guides'))).toBe(true)
         for (const entry of entries) {
             expect(new URL(entry.url).origin).toBe(SITE_ORIGIN)
             expect(entry.url).not.toMatch(/\/(projects|wallet|settings|profile|create|legal)(\/|$)/)

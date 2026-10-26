@@ -1,0 +1,1187 @@
+.page {
+    min-height: 100vh;
+    color: var(--app-text);
+    background: radial-gradient(circle at 80% 10%, color-mix(in srgb, var(--app-accent) 11%, transparent), transparent 28rem), var(--app-page-background, var(--app-bg));
+}
+.main {
+    width: min(1440px, calc(100% - 48px));
+    margin: 0 auto;
+    padding: 28px 0 80px;
+}
+.breadcrumb {
+    display: flex;
+    gap: 10px;
+    color: var(--app-text-subtle);
+    font-size: 12px;
+    margin-bottom: 34px;
+}
+.breadcrumb a:hover {
+    color: var(--app-accent);
+}
+.hero {
+    position: relative;
+    min-height: 190px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 38px 56px;
+    border: 1px solid color-mix(in srgb, var(--app-accent) 28%, var(--app-border));
+    border-radius: 24px;
+    overflow: hidden;
+    background: linear-gradient(118deg, color-mix(in srgb, var(--app-card) 96%, transparent), color-mix(in srgb, var(--app-accent) 7%, transparent));
+    box-shadow: 0 22px 70px rgb(0 0 0 / 17%);
+}
+.hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 40%, color-mix(in srgb, var(--app-accent) 8%, transparent));
+    pointer-events: none;
+}
+.eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    color: var(--app-accent);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+}
+.eyebrow span,
+.panelEyebrow span:first-child {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--app-accent);
+    box-shadow: 0 0 14px var(--app-accent);
+}
+.hero h1 {
+    position: relative;
+    margin: 13px 0 7px;
+    font-size: clamp(28px, 4vw, 48px);
+    letter-spacing: -0.055em;
+    line-height: 1.1;
+}
+.hero p {
+    position: relative;
+    margin: 0;
+    color: var(--app-text-muted);
+    font-size: 14px;
+}
+.heroArt {
+    position: relative;
+    width: 260px;
+    height: 150px;
+    opacity: 0.82;
+}
+.orbit {
+    position: absolute;
+    inset: 8px 20px;
+    border: 1px solid color-mix(in srgb, var(--app-accent) 40%, transparent);
+    border-radius: 50%;
+    transform: rotate(-18deg);
+    box-shadow: 0 0 26px color-mix(in srgb, var(--app-accent) 22%, transparent);
+}
+.orbit::after {
+    content: '';
+    position: absolute;
+    inset: 21px -15px;
+    border: 1px solid color-mix(in srgb, var(--app-accent-2, #ff79c6) 35%, transparent);
+    border-radius: 50%;
+    transform: rotate(46deg);
+}
+.filmTile {
+    position: absolute;
+    top: 34px;
+    left: 93px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    color: var(--app-accent);
+    letter-spacing: 0.25em;
+    font-size: 8px;
+}
+.artDot {
+    position: absolute;
+    right: 22px;
+    top: 20px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--app-accent-2, #ff79c6);
+    box-shadow: 0 0 16px var(--app-accent-2, #ff79c6);
+}
+.artSpark {
+    position: absolute;
+    left: 27px;
+    bottom: 21px;
+    color: var(--app-accent-2, #ff79c6);
+}
+.workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    align-items: start;
+    gap: 22px;
+    margin-top: 22px;
+}
+.formBody,
+.sidebar > * {
+    border: 1px solid var(--app-border);
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--app-card) 95%, transparent);
+    box-shadow: 0 16px 50px rgb(0 0 0 / 12%);
+}
+.formBody {
+    overflow: hidden;
+}
+.fieldset {
+    border: 0;
+    margin: 0;
+    padding: 0;
+    min-width: 0;
+}
+.videoArea {
+    min-width: 0;
+}
+.section {
+    padding: 31px 32px;
+    border-bottom: 1px solid var(--app-border);
+}
+.sectionHeading {
+    display: flex;
+    gap: 13px;
+    margin-bottom: 24px;
+}
+.sectionIcon {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    color: var(--app-accent);
+    border: 1px solid color-mix(in srgb, var(--app-accent) 28%, var(--app-border));
+    border-radius: 11px;
+    background: color-mix(in srgb, var(--app-accent) 9%, transparent);
+}
+.sectionHeading h2 {
+    margin: 0 0 5px;
+    font-size: 18px;
+    letter-spacing: -0.025em;
+}
+.number {
+    margin-right: 9px;
+    color: var(--app-accent);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    vertical-align: middle;
+}
+.sectionHeading p {
+    margin: 0;
+    color: var(--app-text-subtle);
+    font-size: 12px;
+}
+.required {
+    color: var(--app-danger, #ef4444);
+    font-size: 14px;
+    font-weight: 650;
+}
+.sectionHeading .required {
+    margin-left: 8px;
+}
+.optional {
+    display: inline-block;
+    margin-left: 8px;
+    color: var(--app-accent);
+    font-size: 10px;
+    font-weight: 650;
+    letter-spacing: 0.06em;
+}
+.mediaGrid {
+    --media-upload-height: 330px;
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 24px;
+}
+.mediaGrid > div {
+    min-width: 0;
+}
+.label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 9px;
+    color: var(--app-text-muted);
+    font-size: 12px;
+    font-weight: 650;
+}
+.label small {
+    margin-left: auto;
+    color: var(--app-text-subtle);
+    font-size: 10px;
+    font-weight: 400;
+}
+.coverUpload {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 2 / 3;
+    min-height: var(--media-upload-height);
+    overflow: hidden;
+    border: 1px dashed color-mix(in srgb, var(--app-accent) 42%, var(--app-border));
+    border-radius: 14px;
+    color: var(--app-text-subtle);
+    background: color-mix(in srgb, var(--app-bg) 46%, transparent);
+    cursor: pointer;
+    transition:
+        border-color 0.2s,
+        background 0.2s;
+}
+.coverUpload:hover {
+    border-color: var(--app-accent);
+    background: color-mix(in srgb, var(--app-accent) 8%, transparent);
+}
+.coverUpload input,
+.dropzone input,
+.chooseButton input,
+.portrait input,
+.subtitleButton input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+.uploadIcon {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    margin-bottom: 12px;
+    border: 1px solid var(--app-border);
+    border-radius: 50%;
+    color: var(--app-accent);
+    background: var(--app-card);
+}
+.coverUpload strong {
+    color: var(--app-text);
+    font-size: 13px;
+}
+.coverUpload > span:not(.uploadIcon):not(.coverReplace),
+.coverUpload small {
+    margin-top: 7px;
+    font-size: 10px;
+}
+.coverImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.coverReplace {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 9px;
+    border-radius: 8px;
+    color: white;
+    font-size: 10px;
+    background: rgb(0 0 0 / 60%);
+    backdrop-filter: blur(6px);
+}
+.mediaCaption {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 9px;
+    color: var(--app-text-subtle);
+    font-size: 10px;
+}
+.mediaCaption > span:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.fileStatus {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+    color: var(--app-accent);
+    font-size: 10px;
+}
+.dropzone {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--media-upload-height);
+    border: 1px dashed var(--app-border-strong);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--app-bg) 30%, transparent);
+    transition:
+        border-color 0.2s,
+        background 0.2s;
+}
+.dropzone:hover,
+.dragging {
+    border-color: var(--app-accent);
+    background: color-mix(in srgb, var(--app-accent) 8%, transparent);
+}
+.cloudIcon {
+    display: grid;
+    place-items: center;
+    width: 62px;
+    height: 62px;
+    margin-bottom: 12px;
+    color: var(--app-accent);
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--app-accent) 10%, transparent);
+}
+.dropzone strong {
+    font-size: 14px;
+}
+.dropzone p {
+    margin: 7px 0 17px;
+    color: var(--app-text-subtle);
+    font-size: 11px;
+}
+.dropzone small {
+    margin-top: 12px;
+    color: var(--app-text-subtle);
+    font-size: 10px;
+}
+.uploadSummary {
+    width: min(540px, calc(100% - 40px));
+}
+.uploadSummaryHeading,
+.uploadSummaryMeta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.uploadSummaryHeading > span {
+    color: var(--app-accent);
+    font-size: 28px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+.uploadProgress {
+    display: block;
+    width: 100%;
+    height: 8px;
+    margin: 12px 0;
+}
+.uploadSummaryMeta {
+    align-items: start;
+    color: var(--app-text-subtle);
+    font-size: 11px;
+}
+.uploadSummaryMeta > span:last-child {
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+.uploadSummary .uploadSummaryDetail {
+    overflow: hidden;
+    margin: 12px 0 17px;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.uploadFailed {
+    color: var(--app-danger, #ef4444);
+}
+.chooseButton,
+.saveButton,
+.secondaryButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.chooseButton {
+    padding: 10px 17px;
+    color: var(--app-on-action);
+    font-size: 12px;
+    font-weight: 650;
+    background: var(--app-action);
+}
+.chooseButton:hover {
+    filter: brightness(1.15);
+}
+.episodeList {
+    margin-top: 20px;
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+.listHeading {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--app-border);
+    background: color-mix(in srgb, var(--app-bg) 32%, transparent);
+}
+.listHeading > span {
+    color: var(--app-text);
+    font-size: 12px;
+    font-weight: 700;
+}
+.listHeading b {
+    display: inline-grid;
+    place-items: center;
+    min-width: 20px;
+    height: 20px;
+    margin-left: 6px;
+    border-radius: 5px;
+    color: var(--app-accent);
+    font-size: 10px;
+    background: color-mix(in srgb, var(--app-accent) 13%, transparent);
+}
+.listHeading small {
+    flex: 1;
+    color: var(--app-text-subtle);
+    font-size: 10px;
+}
+.listHeading button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 8px;
+    border: 0;
+    border-radius: 6px;
+    color: var(--app-accent);
+    font-size: 10px;
+    background: transparent;
+    cursor: pointer;
+}
+.listHeading button:hover {
+    background: var(--app-accent-soft);
+}
+.episode {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 15px 19px;
+    border-bottom: 1px solid var(--app-border);
+}
+.episode:last-of-type {
+    border-bottom: 0;
+}
+.episodeNumber {
+    width: 25px;
+    color: var(--app-accent);
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+}
+.episodeDetails {
+    min-width: 0;
+    flex: 1;
+}
+.episodeDetails > input {
+    width: 100%;
+    padding: 0;
+    border: 0;
+    outline: 0;
+    color: var(--app-text);
+    font-size: 12px;
+    font-weight: 650;
+    background: transparent;
+}
+.episodeDetails > div:not(.subtitleRow) {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 5px;
+    color: var(--app-text-subtle);
+    font-size: 10px;
+}
+.episodeDetails > div:not(.subtitleRow) span:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.episodeDetails > div:not(.subtitleRow) small {
+    white-space: nowrap;
+}
+.episodeActions {
+    display: flex;
+    gap: 3px;
+}
+.episodeActions button,
+.subtitleRow button,
+.removePerson {
+    display: grid;
+    place-items: center;
+    width: 25px;
+    height: 25px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    color: var(--app-text-subtle);
+    background: transparent;
+    cursor: pointer;
+}
+.episodeActions button:hover,
+.subtitleRow button:hover,
+.removePerson:hover {
+    color: var(--app-error);
+    background: color-mix(in srgb, var(--app-error) 10%, transparent);
+}
+.episodeActions button:disabled {
+    opacity: 0.25;
+    cursor: default;
+}
+.subtitleRow {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 6px;
+}
+.subtitleButton {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 250px;
+    overflow: hidden;
+    color: var(--app-text-subtle);
+    font-size: 10px;
+    cursor: pointer;
+}
+.subtitleButton:hover {
+    color: var(--app-accent);
+}
+.subtitleButton svg {
+    flex: 0 0 auto;
+}
+.subtitleButton {
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.subtitleHelp {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 10px 15px 13px;
+    color: var(--app-text-subtle);
+    font-size: 10px;
+}
+.fileProgress {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 5px;
+    accent-color: var(--app-accent);
+}
+.field {
+    position: relative;
+    margin-bottom: 22px;
+}
+.field input,
+.field textarea,
+.detailsGrid input,
+.personFields input {
+    width: 100%;
+    border: 1px solid var(--app-border);
+    border-radius: 9px;
+    outline: 0;
+    color: var(--app-text);
+    font: inherit;
+    font-size: 12px;
+    background: color-mix(in srgb, var(--app-bg) 30%, transparent);
+    transition:
+        border-color 0.2s,
+        box-shadow 0.2s;
+}
+.field input,
+.detailsGrid input,
+.personFields input {
+    height: 42px;
+    padding: 0 13px;
+}
+.field textarea {
+    min-height: 105px;
+    padding: 12px 13px;
+    resize: vertical;
+}
+.field input:focus,
+.field textarea:focus,
+.detailsGrid input:focus,
+.personFields input:focus {
+    border-color: var(--app-accent);
+}
+.field input::placeholder,
+.field textarea::placeholder,
+.detailsGrid input::placeholder,
+.personFields input::placeholder {
+    color: var(--app-text-subtle);
+}
+.counter {
+    position: absolute;
+    right: 12px;
+    bottom: 9px;
+    color: var(--app-text-subtle);
+    font-size: 9px;
+}
+.detailsGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+}
+.detailsGrid > div {
+    min-width: 0;
+}
+.select {
+    height: 42px !important;
+    font-size: 11px !important;
+}
+.castEmpty {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 18px;
+    border: 1px dashed var(--app-border-strong);
+    border-radius: 10px;
+    color: var(--app-text-subtle);
+    font-size: 12px;
+}
+.castEmpty svg {
+    color: var(--app-accent);
+}
+.castEmpty .secondaryButton {
+    margin-left: auto;
+}
+.secondaryButton {
+    padding: 9px 12px;
+    color: var(--app-accent);
+    font-size: 11px;
+    background: var(--app-accent-soft);
+}
+.secondaryButton:hover {
+    background: var(--app-accent-soft-strong);
+}
+.person {
+    display: grid;
+    grid-template-columns: 62px minmax(0, 1fr) 30px;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 12px;
+    padding: 12px;
+    border: 1px solid var(--app-border);
+    border-radius: 11px;
+}
+.portrait {
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 4px;
+    width: 62px;
+    height: 72px;
+    border: 1px dashed var(--app-border-strong);
+    border-radius: 9px;
+    color: var(--app-text-subtle);
+    cursor: pointer;
+}
+.portrait svg {
+    color: var(--app-accent);
+}
+.portrait small {
+    font-size: 9px;
+}
+.portrait img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+}
+.personFields {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 9px;
+}
+.personFields label > span {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--app-text-subtle);
+    font-size: 10px;
+}
+.personFields input {
+    height: 35px;
+    font-size: 11px;
+}
+.removePerson {
+    color: var(--app-text-subtle);
+}
+.copyright {
+    display: flex;
+    gap: 13px;
+    margin: 22px 32px;
+    padding: 16px 17px;
+    border: 1px solid color-mix(in srgb, var(--app-accent) 25%, var(--app-border));
+    border-radius: 11px;
+    color: var(--app-text-muted);
+    background: color-mix(in srgb, var(--app-accent) 5%, transparent);
+}
+.copyright svg {
+    flex: 0 0 auto;
+    color: var(--app-accent);
+}
+.copyright strong {
+    font-size: 12px;
+}
+.copyright p {
+    margin: 5px 0 0;
+    color: var(--app-text-subtle);
+    font-size: 11px;
+    line-height: 1.6;
+}
+.saveBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 17px 32px;
+    border-top: 1px solid var(--app-border);
+    background: color-mix(in srgb, var(--app-bg) 30%, transparent);
+}
+.saveBar > span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--app-text-subtle);
+    font-size: 10px;
+}
+.saveBar > span svg {
+    color: var(--app-accent);
+}
+.saveButton {
+    min-height: 42px;
+    padding: 0 17px;
+    color: var(--app-on-action);
+    font-size: 12px;
+    font-weight: 700;
+    background: linear-gradient(115deg, var(--app-action), var(--app-action-2, var(--app-action)));
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--app-action) 24%, transparent);
+}
+.saveButton:hover {
+    filter: brightness(1.14);
+    transform: translateY(-1px);
+}
+.saveButton:disabled {
+    opacity: 0.6;
+    cursor: default;
+    transform: none;
+}
+.error {
+    margin: 0 32px 17px;
+    padding: 10px 12px;
+    border: 1px solid color-mix(in srgb, var(--app-error) 35%, var(--app-border));
+    border-radius: 8px;
+    color: var(--app-error);
+    font-size: 11px;
+    background: color-mix(in srgb, var(--app-error) 7%, transparent);
+}
+.success {
+    display: flex;
+    gap: 11px;
+    margin: 0 32px 17px;
+    padding: 16px;
+    border: 1px solid color-mix(in srgb, var(--app-success) 30%, var(--app-border));
+    border-radius: 9px;
+    color: var(--app-success);
+    background: color-mix(in srgb, var(--app-success) 7%, transparent);
+}
+.success strong {
+    font-size: 13px;
+}
+.success p {
+    margin: 4px 0 9px;
+    color: var(--app-text-subtle);
+    font-size: 11px;
+}
+.success a,
+.success button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-right: 14px;
+    padding: 0;
+    border: 0;
+    color: var(--app-accent);
+    font-size: 11px;
+    background: transparent;
+    cursor: pointer;
+}
+.sidebar {
+    position: sticky;
+    top: 84px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.previewPanel,
+.checklist,
+.tips {
+    padding: 18px;
+}
+.panelEyebrow {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 14px;
+    color: var(--app-text-subtle);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+}
+.panelEyebrow span:last-child {
+    margin-left: auto;
+    color: var(--app-accent);
+    font-size: 8px;
+}
+.poster {
+    position: relative;
+    aspect-ratio: 2 / 3;
+    overflow: hidden;
+    border-radius: 11px;
+    background: linear-gradient(145deg, color-mix(in srgb, var(--app-accent) 21%, var(--app-bg)), var(--app-bg));
+}
+.poster > img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.poster::after {
+    position: absolute;
+    inset: 0;
+    content: '';
+    background: linear-gradient(transparent 35%, rgb(0 0 0 / 82%));
+    pointer-events: none;
+}
+.posterPlaceholder {
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 11px;
+    height: 100%;
+    color: color-mix(in srgb, var(--app-accent) 60%, var(--app-text-subtle));
+}
+.posterPlaceholder span {
+    font-size: 10px;
+}
+.posterOverlay {
+    position: absolute;
+    right: 15px;
+    bottom: 14px;
+    left: 15px;
+    z-index: 1;
+    color: white;
+}
+.posterBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 7px;
+    border: 1px solid rgb(255 255 255 / 30%);
+    border-radius: 5px;
+    font-size: 8px;
+    background: rgb(0 0 0 / 22%);
+}
+.posterOverlay h3 {
+    margin: 10px 0 5px;
+    font-size: 22px;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+.posterOverlay p {
+    display: flex;
+    gap: 7px;
+    margin: 0;
+    color: rgb(255 255 255 / 70%);
+    font-size: 10px;
+}
+.previewDescription {
+    display: -webkit-box;
+    overflow: hidden;
+    margin: 12px 2px 0;
+    color: var(--app-text-muted);
+    font-size: 11px;
+    line-height: 1.6;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+}
+.checklistHeading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    font-size: 12px;
+}
+.checklistHeading > span {
+    color: var(--app-accent);
+    font-size: 24px;
+    font-weight: 700;
+}
+.checklistHeading small {
+    margin-left: 2px;
+    font-size: 10px;
+}
+.checklist > progress {
+    width: 100%;
+    height: 5px;
+    margin-bottom: 12px;
+    accent-color: var(--app-accent);
+}
+.checklist > div:not(.checklistHeading) {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 10px 0;
+    color: var(--app-text-muted);
+    font-size: 11px;
+}
+.checklist > div:not(.checklistHeading) small {
+    margin-left: auto;
+    color: var(--app-text-subtle);
+    font-size: 9px;
+}
+.checked,
+.unchecked {
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    border: 1px solid var(--app-border-strong);
+    border-radius: 50%;
+}
+.checked {
+    border-color: var(--app-accent);
+    color: var(--app-accent);
+    background: var(--app-accent-soft);
+}
+.checklist > p {
+    display: flex;
+    gap: 6px;
+    margin: 15px 0 0;
+    color: var(--app-text-subtle);
+    font-size: 9px;
+    line-height: 1.5;
+}
+.checklist > p svg {
+    flex: 0 0 auto;
+    color: var(--app-accent);
+}
+.tips {
+    color: var(--app-text-muted);
+    background: linear-gradient(125deg, color-mix(in srgb, var(--app-accent) 9%, transparent), transparent);
+}
+.tips > svg {
+    color: var(--app-accent);
+}
+.tips strong {
+    display: block;
+    margin-top: 8px;
+    font-size: 12px;
+}
+.tips p {
+    margin: 6px 0 10px;
+    color: var(--app-text-subtle);
+    font-size: 10px;
+    line-height: 1.55;
+}
+.tips > div {
+    display: flex;
+    gap: 6px;
+}
+.tips > div span {
+    padding: 3px 6px;
+    border: 1px solid var(--app-border);
+    border-radius: 4px;
+    color: var(--app-accent);
+    font-size: 8px;
+}
+.invalid {
+    border-color: var(--app-error) !important;
+}
+.field [aria-invalid='true'] {
+    border-color: var(--app-error);
+}
+.coverUpload:focus-within,
+.chooseButton:focus-within,
+.portrait:focus-within,
+.subtitleButton:focus-within {
+    outline: 1px solid var(--app-accent);
+    outline-offset: -1px;
+}
+.checklist > progress,
+.uploadProgress,
+.fileProgress {
+    appearance: none;
+    overflow: hidden;
+    border: 0;
+    border-radius: 4px;
+    background: var(--app-border);
+}
+.checklist > progress::-webkit-progress-bar,
+.uploadProgress::-webkit-progress-bar,
+.fileProgress::-webkit-progress-bar {
+    background: var(--app-border);
+}
+.checklist > progress::-webkit-progress-value,
+.uploadProgress::-webkit-progress-value,
+.fileProgress::-webkit-progress-value {
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--app-accent), var(--app-accent-2, var(--app-accent)));
+    transition: width 180ms ease;
+}
+.checklist > progress::-moz-progress-bar,
+.uploadProgress::-moz-progress-bar,
+.fileProgress::-moz-progress-bar {
+    background: var(--app-accent);
+}
+.spin {
+    animation: spin 1s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+    .spin {
+        animation: none;
+    }
+}
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+@media (max-width: 1050px) {
+    .workspace {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .sidebar {
+        position: static;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+    .previewPanel {
+        grid-row: span 2;
+    }
+    .tips {
+        grid-column: 2;
+    }
+}
+@media (max-width: 700px) {
+    .main {
+        width: min(100% - 24px, 600px);
+        padding-top: 18px;
+    }
+    .hero {
+        min-height: 160px;
+        padding: 28px 22px;
+    }
+    .heroArt {
+        position: absolute;
+        right: -38px;
+        opacity: 0.35;
+        transform: scale(0.8);
+    }
+    .workspace {
+        margin-top: 14px;
+    }
+    .section {
+        padding: 24px 18px;
+    }
+    .mediaGrid {
+        --media-upload-height: 240px;
+        grid-template-columns: 1fr;
+    }
+    .coverUpload {
+        width: 160px;
+    }
+    .detailsGrid {
+        grid-template-columns: 1fr 1fr;
+    }
+    .person {
+        grid-template-columns: 52px minmax(0, 1fr) 25px;
+        gap: 9px;
+    }
+    .portrait {
+        width: 52px;
+        height: 62px;
+    }
+    .personFields {
+        grid-template-columns: 1fr;
+        gap: 7px;
+    }
+    .personFields input {
+        height: 33px;
+    }
+    .copyright {
+        margin: 18px;
+    }
+    .saveBar {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 13px;
+        padding: 16px 18px;
+    }
+    .saveButton {
+        width: 100%;
+    }
+    .error,
+    .success {
+        margin-right: 18px;
+        margin-left: 18px;
+    }
+    .sidebar {
+        display: flex;
+    }
+    .previewPanel {
+        display: none;
+    }
+    .tips {
+        order: 3;
+    }
+}
+
+@media (max-width: 767px) {
+    .select {
+        height: var(--app-control-height);
+    }
+    .castEmpty {
+        display: grid;
+        grid-template-columns: 24px minmax(0, 1fr);
+        padding: 12px;
+    }
+    .castEmpty .secondaryButton {
+        grid-column: 2;
+        justify-self: start;
+        margin: 0;
+    }
+    .chooseButton,
+    .secondaryButton {
+        min-height: var(--app-control-height);
+        gap: var(--app-control-gap);
+        padding: 5px var(--app-control-padding-inline);
+        font-size: var(--app-control-font-size);
+        line-height: 18px;
+    }
+    .saveButton {
+        min-height: var(--app-primary-control-height);
+        padding-inline: 12px;
+        font-size: 13px;
+        line-height: 18px;
+    }
+}

@@ -7,11 +7,11 @@ import { getSiteUrl, SITE_NAME, SITE_SOCIAL_IMAGE, withSiteName } from './seo'
 
 type PageCopy = { title: string; description: string; keywords?: string[] }
 
-export function buildPublicMetadata(locale: Locale, pathname: string, copy: PageCopy): Metadata {
+export function buildPublicMetadata(locale: Locale, pathname: string, copy: PageCopy, supportedLocales: readonly Locale[] = locales): Metadata {
     const title = withSiteName(copy.title)
     const unlocalizedPathname = stripLocale(pathname)
     const canonical = localizePath(unlocalizedPathname, locale)
-    const languages = Object.fromEntries(locales.map(item => [SEO_LOCALE[item].html, localizePath(unlocalizedPathname, item)]))
+    const languages = Object.fromEntries(supportedLocales.map(item => [SEO_LOCALE[item].html, localizePath(unlocalizedPathname, item)]))
 
     return {
         metadataBase: getSiteUrl(),
@@ -24,7 +24,7 @@ export function buildPublicMetadata(locale: Locale, pathname: string, copy: Page
             type: 'website',
             siteName: SITE_NAME,
             locale: SEO_LOCALE[locale].openGraph,
-            alternateLocale: locales.filter(item => item !== locale).map(item => SEO_LOCALE[item].openGraph),
+            alternateLocale: supportedLocales.filter(item => item !== locale).map(item => SEO_LOCALE[item].openGraph),
             url: canonical,
             title,
             description: copy.description,

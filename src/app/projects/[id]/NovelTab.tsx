@@ -30,6 +30,7 @@ import { canonicalProjectGenreLabel, PROJECT_GENRES } from '@/lib/project-genres
 import { mergeEditorDraft } from '@/lib/editor-draft'
 import { scriptContinuityNoticePredecessor, scriptContinuityPredecessor, scriptContinuityReviewPredecessor } from '@/lib/script-continuity'
 import ScriptContinuityNotice from '@/components/ScriptContinuityNotice'
+import styles from './NovelTab.module.css'
 
 interface ChapterEpisode {
     id: string
@@ -1780,7 +1781,7 @@ export default function NovelTab({ project: projectSummary, onRefetch, onProject
     const outerCls = isStage3 || isStage4 ? 'studio-novel flex min-h-0 flex-col h-full' : 'studio-novel studio-novel-scroll space-y-6 overflow-y-auto h-full novel-scroll'
 
     return (
-        <div className={outerCls}>
+        <div className={`${outerCls} ${currentStage === 'outlined' ? styles.outlineWorkspace : ''}`}>
             {confirmDialog}
             {/* Stage 1: Setup */}
             {currentStage === 'setup' && (
@@ -2243,34 +2244,34 @@ export default function NovelTab({ project: projectSummary, onRefetch, onProject
                     </div>
 
                     {/* 操作 */}
-                    <div className="flex items-center gap-3 pt-2">
+                    <div className={styles.setupActions}>
                         <button
                             onClick={() => saveSetup()}
                             disabled={savingSetup}
-                            className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white text-sm rounded-lg">
+                            className={`${styles.setupAction} flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white text-sm rounded-lg`}>
                             <Save className="w-4 h-4" />
-                            {savingSetup ? '保存中...' : '保存设定'}
+                            <span>{savingSetup ? '保存中...' : '保存设定'}</span>
                         </button>
                         <button
                             onClick={runOutline}
                             disabled={!!runningAi}
-                            className="flex items-center gap-2 px-4 py-2 studio-primary disabled:opacity-50 text-white text-sm rounded-lg">
+                            className={`${styles.setupAction} flex items-center gap-2 px-4 py-2 studio-primary disabled:opacity-50 text-white text-sm rounded-lg`}>
                             <Wand2 className="w-4 h-4" />
-                            {runningAi === 'outline' ? '生成大纲中...' : '生成大纲 →'}
+                            <span>{runningAi === 'outline' ? '生成大纲中...' : '生成大纲 →'}</span>
                         </button>
                         {runningAi === 'outline' && (
                             <button
                                 onClick={cancelOutline}
                                 disabled={cancellingOutline}
-                                className="flex items-center gap-2 px-4 py-2 border border-red-500/40 bg-red-500/10 hover:bg-red-500/20 disabled:opacity-50 text-red-300 text-sm rounded-lg">
+                                className={`${styles.setupAction} ${styles.setupCancel} flex items-center gap-2 px-4 py-2 border border-red-500/40 bg-red-500/10 hover:bg-red-500/20 disabled:opacity-50 text-red-300 text-sm rounded-lg`}>
                                 <Square className="w-3.5 h-3.5 fill-current" />
-                                {cancellingOutline ? ui('正在取消...', 'Cancelling...') : ui('取消生成', 'Cancel generation')}
+                                <span>{cancellingOutline ? ui('正在取消...', 'Cancelling...') : ui('取消生成', 'Cancel generation')}</span>
                             </button>
                         )}
                         {hasOutline && (
                             <button
                                 onClick={() => setNovelStageView('outlined')}
-                                className="text-sm text-purple-400 hover:text-purple-300 ms-auto">
+                                className={`${styles.setupAction} ${styles.setupNext} text-sm text-purple-400 hover:text-purple-300`}>
                                 已有大纲，跳到下一步 →
                             </button>
                         )}
@@ -2312,23 +2313,23 @@ export default function NovelTab({ project: projectSummary, onRefetch, onProject
                                 </div>
                             )}
                         </div>
-                        <div className="flex gap-2 items-center flex-wrap">
+                        <div className={styles.outlineActions}>
                             <WalletBalance compact />
-                            <div className="min-w-[160px]">
+                            <div className={styles.outlineModel}>
                                 <ModelSwitcher title="架构与大纲模型"
                                     prefix="架构/大纲" />
                             </div>
                             <button
                                 onClick={runOutline}
                                 disabled={!!runningAi}
-                                className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white text-sm rounded-lg">
+                                className={`${styles.outlineAction} flex items-center bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white`}>
                                 <RefreshCw className={`w-4 h-4 ${runningAi === 'outline' ? 'animate-spin' : ''}`} />
                                 {runningAi === 'outline' ? '重新生成中...' : '重新生成大纲'}
                             </button>
                             {hasAnyOutline && missingOutlineNumbers.length > 0 && !runningAi && (
                                 <button
                                     onClick={continueMissingOutline}
-                                    className="flex items-center gap-2 px-3 py-2 bg-amber-600 hover:bg-amber-500 text-white text-sm rounded-lg"
+                                    className={`${styles.outlineAction} flex items-center bg-amber-600 hover:bg-amber-500 text-white`}
                                     title={`仅补充缺少梗概的章节：${missingOutlineNumbers.join('、')}`}>
                                     继续生成剩余大纲 ({missingOutlineNumbers.length})
                                 </button>
@@ -2337,7 +2338,7 @@ export default function NovelTab({ project: projectSummary, onRefetch, onProject
                                 onClick={confirmOutlineAndProceed}
                                 disabled={!!runningAi || missingOutlineNumbers.length > 0}
                                 title={missingOutlineNumbers.length > 0 ? `还有 ${missingOutlineNumbers.length} 章缺少大纲，请先补充完整` : undefined}
-                                className="flex items-center gap-2 px-3 py-2 studio-primary disabled:opacity-40 text-white text-sm rounded-lg">
+                                className={`${styles.outlineAction} flex items-center studio-primary disabled:opacity-40 text-white`}>
                                 确认大纲，开始写正文 →
                             </button>
                         </div>
@@ -2348,19 +2349,19 @@ export default function NovelTab({ project: projectSummary, onRefetch, onProject
                                 ? Array.from({ length: project.totalEpisodes || project.episodes.length || 6 }).map((_, idx) => (
                                       <div
                                           key={`skeleton-${idx}`}
-                                          className="bg-gray-900 border border-gray-800 rounded-xl p-4 animate-pulse">
-                                          <div className="flex items-start gap-3">
-                                              <div className="w-9 h-9 rounded-lg bg-gray-800 flex-shrink-0 flex items-center justify-center text-gray-700 font-bold text-xs">{idx + 1}</div>
-                                              <div className="flex-1 space-y-3 min-w-0">
+                                          className="studio-outline-card border border-gray-800 animate-pulse">
+                                          <div className="grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1.5">
+                                              <div className="mt-0.5 w-6 h-6 rounded-md bg-gray-800 flex items-center justify-center text-gray-700 font-bold text-xs sm:row-span-2">{idx + 1}</div>
+                                              <div className="h-7 flex items-center">
                                                   <div className="h-4 bg-gray-800 rounded w-1/3" />
-                                                  <div className="rounded-lg border border-gray-800 bg-gray-950 p-3 space-y-2">
-                                                      <div className="h-2.5 bg-gray-800 rounded w-full" />
-                                                      <div className="h-2.5 bg-gray-800 rounded w-11/12" />
-                                                      <div className="h-2.5 bg-gray-800 rounded w-9/12" />
-                                                      <div className="h-2.5 bg-gray-800 rounded w-10/12" />
-                                                  </div>
                                               </div>
-                                              <span className="text-[10px] text-gray-700 bg-gray-800/60 px-1.5 py-0.5 rounded flex-shrink-0">⚡ —</span>
+                                              <div className="col-span-full row-start-2 rounded-lg border border-gray-800 bg-gray-950 px-2 py-3 space-y-2 sm:col-span-1 sm:col-start-2">
+                                                  <div className="h-2.5 bg-gray-800 rounded w-full" />
+                                                  <div className="h-2.5 bg-gray-800 rounded w-11/12" />
+                                                  <div className="h-2.5 bg-gray-800 rounded w-9/12" />
+                                                  <div className="h-2.5 bg-gray-800 rounded w-10/12" />
+                                              </div>
+                                              <span className="col-start-3 row-start-1 self-center text-[10px] text-gray-700 bg-gray-800/60 px-1.5 py-0.5 rounded">⚡ —</span>
                                           </div>
                                       </div>
                                   ))
@@ -2371,83 +2372,84 @@ export default function NovelTab({ project: projectSummary, onRefetch, onProject
                                           <div
                                               key={ep.id}
                                               className={`studio-outline-card border ${waitingForOutline ? 'border-amber-500/30' : 'border-gray-800'}`}>
-                                              <div className="flex items-start gap-3">
-                                                  <div className="w-9 h-9 rounded-lg bg-gray-800 flex items-center justify-center text-purple-400 font-bold text-xs flex-shrink-0">
+                                              <div className="grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1.5">
+                                                  <div className="mt-0.5 w-6 h-6 rounded-md bg-gray-800 flex items-center justify-center text-purple-400 font-bold text-xs sm:row-span-2">
                                                       {ep.episodeNumber}
                                                   </div>
-                                                  <div className="flex-1 space-y-2 min-w-0">
-                                                      <input
-                                                          value={draft.title}
-                                                          onChange={e => {
-                                                              const next = e.target.value
-                                                              setChapterDrafts({ ...chapterDrafts, [ep.id]: { ...draft, title: next } })
-                                                              if (next !== (ep.title ?? '')) scheduleAutoSave(ep.id, { title: next })
-                                                          }}
-                                                          onBlur={() => {
-                                                              if (draft.title !== (ep.title ?? '')) patchEpisode(ep.id, { title: draft.title })
-                                                          }}
-                                                          placeholder={t('第{number}章标题', { number: ep.episodeNumber })}
-                                                          className="w-full bg-transparent border-b border-gray-800 text-white font-medium focus:outline-none focus:border-purple-500 pb-1"
-                                                      />
-                                                      {(() => {
-                                                          const expanded = expandedSynopsisIds.has(ep.id)
-                                                          return (
-                                                              <div className={`rounded-lg border bg-gray-950 transition-colors ${expanded ? 'border-purple-500/50' : 'border-gray-800'}`}>
-                                                                  <div className={`flex items-center justify-between gap-2 px-3 py-2 ${expanded ? 'border-b border-gray-800' : ''}`}>
-                                                                      <div className="flex min-w-0 items-center gap-2">
-                                                                          <div className="text-[11px] font-medium text-gray-300">本章梗概</div>
-                                                                          <div className={`text-[10px] ${waitingForOutline ? 'text-amber-400/80' : 'text-gray-600'}`}>
-                                                                              {waitingForOutline ? t('本批漏章，正在自动补齐…') : t('{count} 字', { count: draft.synopsis.trim().length || 0 })}
-                                                                          </div>
+                                                  <input
+                                                      value={draft.title}
+                                                      onChange={e => {
+                                                          const next = e.target.value
+                                                          setChapterDrafts({ ...chapterDrafts, [ep.id]: { ...draft, title: next } })
+                                                          if (next !== (ep.title ?? '')) scheduleAutoSave(ep.id, { title: next })
+                                                      }}
+                                                      onBlur={() => {
+                                                          if (draft.title !== (ep.title ?? '')) patchEpisode(ep.id, { title: draft.title })
+                                                      }}
+                                                      placeholder={t('第{number}章标题', { number: ep.episodeNumber })}
+                                                      className="min-w-0 w-full bg-transparent border-b border-gray-800 text-white font-medium focus:outline-none focus:border-purple-500 pb-1"
+                                                  />
+                                                  {(() => {
+                                                      const expanded = expandedSynopsisIds.has(ep.id)
+                                                      return (
+                                                          <div
+                                                              className={`col-span-full row-start-2 min-w-0 rounded-lg border bg-gray-950 transition-colors sm:col-span-1 sm:col-start-2 ${expanded ? 'border-purple-500/50' : 'border-gray-800'}`}>
+                                                              <div className={`flex items-center justify-between gap-2 px-2 py-2 ${expanded ? 'border-b border-gray-800' : ''}`}>
+                                                                  <div className="flex min-w-0 items-center gap-2">
+                                                                      <div className="text-[11px] font-medium text-gray-300">本章梗概</div>
+                                                                      <div className={`text-[10px] ${waitingForOutline ? 'text-amber-400/80' : 'text-gray-600'}`}>
+                                                                          {waitingForOutline ? t('本批漏章，正在自动补齐…') : t('{count} 字', { count: draft.synopsis.trim().length || 0 })}
                                                                       </div>
-                                                                      <button
-                                                                          type="button"
-                                                                          onClick={() => toggleSynopsis(ep.id)}
-                                                                          aria-expanded={expanded}
-                                                                          aria-controls={`chapter-synopsis-${ep.id}`}
-                                                                          className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-purple-300 hover:bg-purple-500/10">
-                                                                          {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                                                                          {/* Browser translators replace text nodes; keep a stable element beside the changing icon. */}
-                                                                          <span>{t(expanded ? '收起' : '展开')}</span>
-                                                                      </button>
                                                                   </div>
-                                                                  {!expanded && (
-                                                                      <p
-                                                                          data-i18n-skip
-                                                                          className="line-clamp-3 px-4 pb-4 text-sm leading-7 text-slate-300">
-                                                                          {draft.synopsis || t('本章梗概')}
-                                                                      </p>
-                                                                  )}
-                                                                  {expanded && (
-                                                                      <textarea
-                                                                          id={`chapter-synopsis-${ep.id}`}
-                                                                          value={draft.synopsis}
-                                                                          onChange={e => {
-                                                                              const next = e.target.value
-                                                                              setChapterDrafts({ ...chapterDrafts, [ep.id]: { ...draft, synopsis: next } })
-                                                                              if (next !== (ep.synopsis ?? '')) scheduleAutoSave(ep.id, { synopsis: next })
-                                                                          }}
-                                                                          onBlur={() => {
-                                                                              if (draft.synopsis !== (ep.synopsis ?? '')) patchEpisode(ep.id, { synopsis: draft.synopsis })
-                                                                          }}
-                                                                          rows={9}
-                                                                          placeholder={waitingForOutline ? '正在自动补齐本章梗概，请稍候…' : '本章梗概'}
-                                                                          className="min-h-56 w-full resize-y bg-transparent px-3 py-2 text-sm leading-relaxed text-gray-300 focus:outline-none novel-scroll"
-                                                                      />
-                                                                  )}
+                                                                  <button
+                                                                      type="button"
+                                                                      onClick={() => toggleSynopsis(ep.id)}
+                                                                      aria-expanded={expanded}
+                                                                      aria-controls={`chapter-synopsis-${ep.id}`}
+                                                                      className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-purple-300 hover:bg-purple-500/10">
+                                                                      {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                                                                      {/* Browser translators replace text nodes; keep a stable element beside the changing icon. */}
+                                                                      <span>{t(expanded ? '收起' : '展开')}</span>
+                                                                  </button>
                                                               </div>
-                                                          )
-                                                      })()}
+                                                              {!expanded && (
+                                                                  <p
+                                                                      data-i18n-skip
+                                                                      className="mb-4 line-clamp-3 px-2 text-sm leading-7 text-slate-300">
+                                                                      {draft.synopsis || t('本章梗概')}
+                                                                  </p>
+                                                              )}
+                                                              {expanded && (
+                                                                  <textarea
+                                                                      id={`chapter-synopsis-${ep.id}`}
+                                                                      value={draft.synopsis}
+                                                                      onChange={e => {
+                                                                          const next = e.target.value
+                                                                          setChapterDrafts({ ...chapterDrafts, [ep.id]: { ...draft, synopsis: next } })
+                                                                          if (next !== (ep.synopsis ?? '')) scheduleAutoSave(ep.id, { synopsis: next })
+                                                                      }}
+                                                                      onBlur={() => {
+                                                                          if (draft.synopsis !== (ep.synopsis ?? '')) patchEpisode(ep.id, { synopsis: draft.synopsis })
+                                                                      }}
+                                                                      rows={9}
+                                                                      placeholder={waitingForOutline ? '正在自动补齐本章梗概，请稍候…' : '本章梗概'}
+                                                                      className="min-h-56 w-full resize-y bg-transparent px-2 py-2 text-sm leading-relaxed text-gray-300 focus:outline-none novel-scroll"
+                                                                  />
+                                                              )}
+                                                          </div>
+                                                      )
+                                                  })()}
+                                                  <div className="col-start-3 row-start-1 flex min-h-7 items-center gap-2">
+                                                      {ep.intensity != null && (
+                                                          <span
+                                                              className="text-[10px] text-purple-300 bg-purple-500/10 px-1.5 py-0.5 rounded flex-shrink-0"
+                                                              title={`情节强度 ${ep.intensity}/10`}>
+                                                              ⚡{ep.intensity}
+                                                          </span>
+                                                      )}
+                                                      {savingChapterId === ep.id && <RefreshCw className="w-4 h-4 animate-spin text-gray-500" />}
+                                                      {savingChapterId !== ep.id && autoSavedFlash[ep.id] && <span className="text-[10px] text-green-400 flex-shrink-0">✓ 已保存</span>}
                                                   </div>
-                                                  {ep.intensity != null && (
-                                                      <span
-                                                          className="text-[10px] text-purple-300 bg-purple-500/10 px-1.5 py-0.5 rounded flex-shrink-0"
-                                                          title={`情节强度 ${ep.intensity}/10`}>
-                                                          ⚡{ep.intensity}
-                                                      </span>
-                                                  )}
-                                                  {savingChapterId === ep.id && <RefreshCw className="w-4 h-4 animate-spin text-gray-500" />}
-                                                  {savingChapterId !== ep.id && autoSavedFlash[ep.id] && <span className="text-[10px] text-green-400 flex-shrink-0">✓ 已保存</span>}
                                               </div>
                                           </div>
                                       )
@@ -2666,7 +2668,7 @@ export default function NovelTab({ project: projectSummary, onRefetch, onProject
 
                                                     onClick={() => void batchGenerate('all')}
                                                     disabled={chapterActionsBusy}
-                                                    className="flex min-h-10 w-full items-center justify-center gap-1.5 rounded-lg bg-gray-800 px-3 py-2 text-xs text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50">
+                                                    className="app-action flex min-h-10 w-full items-center justify-center gap-1.5 rounded-lg bg-gray-800 px-3 py-2 text-xs text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50">
                                                     <RefreshCw className="h-3.5 w-3.5" />
                                                     {t('顺序重写全部')}
                                                 </button>
@@ -2910,7 +2912,7 @@ export default function NovelTab({ project: projectSummary, onRefetch, onProject
                                             <button
                                                 key={ep.id}
                                                 onClick={() => setSelectedScriptId(ep.id)}
-                                                className={`w-full text-start px-3 py-2.5 rounded-lg flex items-center gap-2 transition-colors ${
+                                                className={`app-action w-full text-start px-3 py-2.5 rounded-lg flex items-center gap-2 transition-colors ${
                                                     isActive ? 'bg-blue-500/15 border border-blue-500/40' : 'border border-transparent hover:bg-gray-800/60'
                                                 }`}>
                                                 <span
@@ -3011,7 +3013,7 @@ export default function NovelTab({ project: projectSummary, onRefetch, onProject
                                     {projectCharacterCount > 0 && (
                                         <button
                                             onClick={onOpenCharacters}
-                                            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white text-xs rounded-lg">
+                                            className="app-action w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white text-xs rounded-lg">
                                             <Sparkles className="w-3.5 h-3.5" />
                                             {ui('去角色图片编辑', 'Edit character images')}
                                         </button>

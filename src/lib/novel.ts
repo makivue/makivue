@@ -1605,6 +1605,372 @@ const RAW_VISUAL_STYLE_PRESETS: VisualStylePreset[] = [
     expandedEnvironmentStylePreset('madagascar-wildlife', '马达加斯加动物岛', '狐猴、猴面包树、孤岛演化', 'Madagascar wildlife documentary, ring-tailed lemurs among iconic baobab trees, chameleons and unique dry forest ecology at sunrise', 'people, text, logo, cartoon, low quality'),
     expandedStylePreset('african-river-kingdom', '非洲大河文明', '尼罗河与赞比西河、瀑布、河岸生活', 'African great-river epic, vast waterfall and river valley, adult riverside communities, fishing boats, wildlife and monumental mist-filled sunrise'),
     expandedStylePreset('baobab-savanna', '猴面包树草原', '巨树、暮色、村落与草原生命', 'baobab savanna drama, monumental ancient baobab trees beside a small African village, grazing animals, adult residents and saturated violet-orange twilight'),
+    // ============ 社交影像与数字视觉 ============
+    {
+        key: 'pixel-art',
+        label: '像素艺术',
+        hint: '复古像素、有限色板、逐帧动画',
+        previewPrompt:
+            'original 2D pixel art scene, adult courier beneath an umbrella at a rain-soaked midnight train platform, amber carriage windows and indigo sky, carefully placed square pixels, restrained 24-color palette, readable sprite silhouette, crisp native-resolution pixel grid enlarged with nearest-neighbor sampling, no text, no logo',
+        imagePromptPrefix:
+            'strict non-photorealistic 2D pixel art, visible uniform square pixel grid, limited harmonious color palette, hand-placed pixel clusters, deliberate dithering, readable original character sprites and tiled environments, nearest-neighbor edges, consistent pixel scale',
+        videoPromptPrefix:
+            'strict 2D pixel art animation, maintain the same native pixel grid and limited palette in every frame, stepped sprite animation and restrained looping environmental details, coherent pixel clusters and stable character silhouettes, no subpixel smoothing, no live action, no 3D render',
+        negativePrompt: 'photorealism, live action, 3D voxel render, smooth vector curves, antialiasing, blurry pixels, mixed pixel sizes, gradients without dithering, text, logo, watermark'
+    },
+    {
+        key: 'smartphone-pov',
+        label: '手机手持 POV',
+        hint: '第一人称、手机曝光、生活现场感',
+        previewPrompt:
+            'first-person smartphone footage still, camera holder arriving at a small apartment doorway while a fictional adult friend opens the door in surprise, keys in foreground, warm indoor practical light meeting cool dusk from the hallway, natural wide phone lens, deep focus and believable handheld framing, no phone UI, no text, no logo',
+        imagePromptPrefix:
+            'contemporary first-person smartphone photography, eye-level handheld phone perspective, natural wide-angle phone optics, deep focus, available practical light, believable automatic exposure and white balance, everyday locations, candid adult performances, realistic unfiltered skin and ordinary clothing',
+        videoPromptPrefix:
+            'first-person handheld smartphone video, camera movement motivated by the camera holder walking and reacting, restrained natural micro-jitter, phone autofocus and gradual exposure adaptation when lighting changes, continuous spatially coherent takes, candid adult performance and available light, no impossible camera moves',
+        negativePrompt:
+            'studio glamour lighting, artificial beauty filter, impossible floating camera, aerial drone view, excessive camera shake, extreme motion blur, shallow cinematic bokeh, phone interface, subtitles, text, logo, watermark'
+    },
+    {
+        key: 'found-footage',
+        label: '拾得影像恐怖',
+        hint: '现场摄录、手电光源、未知追踪',
+        previewPrompt:
+            'diegetic found-footage horror frame from a handheld consumer camera, abandoned maintenance tunnel at night, flashlight beam revealing muddy footprints ending at a half-open service door, distant ambiguous silhouette, crooked but legible framing, dark sensor noise, restrained dread, no gore, no recording UI, no text, no logo',
+        imagePromptPrefix:
+            'diegetic found-footage horror photography, every shot captured by an in-world consumer camera, plausible operator position, limited flashlight or existing practical light, imperfect framing and consumer-sensor noise, realistic abandoned environments, suspense through occlusion and negative space, no glamour casting',
+        videoPromptPrefix:
+            'diegetic found-footage horror video, maintain a plausible physical handheld camera operator and continuous geography, searching flashlight beam follows operator motion, cautious movement and reaction-driven reframing, brief motivated focus hunting, realistic low-light noise, reveal danger through environment and partial glimpses',
+        negativePrompt:
+            'omniscient cinematic coverage, impossible reverse angle, crane or drone shot, polished studio lighting, fashion photography, cartoon, excessive unreadable shake, explicit gore, timestamp, recording overlay, text, logo, watermark'
+    },
+    {
+        key: 'analog-horror',
+        label: '模拟录像带恐怖',
+        hint: 'VHS 磁带、CRT 扫描线、诡异空景',
+        previewPrompt:
+            'analog horror archival VHS frame, empty 1980s suburban living room with an unoccupied armchair facing a glowing CRT television, an unnatural human-shaped shadow stretched along the wall, cold domestic fluorescent light, scanlines, chroma bleed and restrained tape-tracking distortion, eerie readable composition, no gore, no written warning, no text, no logo',
+        imagePromptPrefix:
+            'analog horror archival imagery, period-appropriate late twentieth-century domestic or institutional settings, VHS tape softness, CRT scanlines, chroma bleed, interlacing and subtle tracking damage, uncanny empty spaces, mundane practical illumination, deliberate low-fidelity signal texture with readable subjects',
+        videoPromptPrefix:
+            'analog horror video presented as recovered VHS or a fixed archival camera feed, locked or slowly drifting in-world camera, period-consistent practical lighting, persistent CRT scanlines and restrained chroma bleed, brief motivated tape warps, unsettling stillness interrupted by small physically coherent changes, maintain readable composition',
+        negativePrompt:
+            'clean modern 4K digital look, glossy cinematic lighting, cyberpunk neon, heavy constant glitch obscuring the scene, modern smartphones, cartoon, explicit gore, emergency alert text, subtitles, channel logo, watermark'
+    },
+    {
+        key: 'surreal-asmr',
+        label: '超现实解压',
+        hint: '微距材质、奇妙切割、流动解压',
+        previewPrompt:
+            'surreal satisfying ASMR macro scene, a transparent crystal pear resting on a matte ceramic surface as a fine metal blade makes one clean slice to reveal luminous layers of soft opalescent jelly, tiny refractive droplets, controlled studio highlights, precise contact geometry, high-detail material texture, no hands, no people, no text, no logo',
+        imagePromptPrefix:
+            'surreal satisfying ASMR material study, extreme macro product photography of original impossible materials, crisp contact surfaces, refractive glass and soft layered gels, clean minimalist set, precise controlled highlights, coherent reflections and material boundaries, object-led composition, no humans, no body parts',
+        videoPromptPrefix:
+            'surreal satisfying ASMR macro video, stable close camera and one clearly readable material interaction at a time, deliberate slow slicing, compression or flowing motion, continuous tool contact and coherent deformation, preserve object volume and layered material identity, visually rhythmic movement, no humans, no body parts',
+        negativePrompt:
+            'people, hands, faces, human beauty features, human anatomy, cluttered set, uncontrolled camera shake, incoherent melting, discontinuous tool motion, smeared material detail, text, logo, watermark'
+    },
+    {
+        key: 'photoreal-pet-drama',
+        label: '写实萌宠短剧',
+        hint: '真实毛发、萌宠主角、微缩日常',
+        previewPrompt:
+            'photorealistic original pet short drama scene, expressive orange tabby cat nudging a tiny breakfast tray toward a sleepy corgi in a carefully crafted miniature kitchen, natural feline and canine anatomy, detailed individual fur strands and whiskers, paw-compatible miniature props, warm morning window light, emotional animal-eye-level framing, no humans, no human hands, no text, no logo',
+        imagePromptPrefix:
+            'photorealistic pet-led short drama, expressive original cat and dog characters with species-accurate animal heads, muzzles, paws and body proportions, individual fur strands and whiskers, stable natural markings, carefully scaled miniature daily-life sets and paw-compatible props, animal-eye-level photography, no humans, no human anatomy or beauty anchors',
+        videoPromptPrefix:
+            'photorealistic pet-led short drama video, preserve species-accurate feline or canine anatomy, consistent fur markings and realistic four-legged locomotion, emotional storytelling through ears, eyes, tails and natural animal posture, plausible paw interactions with miniature daily-life props, coherent prop scale and eye-level camera, no humans or human hands',
+        negativePrompt:
+            'humans, human faces, human hands, human skin, humanoid limbs, human beauty features, fashion model proportions, plastic fur, cartoon render, plush toy, malformed paws, extra legs, changing coat markings, text, logo, watermark'
+    },
+    // ============ 历史文明与战争史诗 ============
+    {
+        key: 'ancient-indian-war',
+        label: '古印度战争',
+        hint: '孔雀王朝、步兵战象、木城旌旗',
+        previewPrompt:
+            'historically grounded Mauryan Indian war epic, late fourth to third century BCE, disciplined infantry with long bamboo bows and iron-tipped spears beside a war elephant with a simple backcloth and rider, a modest two-horse wooden chariot behind them, timber palisade and gate near Pataliputra, cotton wrapped garments and practical headcloths, humid dawn and dust, no battle wounds, no text, no logo',
+        imagePromptPrefix:
+            'live-action ancient Indian historical epic set strictly in the Mauryan period, late fourth to third century BCE, coherent early Indian material culture, cotton wrapped garments, practical headcloths, iron-tipped spears, bamboo longbows, wooden chariots and simply equipped war elephants, timber fortifications and restrained early stone details, natural human anatomy and realistic animal scale',
+        videoPromptPrefix:
+            'live-action Mauryan Indian historical drama, late fourth to third century BCE only, preserve historically coherent cotton garments, infantry weapons, simple wooden chariots and elephant tack, physically plausible elephant movement and cavalry spacing, grounded formation changes, dust and natural light, deliberate epic camera movement without turning the scene into medieval fantasy',
+        negativePrompt:
+            'Mughal domes, Taj Mahal, Rajput plate armor, medieval Indian palace, ornate tower howdah, firearms, modern flags, modern military uniforms, fantasy armor, mixing historical eras, stereotyped caricature, excessive gore, text, logo, watermark'
+    },
+    {
+        key: 'rajput-fortress-war',
+        label: '拉杰普特堡垒战争',
+        hint: '16 世纪拉贾斯坦、山城围战、骑兵',
+        previewPrompt:
+            'historical Rajput fortress war drama in Rajasthan around 1550 CE, mounted adult commander in a quilted coat with mail protection surveying troops at the ochre sandstone gate of a steep hill fort, practical helmets, long spears, curved swords and horse equipment consistent with sixteenth-century northwestern India, dry rocky landscape and strong afternoon light, no wounds, no text, no logo',
+        imagePromptPrefix:
+            'live-action sixteenth-century Rajput historical drama set in Rajasthan around 1550 CE, sandstone hill forts, stepped battlements and stone gateways, coherent period mail and quilted armor, practical helmets, spears and curved swords, historically grounded cavalry tack and regional textiles, arid terrain and sun-weathered surfaces, medieval rather than ancient material culture',
+        videoPromptPrefix:
+            'sixteenth-century Rajasthan Rajput fortress war video, grounded cavalry approach, infantry movement and defensive staging within plausible hill-fort geography, preserve period mail, quilted coats, weapons and horse tack, readable formations and realistic horse weight, dust and practical sunlight, cinematic historical scale without mixing eras',
+        negativePrompt:
+            'ancient Mauryan equipment, modern India, Taj Mahal setting, modern rifles, fantasy jeweled plate suits, European Gothic full plate, Viking helmets, modern flags, mixed historical periods, stereotyped caricature, excessive gore, text, logo, watermark'
+    },
+    {
+        key: 'ancient-egypt-epic',
+        label: '古埃及史诗',
+        hint: '新王国、战车弓兵、尼罗河神殿',
+        previewPrompt:
+            'ancient Egyptian historical epic in the New Kingdom during the thirteenth century BCE, two-horse light wooden chariot and adult bow crew beside linen-clad infantry carrying spears and hide-covered shields, monumental painted temple pylons and palms along the Nile behind them, sunlit limestone, ochre dust and lapis accents, historically grounded proportions, no wounds, no text, no logo',
+        imagePromptPrefix:
+            'live-action ancient Egyptian New Kingdom epic, thirteenth century BCE only, Ramesside-era linen clothing, plausible bronze weapons and composite bows, light two-horse chariots, hide-covered wooden shields, color-decorated temple pylons and Nile landscapes, realistic stone and linen textures, historically coherent human figures with natural skin detail',
+        videoPromptPrefix:
+            'historically grounded New Kingdom Egyptian drama video in the thirteenth century BCE, preserve period linen garments, chariot construction and temple architecture, realistic horse gait, wheel motion and bow handling, readable infantry spacing, strong Nile sunlight and restrained monumental camera movement',
+        negativePrompt:
+            'Roman legion armor, Greek Classical hoplites, medieval Arab dress, Islamic domes, steel full plate, firearms, fantasy mummy army, oversized pyramids in every scene, mixed eras, excessive gore, readable hieroglyphs, text, logo, watermark'
+    },
+    {
+        key: 'ancient-greek-epic',
+        label: '古希腊史诗',
+        hint: '古典希腊、重装步兵、爱琴海城邦',
+        previewPrompt:
+            'Classical Greek historical epic in the fifth century BCE, adult hoplite line with bronze-faced round aspis shields and long spears assembling below a limestone city-state acropolis above the Aegean, linen cuirasses, period bronze helmets and wool cloaks, olive trees and dry rocky ground, clear Mediterranean dawn, no wounds, no text, no logo',
+        imagePromptPrefix:
+            'live-action Classical Greek historical drama, fifth century BCE city-state material culture, round aspis shields, hoplite spears, linen cuirasses and period bronze helmets, wool garments, limestone architecture and Mediterranean olive landscapes, coherent realistic equipment and athletic but believable human anatomy',
+        videoPromptPrefix:
+            'Classical Greek fifth-century BCE historical video, grounded hoplite formation movement, shield weight and spear spacing remain consistent, natural walking and cloth motion, plausible Mediterranean stone city geography, clear sunlight and deliberate character-level or formation-level camera staging',
+        negativePrompt:
+            'Roman rectangular shields, imperial legion standards, medieval full plate, Viking longships, modern flags, firearms, fantasy glowing gods, mixed historical eras, excessive gore, readable inscriptions, text, logo, watermark'
+    },
+    {
+        key: 'roman-legion-epic',
+        label: '古罗马军团史诗',
+        hint: '公元 1 世纪、军团方盾、帝国行军',
+        previewPrompt:
+            'Roman imperial historical epic in the first century CE, adult legionaries in riveted mail with curved rectangular scutum shields, pila and sheathed gladii marching through the gate of a timber frontier camp, eagle standard above the orderly column, red wool tunics and muddy stone road, cool dawn light and practical military realism, no wounds, no text, no logo',
+        imagePromptPrefix:
+            'live-action Roman imperial military drama set in the first century CE, coherent legion equipment with curved rectangular scutum shields, pila, gladii and riveted mail, period iron helmets and wool tunics, timber frontier camps, Roman roads and restrained imperial architecture, realistic military wear and natural human proportions',
+        videoPromptPrefix:
+            'first-century CE Roman legion historical video, disciplined marching and coordinated shield movement, preserve consistent period armor, weapons and standards, grounded footfalls and equipment weight, plausible camp and road geography, controlled epic tracking shots and natural environmental light',
+        negativePrompt:
+            'medieval knight armor, Greek round hoplite shields, Renaissance buildings, Byzantine domes, modern insignia, firearms, fantasy oversized weapons, mixed Roman centuries, excessive gore, readable Latin text, logo, watermark'
+    },
+    {
+        key: 'viking-saga',
+        label: '维京传奇',
+        hint: '9 世纪北欧、长船圆盾、峡湾远航',
+        previewPrompt:
+            'historically grounded Viking saga in ninth-century Scandinavia, adult seafarers carrying round wooden shields and spears beside a clinker-built longship pulled onto a cold fjord shore, wool tunics and trousers, simple iron helmets on a few warriors, one mail-clad leader, timber hall and mountain mist in the distance, weathered natural materials, no wounds, no text, no logo',
+        imagePromptPrefix:
+            'live-action Viking Age historical saga, ninth-century Scandinavian material culture, wool and linen layered clothing, practical trousers and footwear, round wooden shields, spears, axes and limited mail, simple unhorned iron helmets, clinker-built ships and timber settlements, cold natural light and realistic weathered surfaces',
+        videoPromptPrefix:
+            'ninth-century Scandinavian Viking saga video, physically grounded rowing, sail handling and shore movement, preserve clinker hull construction, period wool clothing and round shield equipment, realistic boat buoyancy, wind and water, intimate adult performances with measured fjord-scale camera movement',
+        negativePrompt:
+            'horned helmets, fantasy fur bikinis, modern leather biker costume, medieval full plate, giant double-headed axes, modern ships, firearms, mixed historical eras, ethnic caricatures, excessive gore, runic text, logo, watermark'
+    },
+    {
+        key: 'medieval-knights',
+        label: '中世纪骑士史诗',
+        hint: '14 世纪西欧、链甲板甲、城堡攻防',
+        previewPrompt:
+            'Western European medieval historical epic in the fourteenth century CE, mounted adult knight in mail and transitional plate with a visored bascinet and simple surcoat approaching a fortified stone gate, infantry with long spears and shields beside the muddy causeway, restrained fictional heraldic colors, overcast natural light and weathered equipment, no wounds, no text, no logo',
+        imagePromptPrefix:
+            'live-action fourteenth-century Western European medieval drama, period mail and transitional plate armor, bascinets, wool surcoats, practical swords, spears and shields, fortified stone castles and timber villages, coherent medieval saddle equipment, weathered metal and cloth, realistic human and horse anatomy',
+        videoPromptPrefix:
+            'fourteenth-century Western European knight drama video, convincing armor weight, horse gait and controlled infantry formations, preserve period bascinets, mail and transitional plate rather than later tournament suits, coherent castle and causeway geography, restrained historical combat staging and natural light',
+        negativePrompt:
+            'sixteenth-century ornate tournament plate, modern fantasy armor, oversized swords, Roman legion gear, Viking horned helmets, modern uniforms, modern firearms, mixed centuries, excessive gore, readable banners, text, logo, watermark'
+    },
+    {
+        key: 'ancient-persian-epic',
+        label: '古波斯帝国史诗',
+        hint: '阿契美尼德、长矛弓兵、石柱宫城',
+        previewPrompt:
+            'Achaemenid Persian imperial historical epic in the fifth century BCE, adult spear guards and archers in patterned long-sleeved tunics and trousers standing beside tall wicker shields at a limestone palace terrace, fluted columns and monumental animal-capital gateways inspired by Persepolis, woven textiles and restrained gold details, clear plateau sunrise, no wounds, no text, no logo',
+        imagePromptPrefix:
+            'live-action ancient Persian Achaemenid imperial drama set in the fifth century BCE, coherent patterned tunics and trousers, practical soft headdresses, spears, bows and wicker shields, restrained scale armor where appropriate, limestone terraces, fluted columns and animal-capital gateways, historically grounded textiles and court dress',
+        videoPromptPrefix:
+            'fifth-century BCE Achaemenid Persian historical epic video, disciplined spear-guard and archer movement, preserve period tunics, trousers, wicker shields and palace architecture, realistic cloth weight and weapon handling, measured monumental camera movement under natural Iranian plateau light',
+        negativePrompt:
+            'Islamic mosque domes, minarets, Mughal palace, medieval scimitars, Ottoman uniforms, Arab fantasy caricature, modern flags, firearms, mixed historical eras, excessive gore, cuneiform text, logo, watermark'
+    },
+    {
+        key: 'three-kingdoms-epic',
+        label: '三国战争史诗',
+        hint: '汉末三国、札甲弩阵、江河营垒',
+        previewPrompt:
+            'historically grounded late Han and Three Kingdoms Chinese war epic in the early third century CE, adult commander in practical lamellar armor surveying spear infantry and crossbow troops beside a riverbank timber camp, period helmets and layered Han robes, wooden watchtower, restrained banners without writing, misty river and dawn light, no wounds, no text, no logo',
+        imagePromptPrefix:
+            'live-action late Han and Three Kingdoms Chinese historical drama, early third century CE only, practical lamellar armor and period helmets, layered Han robes, straight swords, spears and crossbows, timber fortifications and river transport, restrained period color and materials, natural human anatomy and historically coherent equipment',
+        videoPromptPrefix:
+            'early-third-century CE late Han and Three Kingdoms historical war video, grounded spear and crossbow formation movement, plausible riverboat weight and camp geography, preserve lamellar armor, Han clothing and period weapons, readable group actions with controlled epic camera motion and natural misty light',
+        negativePrompt:
+            'firearms, cannons, counterweight trebuchets, medieval European plate armor, Japanese Sengoku armor, Qing queue hairstyle, Ming court dress, fantasy flying swords, modern saddle stirrups, mixed historical eras, excessive gore, readable banners, text, logo, watermark'
+    },
+    {
+        key: 'mesoamerican-epic',
+        label: '玛雅古城史诗',
+        hint: '7 世纪古典玛雅、阶梯神庙、雨林城邦',
+        previewPrompt:
+            'Classic Maya historical epic in the seventh century CE, adult city guards with obsidian-tipped spears and hide-covered wooden shields standing on a plastered palace terrace above a humid rainforest plaza, stepped limestone temple with red painted stucco, woven cotton garments and restrained jade ornaments, culturally grounded Classic Maya architecture, dawn mist, no wounds, no text, no logo',
+        imagePromptPrefix:
+            'live-action Classic Maya historical drama set in the seventh century CE, specific Classic Maya city-state material culture, stepped limestone temples and corbel-vaulted palaces with pigmented stucco, woven cotton garments, restrained jade ornaments, obsidian-tipped spears and wooden shields, humid rainforest setting and realistic human proportions',
+        videoPromptPrefix:
+            'seventh-century CE Classic Maya historical epic video, grounded movement through coherent stepped plazas and corbel-vaulted stone architecture, preserve cotton textiles, obsidian tools, wooden shields and restrained jade details, realistic tropical light, foliage and weather, respectful everyday or defensive staging without ritual spectacle clichés',
+        negativePrompt:
+            'Aztec Tenochtitlan, Inca stonework, European armor, metal swords, horses, firearms, modern flags, pan-Indigenous costume mixture, fantasy feather armor, sacrifice spectacle, excessive gore, readable glyphs, text, logo, watermark'
+    },
+    // ============ 日常内容与商业影像 ============
+    {
+        key: 'cozy-sitcom',
+        label: '日常情景喜剧',
+        hint: '温暖客厅、固定机位、轻松群像',
+        previewPrompt:
+            'warm live-action everyday sitcom still, three fictional adult roommates in a modest lived-in apartment kitchen reacting with comic surprise to a loaf of bread rising out of an overloaded toaster, grounded friendly expressions, warm practical lamps, readable medium-wide ensemble framing, natural skin texture, no text, no logo',
+        imagePromptPrefix:
+            'warm live-action everyday sitcom photography, inviting lived-in homes, believable ordinary adult ensemble cast, natural skin texture and comfortable everyday clothing, readable medium-wide relationship staging, gentle warm practical lighting, expressive but grounded comedic reactions, consistent recurring set geography',
+        videoPromptPrefix:
+            'warm everyday sitcom video, grounded comedic performances with readable setups and reactions, mostly stable eye-level medium and ensemble shots, clear eyelines and conversational screen direction, natural pauses and restrained physical comedy, preserve the familiar home set and warm practical lighting',
+        negativePrompt:
+            'glamour beauty filter, exaggerated cartoon anatomy, horror lighting, aggressive shaky camera, chaotic montage, empty sterile showroom, forced distorted expressions, subtitles, text, logo, watermark'
+    },
+    {
+        key: 'mockumentary-comedy',
+        label: '伪纪录喜剧',
+        hint: '采访切镜、尴尬停顿、观察式幽默',
+        previewPrompt:
+            'observational live-action mockumentary comedy frame, fictional adult community-center employee looking directly into the camera with a restrained awkward smile while colleagues struggle to unfold a banner-shaped blank cloth behind them, ordinary office furniture, available fluorescent and window light, slightly imperfect handheld documentary framing, no text, no logo',
+        imagePromptPrefix:
+            'observational live-action mockumentary comedy, ordinary adult cast with natural grooming and unfiltered skin, believable workplaces or community spaces, available practical light, interview-like framing and candid reaction shots, subtle awkward humor, gently imperfect handheld composition, no glamour casting',
+        videoPromptPrefix:
+            'mockumentary comedy video filmed by a plausible in-world documentary crew, brief direct-to-camera looks and interview moments when scripted, motivated handheld reframing, restrained reaction zooms, awkward held pauses and observational background action, continuous geography and natural adult comedic performances',
+        negativePrompt:
+            'horror found footage, excessive camera shake, polished music-video montage, glamour lighting, artificial beauty filter, cartoon exaggeration, impossible camera position, interview subtitles, lower thirds, text, logo, watermark'
+    },
+    {
+        key: 'cooking-macro',
+        label: '美食微距',
+        hint: '真实食材、热气纹理、烹饪特写',
+        previewPrompt:
+            'photorealistic food macro photography, golden dumplings in a dark cast-iron skillet with crisp edible edges, tiny sizzling oil bubbles, fresh scallion pieces and a gentle wisp of steam, soft side window light revealing realistic food texture, tight appetizing composition, no people, no hands, no text, no logo',
+        imagePromptPrefix:
+            'photorealistic edible-food macro photography, authentic identifiable ingredients and plausible cooking states, crisp food surfaces, realistic moisture, oil and steam, carefully controlled side light, shallow but readable focus, clean kitchenware, object-only composition, no humans, no body parts',
+        videoPromptPrefix:
+            'photorealistic cooking macro video, one readable food preparation or cooking action per shot, plausible heat, steam, liquid flow and ingredient transformations, consistent utensil contact and vessel geometry, stable close camera or slow deliberate slider movement, preserve edible material textures, no humans or body parts',
+        negativePrompt:
+            'glass food, gemstones, impossible jelly interiors, inedible synthetic materials, people, hands, faces, human beauty features, plastic food, excessive steam obscuring food, incoherent melting, text, logo, watermark'
+    },
+    {
+        key: 'travel-diary',
+        label: '旅行影像日记',
+        hint: '在地生活、旅途片段、自然光影',
+        previewPrompt:
+            'personal travel diary photography, fictional adult traveler pausing beside a bicycle at a small coastal town market at sunrise, local fruit stalls, weathered buildings and fishing harbor beyond, respectful candid everyday atmosphere, natural travel clothing, soft golden available light and balanced person-and-place composition, no text, no logo',
+        imagePromptPrefix:
+            'personal live-action travel diary photography, geographically coherent places and respectful everyday local life, believable adult travelers with practical clothing and natural skin detail, available light and gently observed details, balanced environmental portraits, candid intimate composition and restrained natural colors',
+        videoPromptPrefix:
+            'live-action travel diary video, motivated walking shots, gentle observational pans and held views of everyday local activity, preserve geographic and cultural continuity, realistic weather and time of day, spontaneous adult performances and small meaningful travel details, calm natural camera movement',
+        negativePrompt:
+            'tourism stereotype collage, mixed landmarks from unrelated countries, artificial beauty filter, fashion runway posing, impossible drone transitions, oversaturated postcard colors, unreadable fast montage, text, logo, watermark'
+    },
+    {
+        key: 'outdoor-sports',
+        label: '户外运动纪实',
+        hint: '真实动作、运动追踪、山海光线',
+        previewPrompt:
+            'live-action outdoor sports documentary still, fictional adult trail runner in practical fitted sportswear and hydration vest rounding a rocky coastal ridge at sunrise, grounded foot contact and realistic stride, wind moving grass, distant sea and natural sweat detail, dynamic but readable environmental composition, no text, no logo',
+        imagePromptPrefix:
+            'live-action outdoor sports documentary photography, physically plausible athletic technique and body mechanics, practical sport-specific gear, realistic terrain and environmental conditions, natural sweat and clothing texture, motivated available light, readable action silhouettes and clear contact with the ground or equipment',
+        videoPromptPrefix:
+            'outdoor sports documentary video, physically coherent athletic movement with stable body proportions, continuous ground contact, realistic momentum and equipment response, motivated tracking camera or practical action-camera perspective, readable movement through consistent terrain, natural weather and lighting',
+        negativePrompt:
+            'impossible joint angles, floating feet, weightless jumps, changing sports equipment, artificial beauty filter, fashion posing instead of technique, impossible drone passage, unreadable camera shake, text, logo, watermark'
+    },
+    {
+        key: 'stage-musical',
+        label: '舞台音乐剧',
+        hint: '剧场布景、舞台追光、歌舞群像',
+        previewPrompt:
+            'live-action original stage musical production still, diverse fictional adult ensemble in coordinated contemporary costumes arranged on a stepped theatrical set, lead performer reaching toward a warm spotlight while supporting dancers hold a clear expressive formation, visible stage floor and deep blue backdrop, coherent theatrical lighting, no text, no logo',
+        imagePromptPrefix:
+            'live-action original stage musical photography, visible theatrical sets and stage floor, diverse adult ensemble with natural individual faces, coordinated costume and prop design, motivated theatrical spotlights and color washes, expressive performance poses and readable choreographic formations, preserve stage geography',
+        videoPromptPrefix:
+            'original stage musical video, rhythmically coordinated adult ensemble movement with coherent feet, spacing and stage marks, expressive theatrical acting, preserve the same set and costume design, deliberate wide choreography coverage and motivated close-ups, purposeful spotlight cues and physically plausible prop handling',
+        negativePrompt:
+            'recognizable copyrighted musical costumes, celebrity likeness, floating dancers, mismatched choreography, morphing limbs, random location changes, nightclub crowd replacing stage ensemble, subtitles, lyrics, text, logo, watermark'
+    },
+    {
+        key: 'fashion-editorial',
+        label: '时尚广告',
+        hint: '造型服装、杂志构图、精确布光',
+        previewPrompt:
+            'premium live-action fashion editorial photography, fictional adult model wearing an original sculptural cobalt coat with visible tailored seams in a minimal sandstone courtyard, bold clean silhouette, intentional negative space, controlled late-afternoon sidelight, realistic skin and fabric texture, elegant grounded pose, no brand marks, no text, no logo',
+        imagePromptPrefix:
+            'premium live-action fashion editorial photography, original unbranded wardrobe, carefully tailored silhouettes and visible textile construction, fictional adult cast with identity-specific faces and realistic skin texture, intentional graphic composition and negative space, precise motivated lighting and coherent styling',
+        videoPromptPrefix:
+            'premium fashion editorial video, controlled adult model performance with natural walking and deliberate poses, preserve garment cut, seams, fabric weight and fit across frames, restrained tracking or orbit camera movement, purposeful lighting and stable architectural space, coherent elegant visual rhythm',
+        negativePrompt:
+            'recognizable brand logos, copied signature garments, celebrity likeness, plastic skin, excessive beauty smoothing, distorted body proportions, changing outfit construction, incoherent fabric motion, text, logo, watermark'
+    },
+    {
+        key: 'product-commercial',
+        label: '产品广告',
+        hint: '无字产品、材质细节、棚拍光线',
+        previewPrompt:
+            'premium photorealistic unbranded product commercial, a compact original wireless speaker with a woven fabric grille and brushed aluminum base on a matte stone plinth, soft cyan background, precise rim highlight, realistic contact shadow and material detail, clean deliberate negative space, no people, no hands, no packaging text, no logo',
+        imagePromptPrefix:
+            'premium photorealistic object-only product advertising, original unbranded industrial design, stable product geometry, precise material boundaries, readable surface finish and functional details, controlled studio light, coherent contact shadows and reflections, minimalist composition, no humans, no body parts, no written claims',
+        videoPromptPrefix:
+            'premium object-only product commercial video, consistent product identity and dimensions across every frame, slow controlled turntable or camera movement, realistic reflections and contact shadows, reveal one functional or material detail at a time, stable seamless studio environment, no humans or body parts',
+        negativePrompt:
+            'people, hands, faces, human beauty features, visible brand marks, copied trademarked product shape, changing product geometry, floating controls, impossible assembly, unsupported advertising claims, text, logo, watermark'
+    },
+    {
+        key: 'science-explainer',
+        label: '科普可视化',
+        hint: '简明现象、剖面结构、清晰演示',
+        previewPrompt:
+            'clear unlabeled educational scientific visualization, white light passing through a simple triangular glass prism and separating into a clean spectrum on a neutral dark surface, physically consistent light direction and readable simplified geometry, restrained 3D rendering and precise composition, explanatory illustration rather than experimental proof, no people, no text, no logo',
+        imagePromptPrefix:
+            'clear simplified scientific visualization, one intelligible physical phenomenon or structural relationship per composition, coherent scale and geometry, restrained color coding without labels, clean explanatory 3D rendering or diagrammatic forms, visible assumptions expressed visually rather than claims of factual proof, no humans, no body parts',
+        videoPromptPrefix:
+            'clear scientific explainer visualization, demonstrate one simple phenomenon or relationship at a time with continuous coherent geometry and consistent scale, slow readable camera and object motion, stable visual color coding, avoid decorative changes that imply unsupported mechanisms, illustrative presentation without claims of experimental proof, no humans',
+        negativePrompt:
+            'people, hands, faces, human beauty features, pseudo-scientific symbols, fabricated measurements, illegible labels, incorrect mixed-scale diagrams, unsupported factual claims, cluttered arrows, decorative energy effects, text, logo, watermark'
+    },
+    {
+        key: 'architecture-tour',
+        label: '建筑空间漫游',
+        hint: '空间纵深、自然采光、连贯动线',
+        previewPrompt:
+            'photorealistic architectural interior photography, quiet original courtyard house with pale timber joinery, a sunken living room and broad glass doors opening onto a small fern garden, coherent circulation and structural proportions, soft morning skylight, corrected vertical lines and realistic material response, no people, no text, no logo',
+        imagePromptPrefix:
+            'photorealistic architecture and interior spatial photography, original coherent floor plans and circulation, plausible structural proportions, stable doors, windows and joinery, accurate material response, motivated daylight and practical fixtures, controlled wide lens with corrected verticals, object-and-space-led composition, no humans, no body parts',
+        videoPromptPrefix:
+            'architectural space tour video, slow continuous camera movement through plausible connected rooms at human eye level, preserve floor plan, doors, windows and structural dimensions across every frame, grounded parallax and realistic lens perspective, coherent daylight and material reflections, no humans or body parts',
+        negativePrompt:
+            'people, hands, faces, human beauty features, impossible corridors, morphing walls, changing window positions, floating stairs, broken perspective, extreme fisheye, abrupt camera teleportation, text, logo, watermark'
+    },
+    {
+        key: 'retro-rubber-hose',
+        label: '复古橡皮管动画',
+        hint: '黑白线条、软管四肢、复古弹性',
+        previewPrompt:
+            'original black-and-white 1930s-inspired rubber-hose 2D cartoon still, a cheerful original anthropomorphic pear character with a tiny bow tie balancing stacked teacups in a hand-drawn kitchen, simple continuous bendable tube arms and legs, bold ink contours, white gloves, subtle paper grain and playful monochrome stage composition, no famous characters, no text, no logo',
+        imagePromptPrefix:
+            'strict original monochrome rubber-hose 2D cartoon, bold hand-inked contours, simple bendable tube limbs, elastic silhouettes and graphic black-white shapes, restrained gray wash backgrounds and subtle film grain, original character designs without imitating trademarked characters, clearly non-photorealistic drawn imagery',
+        videoPromptPrefix:
+            'strict original black-and-white rubber-hose 2D animation, rhythmic elastic tube-limb movement, readable squash and stretch, stable original character identity and controlled cartoon timing, preserve monochrome ink contours and hand-drawn backgrounds across every frame, no live action and no 3D rendering',
+        negativePrompt:
+            'trademarked cartoon characters, mouse-eared mascot imitation, copied character silhouette, photorealism, live action, 3D rendering, full-color palette, realistic human anatomy, uncontrolled character morphing, text, logo, watermark'
+    },
+    {
+        key: 'modern-family-animation',
+        label: '亲子家庭动画',
+        hint: '原创家庭、代际陪伴、温暖成长',
+        previewPrompt:
+            'original warm stylized 3D family animation, a fictional multigenerational family with parents, a grandparent and a school-age child working together to repair a small homemade cardboard kite at a bright kitchen table, distinct original human faces and age-appropriate proportions, gentle affectionate expressions, soft morning light, polished family-film composition, no famous characters, no text, no logo',
+        imagePromptPrefix:
+            'original warm stylized 3D family animation, diverse believable human families across generations, distinct original faces and age-appropriate body proportions, intergenerational companionship and everyday growth, appealing expressive character design, lived-in homes and tactile handmade props, gentle natural colors and soft cinematic light',
+        videoPromptPrefix:
+            'original stylized 3D family animation video, warm intergenerational interaction and expressive age-appropriate human performance, stable family character identities and proportions, gentle coordinated actions with physically coherent props, readable relationship staging and natural eye contact, polished soft family-film lighting, no live action',
+        negativePrompt:
+            'copied famous animated family, celebrity likeness, photorealistic live action, pets-only cast, adult proportions on children, sexualized child design, uncanny plastic faces, aggressive horror lighting, incoherent shared props, text, logo, watermark'
+    },
     ...REGIONAL_STORY_PRESETS.map(preset => ({
         ...expandedStylePreset(preset.key, preset.label, preset.hint, regionalVisualDirection(preset), 'text, logo, watermark, inconsistent cultural details, anachronistic props, malformed anatomy, low quality'),
         previewPrompt: buildRegionalPreviewPrompt(preset)

@@ -1,6 +1,7 @@
 'use client'
 
 import { useConfirmDialog } from '@/components/ConfirmDialog'
+import { isUploadedDrama } from '@/lib/uploaded-drama'
 import CreationJourney, { type CreationStage } from '@/components/CreationJourney'
 import CustomSelect from '@/components/CustomSelect'
 import HomeLogoLink from '@/components/HomeLogoLink'
@@ -129,6 +130,7 @@ interface Episode {
 }
 
 interface Project {
+    sourceAnswers?: unknown
     id: string
     title: string
     description: string | null
@@ -169,7 +171,7 @@ function ReferencePromptDialog({ kindLabel, name, initialValue, savedValue, savi
     }, [])
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-3 py-4 backdrop-blur-sm sm:px-6"
             onClick={() => !saving && onClose()}>
             <section
                 ref={dialogRef}
@@ -193,9 +195,9 @@ function ReferencePromptDialog({ kindLabel, name, initialValue, savedValue, savi
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="reference-prompt-title"
-                className="w-full max-w-2xl rounded-xl border border-gray-700 bg-gray-950 p-5 shadow-xl"
+                className="studio-reference-prompt-dialog flex max-h-[calc(100dvh-2rem)] w-full max-w-[1080px] flex-col overflow-hidden rounded-xl border border-purple-500/25 bg-gray-950 shadow-2xl shadow-black/60"
                 onClick={event => event.stopPropagation()}>
-                <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="flex shrink-0 items-center justify-between gap-3 border-b border-gray-800 px-4 py-3 sm:px-5">
                     <h2
                         id="reference-prompt-title"
                         className="font-semibold text-white">
@@ -206,36 +208,41 @@ function ReferencePromptDialog({ kindLabel, name, initialValue, savedValue, savi
                         aria-label={t('关闭')}
                         disabled={saving}
                         onClick={onClose}
-                        className="rounded p-2 text-gray-400 hover:text-white">
+                        className="app-icon-action rounded p-2 text-gray-400 hover:text-white">
                         <X className="h-4 w-4" />
                     </button>
                 </div>
-                <textarea
-                    aria-label={kindLabel}
-                    value={draft}
-                    maxLength={20_000}
-                    rows={8}
-                    disabled={saving}
-                    onChange={event => setDraft(event.target.value)}
-                    placeholder={placeholder}
-                    className="w-full rounded-lg border border-gray-700 bg-gray-900 p-3 text-sm text-gray-100 focus:border-purple-400"
-                />
-                {hasReferences && <p className="mt-2 text-xs text-gray-400">{t('保存后，需要重新生成相关图片才能应用修改。')}</p>}
-                <div className="mt-4 flex justify-end gap-2">
-                    <button
-                        type="button"
+                <div className="novel-scroll min-h-0 overflow-y-auto px-4 py-3 sm:px-5">
+                    <textarea
+                        aria-label={kindLabel}
+                        value={draft}
+                        maxLength={20_000}
+                        rows={6}
                         disabled={saving}
-                        onClick={onClose}
-                        className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300">
-                        {t('取消')}
-                    </button>
-                    <button
-                        type="button"
-                        disabled={saving || !draft.trim() || draft.trim() === savedValue.trim()}
-                        onClick={() => void onSave(draft.trim())}
-                        className="rounded-lg bg-purple-600 px-4 py-2 text-sm text-white disabled:opacity-40">
-                        {saving ? t('保存中...') : t('保存')}
-                    </button>
+                        onChange={event => setDraft(event.target.value)}
+                        placeholder={placeholder}
+                        className="w-full rounded-lg border border-gray-700 bg-gray-900 p-3 text-sm text-gray-100 focus:border-purple-400"
+                    />
+                    {hasReferences && <p className="mt-2 text-xs text-gray-400">{t('保存后，需要重新生成相关图片才能应用修改。')}</p>}
+                </div>
+                <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-gray-800 px-4 py-3 sm:px-5">
+                    <div className="text-xs tabular-nums text-gray-500">{draft.length.toLocaleString()} / 20,000</div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            disabled={saving}
+                            onClick={onClose}
+                            className="app-action rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300">
+                            {t('取消')}
+                        </button>
+                        <button
+                            type="button"
+                            disabled={saving || !draft.trim() || draft.trim() === savedValue.trim()}
+                            onClick={() => void onSave(draft.trim())}
+                            className="studio-primary rounded-lg bg-purple-600 px-4 py-2 text-sm text-white disabled:opacity-40">
+                            {saving ? t('保存中...') : t('保存')}
+                        </button>
+                    </div>
                 </div>
             </section>
         </div>
@@ -773,6 +780,10 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
             const json = await res.json()
             if (!json.success) throw new Error(json.error ?? '项目加载失败')
             const nextProject = json.data as Project
+            if (isUploadedDrama(nextProject.sourceAnswers)) {
+                router.replace(`/uploads/${id}`)
+                return null
+            }
             if (requestVersion !== projectRequestVersion.current) return null
             setProject(previous => {
                 if (!previous || previous.id !== nextProject.id) return nextProject
@@ -1937,7 +1948,7 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
                             href="/projects"
                             title="全部项目"
                             aria-label="全部项目"
-                            className="mt-2 flex h-10 w-full items-center justify-center rounded-md text-gray-500 hover:bg-gray-900 hover:text-gray-200 transition-colors">
+                            className="app-action mt-2 flex h-10 w-full items-center justify-center rounded-md text-gray-500 hover:bg-gray-900 hover:text-gray-200 transition-colors">
                             <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
                         </Link>
                     ) : (
@@ -1976,7 +1987,7 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
                                         disabled={savingProjectTitle}
                                         aria-label="取消修改项目名称"
                                         title="取消"
-                                        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-40">
+                                        className="app-icon-action flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-40">
                                         <X className="h-4 w-4" />
                                     </button>
                                 </form>
@@ -2111,48 +2122,50 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
 
             {/* 右侧主工作区 */}
             <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
-                <div className="studio-mobile-nav flex shrink-0 items-center gap-3 border-b border-white/[0.07] px-4 py-3 text-xs text-slate-400 md:hidden">
-                    <HomeLogoLink compact />
-                    <Link
-                        href="/projects"
-                        className="me-auto flex items-center gap-1.5">
-                        <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" />
-                        全部项目
-                    </Link>
-                    <Link
-                        href={`/projects/${id}/publication`}
-                        aria-label={t('发布作品')}>
-                        <Globe className="h-4 w-4" />
-                    </Link>
-                    <Link
-                        href={projectTabHref(id, 'episodes')}
-                        prefetch={false}
-                        onNavigate={event => {
-                            event.preventDefault()
-                            navigateToProjectTab('episodes')
-                        }}>
-                        集数
-                    </Link>
-                    <Link
-                        href={projectTabHref(id, 'characters')}
-                        prefetch={false}
-                        onNavigate={event => {
-                            event.preventDefault()
-                            navigateToProjectTab('characters')
-                        }}>
-                        角色
-                    </Link>
-                    <Link
-                        href={projectTabHref(id, 'scenes')}
-                        prefetch={false}
-                        onNavigate={event => {
-                            event.preventDefault()
-                            navigateToProjectTab('scenes')
-                        }}>
-                        场景
-                    </Link>
-                </div>
                 <CreationJourney
+                    mobileNavigation={
+                        <>
+                            <HomeLogoLink compact />
+                            <Link
+                                href="/projects"
+                                className="me-auto flex items-center gap-1.5">
+                                <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" />
+                                全部项目
+                            </Link>
+                            <Link
+                                href={`/projects/${id}/publication`}
+                                aria-label={t('发布作品')}>
+                                <Globe className="h-4 w-4" />
+                            </Link>
+                            <Link
+                                href={projectTabHref(id, 'episodes')}
+                                prefetch={false}
+                                onNavigate={event => {
+                                    event.preventDefault()
+                                    navigateToProjectTab('episodes')
+                                }}>
+                                集数
+                            </Link>
+                            <Link
+                                href={projectTabHref(id, 'characters')}
+                                prefetch={false}
+                                onNavigate={event => {
+                                    event.preventDefault()
+                                    navigateToProjectTab('characters')
+                                }}>
+                                角色
+                            </Link>
+                            <Link
+                                href={projectTabHref(id, 'scenes')}
+                                prefetch={false}
+                                onNavigate={event => {
+                                    event.preventDefault()
+                                    navigateToProjectTab('scenes')
+                                }}>
+                                场景
+                            </Link>
+                        </>
+                    }
                     current={journeyStage}
                     steps={{
                         outline: {
@@ -2409,7 +2422,7 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
                                                 <button
                                                     type="button"
                                                     onClick={() => openCharacterPromptEditor(char)}
-                                                    className="mb-3 flex w-full items-center gap-2 rounded-lg border border-amber-300/60 bg-amber-950/60 px-3 py-2 text-start text-xs text-amber-200 hover:bg-amber-950">
+                                                    className="app-action mb-3 flex w-full items-center gap-2 rounded-lg border border-amber-300/60 bg-amber-950/60 px-3 py-2 text-start text-xs text-amber-200 hover:bg-amber-950">
                                                     <Sparkles className="w-3 h-3" />
                                                     缺少外貌描述，会影响角色一致性
                                                 </button>
@@ -2861,7 +2874,7 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
                             type="button"
                             aria-label="关闭图片预览"
                             onClick={() => setReferencePreview(null)}
-                            className="absolute right-0 top-0 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-gray-900/90 text-gray-300 hover:bg-gray-800 hover:text-white">
+                            className="app-icon-action absolute right-0 top-0 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-gray-900/90 text-gray-300 hover:bg-gray-800 hover:text-white">
                             <X className="h-4 w-4" />
                         </button>
                         {referencePreview.urls.length > 1 && (
@@ -2874,7 +2887,7 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
                                         event.stopPropagation()
                                         moveReferencePreview(-1)
                                     }}
-                                    className="absolute left-1 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-gray-950/75 text-white shadow-xl backdrop-blur-sm transition-colors hover:bg-purple-600/90 sm:left-3">
+                                    className="app-icon-action absolute left-1 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-gray-950/75 text-white shadow-xl backdrop-blur-sm transition-colors hover:bg-purple-600/90 sm:left-3">
                                     <ChevronLeft className="h-6 w-6" />
                                 </button>
                                 <button
@@ -2885,7 +2898,7 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
                                         event.stopPropagation()
                                         moveReferencePreview(1)
                                     }}
-                                    className="absolute right-1 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-gray-950/75 text-white shadow-xl backdrop-blur-sm transition-colors hover:bg-purple-600/90 sm:right-3">
+                                    className="app-icon-action absolute right-1 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-gray-950/75 text-white shadow-xl backdrop-blur-sm transition-colors hover:bg-purple-600/90 sm:right-3">
                                     <ChevronRight className="h-6 w-6" />
                                 </button>
                             </>
@@ -2915,7 +2928,7 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
                                     onClick={() => setSceneRefSelection(referencePreview.targetId, referencePreviewUrl, referencePreviewSelected)}
                                     disabled={referencePreviewSelectionBusy || (!referencePreviewSelected && referencePreviewSelectionFull)}
                                     aria-busy={referencePreviewSelectionBusy}
-                                    className="flex min-w-0 items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-2 font-medium text-white transition-colors hover:bg-purple-500 disabled:cursor-not-allowed disabled:bg-gray-800 disabled:text-gray-500">
+                                    className="app-action flex min-w-0 items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-2 font-medium text-white transition-colors hover:bg-purple-500 disabled:cursor-not-allowed disabled:bg-gray-800 disabled:text-gray-500">
                                     {referencePreviewSelectionBusy ? (
                                         <RefreshCw className="h-4 w-4 shrink-0 animate-spin" />
                                     ) : referencePreviewSelected ? (
@@ -2931,7 +2944,7 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
                                     onClick={() => selectCharRef(referencePreview.targetId, referencePreviewUrl, referencePreview.role)}
                                     disabled={referencePreviewSelectionBusy || referencePreviewSelected}
                                     aria-busy={referencePreviewSelectionBusy}
-                                    className="flex min-w-0 items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-2 font-medium text-white transition-colors hover:bg-purple-500 disabled:cursor-not-allowed disabled:bg-gray-800 disabled:text-gray-400">
+                                    className="app-action flex min-w-0 items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-2 font-medium text-white transition-colors hover:bg-purple-500 disabled:cursor-not-allowed disabled:bg-gray-800 disabled:text-gray-400">
                                     {referencePreviewSelectionBusy ? <RefreshCw className="h-4 w-4 shrink-0 animate-spin" /> : <Check className="h-4 w-4 shrink-0" />}
                                     <span className="truncate">{referencePreviewSelected ? t('形象已确认') : t('确认形象')}</span>
                                 </button>
@@ -3024,7 +3037,7 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
                         <div className="flex gap-3 mt-5">
                             <button
                                 onClick={() => setShowAddChar(false)}
-                                className="flex-1 py-2 text-sm text-gray-400 border border-gray-700 rounded-lg hover:border-gray-600 transition-colors">
+                                className="app-action flex-1 py-2 text-sm text-gray-400 border border-gray-700 rounded-lg hover:border-gray-600 transition-colors">
                                 取消
                             </button>
                             <button
@@ -3093,7 +3106,7 @@ export function ProjectWorkspace({ initialTab = 'novel' }: { initialTab?: Projec
                         <div className="flex gap-3 mt-5">
                             <button
                                 onClick={() => setShowAddScene(false)}
-                                className="flex-1 py-2 text-sm text-gray-400 border border-gray-700 rounded-lg hover:border-gray-600 transition-colors">
+                                className="app-action flex-1 py-2 text-sm text-gray-400 border border-gray-700 rounded-lg hover:border-gray-600 transition-colors">
                                 取消
                             </button>
                             <button

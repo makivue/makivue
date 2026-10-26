@@ -1,5 +1,6 @@
 'use client'
 
+import AppVideo from '@/components/AppVideo'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link, { useRouter } from '@/i18n/navigation'
@@ -31,10 +32,16 @@ import CustomSelect from '@/components/CustomSelect'
 import SiteFooter from '@/components/SiteFooter'
 import SiteHeader from '@/components/SiteHeader'
 import CreationModeNav from './CreationModeNav'
+import VideoThemeComposer, { VideoCreationModes } from './VideoThemeComposer'
+import VideoMergeComposer from './VideoMergeComposer'
+import { parseVideoThemePlan, videoThemeSourceKey, type VideoThemeInput } from '@/lib/creator-video-plan'
 import DramaSettingsDialog from './drama/DramaSettingsDialog'
 import styles from './CreatorWorkspace.module.css'
 import HomeLogoLink from '@/components/HomeLogoLink'
 import { clientFetch } from '@/lib/client-fetch'
+import { creatorGenerationErrorMessage, creatorGenerationFailureSummary, readCreatorApiResponse as readJsonResponse } from '@/lib/creator-api-response'
+import { prepareCreatorReferenceUploads } from '@/lib/creator-reference-upload'
+import { readCreatorGenerationPoll } from '@/lib/creator-generation-poll'
 import { CREATION_PRODUCTS } from '@/lib/creation-products'
 import { runWithConcurrency } from '@/lib/bounded-concurrency'
 import { getPollingDelay } from '@/lib/polling'
@@ -54,20 +61,13 @@ import {
 import { isHiModelsImageModel } from '@/lib/himodels-models'
 import { isGenerationModelVisible } from '@/lib/model-display'
 import { useI18n } from '@/i18n/I18nProvider'
+import DiagnosticMessage from '@/components/DiagnosticMessage'
 import { creatorReferenceLimitMessage, MAX_CREATOR_REFERENCE_IMAGES, validateCreatorReferenceImages } from '@/lib/creator-reference-images'
 import { MAX_IMAGE_REFERENCE_VIDEOS } from '@/lib/creator-reference-video'
-import {
-    formatReferenceVideoDurationViolation,
-    getReferenceVideoDurationViolation,
-    MAX_REFERENCE_VIDEO_BYTES,
-    MAX_STORYBOARD_REFERENCE_VIDEOS,
-    parseStoryboardReferenceVideos,
-    resolveReferenceVideoMimeType,
-    type StoryboardReferenceVideo
-} from '@/lib/storyboard-reference-videos'
+import { formatReferenceVideoDurationViolation, getReferenceVideoDurationViolation, MAX_REFERENCE_VIDEO_BYTES, MAX_STORYBOARD_REFERENCE_VIDEOS, parseStoryboardReferenceVideos, resolveReferenceVideoMimeType, type StoryboardReferenceVideo } from '@/lib/storyboard-reference-videos'
 
 import { useCreatorState, useRemoveCreatorAssets } from './CreatorSessionProvider'
-import type { Mode, ImageModel, VideoModel, AssetFilter, AspectRatio, CreatorAsset } from './creator-session'
+import type { Mode, ImageModel, VideoModel, AspectRatio, CreatorAsset } from './creator-session'
 
 const EXAMPLES = {
     image: ['雨夜霓虹街头，一位侦探撑伞回望，电影感光影', '清晨薄雾中的东方山水，飞鸟掠过湖面，写实摄影'],
@@ -109,16 +109,6 @@ function ratioShapeClass(ratio: AspectRatio) {
     return 'h-5 w-5'
 }
 
-async function readJsonResponse(response: Response) {
-    const text = await response.text()
-    try {
-        return JSON.parse(text)
-    } catch {
-        const fallback = text.trim().slice(0, 240)
-        throw new Error(response.status === 504 ? '生成服务响应超时，请稍后重试' : fallback || `请求失败（HTTP ${response.status}）`)
-    }
-}
-
 function readBrowserVideoDuration(file: File): Promise<number | null> {
     return new Promise(resolve => {
         const video = document.createElement('video')
@@ -153,6 +143,13 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
     const providerSwitchToastJobIds = useRef<Set<string>>(new Set())
     const { userId, signingIn, requireAuth } = useCreationAuth()
     const [prompt, setPrompt] = useCreatorState(mode, 'prompt')
+    const [videoCreationMode, setVideoCreationMode] = useCreatorState(mode, 'videoCreationMode')
+    const [videoTheme, setVideoTheme] = useCreatorState(mode, 'videoTheme')
+    const [videoThemePlan, setVideoThemePlan] = useCreatorState(mode, 'videoThemePlan')
+    const [videoThemePlanJob, setVideoThemePlanJob] = useCreatorState(mode, 'videoThemePlanJob')
+    const [videoThemePlanning, setVideoThemePlanning] = useCreatorState(mode, 'videoThemePlanning')
+    const themeMode = mode === 'video' && videoCreationMode === 'theme'
+    const mergeMode = mode === 'video' && videoCreationMode === 'merge'
     const [ratios, setRatios] = useCreatorState(mode, 'ratios')
     const previewRatio = ratios[0] ?? (mode === 'image' ? '1:1' : '16:9')
     const [previewWidth, previewHeight] = previewRatio.split(':').map(Number)
@@ -187,9 +184,10 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
     const [loading, setLoading] = useCreatorState(mode, 'loading')
     const [generationProgress, setGenerationProgress] = useCreatorState(mode, 'generationProgress')
     const [error, setError] = useCreatorState(mode, 'error')
-    const [assets, setAssets] = useCreatorState(mode, 'assets')
+    const [referenceError, setReferenceError] = useCreatorState(mode, 'referenceError')
+    const [savedAssets, setAssets] = useCreatorState(mode, 'assets')
+    const assets = useMemo(() => savedAssets.filter(asset => asset.type === mode), [savedAssets, mode])
     const [assetsLoading, setAssetsLoading] = useCreatorState(mode, 'assetsLoading')
-    const [assetFilter, setAssetFilter] = useCreatorState(mode, 'assetFilter')
     const [nextCursor, setNextCursor] = useCreatorState(mode, 'nextCursor')
     const [galleryError, setGalleryError] = useCreatorState(mode, 'galleryError')
     const [coverTargetId, setCoverTargetId] = useCreatorState(mode, 'coverTargetId')
@@ -197,13 +195,27 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
     const [deletingAssetIds, setDeletingAssetIds] = useCreatorState(mode, 'deletingAssetIds')
     const [selectingAssets, setSelectingAssets] = useCreatorState(mode, 'selectingAssets')
     const [selectedAssetIds, setSelectedAssetIds] = useCreatorState(mode, 'selectedAssetIds')
+    const [expandedAssetPromptIds, setExpandedAssetPromptIds] = useState<Set<string>>(new Set())
     const removeAssetsFromSessions = useRemoveCreatorAssets()
     const deletingAssets = deletingAssetIds.length > 0
     const selectedAssetIdSet = new Set(selectedAssetIds)
     const selectedAssets = assets.filter(asset => selectedAssetIdSet.has(asset.id))
     const allLoadedAssetsSelected = assets.length > 0 && selectedAssets.length === assets.length
+    const toggleAssetPrompt = (assetId: string) => {
+        setExpandedAssetPromptIds(current => {
+            const next = new Set(current)
+            if (next.has(assetId)) next.delete(assetId)
+            else next.add(assetId)
+            return next
+        })
+    }
     const { confirm, confirmDialog } = useConfirmDialog()
     const selectedVideoCapability = getVideoProviderCapability(videoModel)
+    const themeInput: VideoThemeInput = { ...videoTheme, language: videoTheme.language || locale, provider: videoModel, duration: Number(duration), ratio: previewRatio }
+    const themeSourceKey = videoThemeSourceKey(themeInput)
+    const themePlanCurrent = videoThemePlan?.sourceKey === themeSourceKey
+    const themeAudioError = themeMode && videoTheme.audio === 'narration' && !selectedVideoCapability?.nativeDialogue ? t('当前模型不支持原生对白，请选择支持原生对白的视频模型。') : null
+    const composerBusy = loading || videoThemePlanning
     const ratioOptions = mode === 'image' ? IMAGE_RATIO_OPTIONS : isHiModelsH3Provider(videoModel) ? VIDEO_RATIO_OPTIONS : VIDEO_RATIO_OPTIONS.filter(option => option.value !== '21:9')
     const imageReferenceLimit =
         mode === 'video' ? (selectedVideoCapability?.maxImageReferences ?? 0) : getImageProviderCapability(imageModel)?.maxImageReferences || getImageProviderCapability('banana')!.maxImageReferences
@@ -222,14 +234,13 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
             : null
 
     const loadAssets = useCallback(
-        async (filter: AssetFilter, cursor?: string) => {
+        async (cursor?: string) => {
             if (!isLoggedIn()) return
             const requestedUserId = getAuthUser()?.userId
             setAssetsLoading(true)
             setGalleryError(null)
             try {
-                const query = new URLSearchParams({ limit: '24' })
-                if (filter !== 'all') query.set('type', filter)
+                const query = new URLSearchParams({ limit: '24', type: mode })
                 if (cursor) query.set('cursor', cursor)
                 const response = await clientFetch(`/api/create/assets?${query}`, { timeoutMs: 20_000 })
                 const json = await readJsonResponse(response)
@@ -243,7 +254,17 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
                 setAssetsLoading(false)
             }
         },
-        [setAssets, setAssetsLoading, setGalleryError, setNextCursor]
+        [mode, setAssets, setAssetsLoading, setGalleryError, setNextCursor]
+    )
+
+    const completeVideoMerge = useCallback(
+        (asset: CreatorAsset) => {
+            setResultAsset(asset)
+            setResultUrl(asset.url)
+            setResultAssets([asset])
+            void loadAssets()
+        },
+        [setResultAsset, setResultUrl, setResultAssets, loadAssets]
     )
 
     useEffect(() => {
@@ -260,9 +281,9 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
 
     useEffect(() => {
         if (!userId) return
-        const timer = window.setTimeout(() => void loadAssets(assetFilter), 0)
+        const timer = window.setTimeout(() => void loadAssets(), 0)
         return () => window.clearTimeout(timer)
-    }, [assetFilter, userId, loadAssets])
+    }, [userId, loadAssets])
 
     function addReferenceImages(selected: FileList | null) {
         const additions = Array.from(selected ?? [])
@@ -271,11 +292,11 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
         const next = [...files, ...additions]
         const validationError = validateCreatorReferenceImages(next, savedImageAsset ? 1 : 0)
         if (validationError) {
-            setError(validationError)
+            setReferenceError(validationError)
             return
         }
         setFiles(next)
-        setError(null)
+        setReferenceError(null)
     }
 
     function toggleRatio(value: AspectRatio) {
@@ -284,7 +305,7 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
 
     function addAsset(asset: CreatorAsset) {
         setAssets(current => {
-            if (assetFilter !== 'all' && assetFilter !== asset.type) return current
+            if (asset.type !== mode) return current
             return [asset, ...current.filter(item => item.id !== asset.id)]
         })
         setResultAssets(current => [asset, ...current.filter(item => item.id !== asset.id)])
@@ -299,6 +320,7 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
             const restoredRatio = availableRatios.some(option => option.value === asset.ratio) ? (asset.ratio as AspectRatio) : mode === 'image' ? '1:1' : '16:9'
 
             setPrompt(asset.prompt ?? '')
+            setVideoCreationMode('direct')
             setRatios([restoredRatio])
             setFiles([])
             setReferenceVideos([])
@@ -319,10 +341,28 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
             setResultUrl(asset.url)
             setResultAssets([asset])
             setError(null)
+            setReferenceError(null)
             requestAnimationFrame(() => formSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
             pushToast('success', asset.type === 'image' ? '已填充原文案和参考图，可以继续二次创作。' : '已填充原文案和参考视频，可以继续二次创作。')
         },
-        [mode, videoModel, setPrompt, setRatios, setFiles, setReferenceVideos, setReferenceAsset, setImageModel, setVideoModel, setDuration, setResultAsset, setResultUrl, setResultAssets, setError]
+        [
+            mode,
+            videoModel,
+            setPrompt,
+            setVideoCreationMode,
+            setRatios,
+            setFiles,
+            setReferenceVideos,
+            setReferenceAsset,
+            setImageModel,
+            setVideoModel,
+            setDuration,
+            setResultAsset,
+            setResultUrl,
+            setResultAssets,
+            setError,
+            setReferenceError
+        ]
     )
 
     useEffect(() => {
@@ -379,7 +419,7 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
                 body: form,
                 timeoutMs: 60_000
             })
-            const json = await readJsonResponse(response)
+            const json = await readJsonResponse(response, 'upload')
             if (!json.success) throw new Error(json.error ?? '封面设置失败')
             const updated = json.data as CreatorAsset
             setAssets(current => current.map(item => (item.id === updated.id ? updated : item)))
@@ -432,6 +472,7 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
     }
 
     async function removeSelectedAssets() {
+
         if (deletingAssets || assetsLoading || !selectedAssets.length) return
         const approved = await confirm({
             title: t('删除选中的 {count} 条作品？').replace('{count}', String(selectedAssets.length)),
@@ -444,6 +485,7 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
     }
 
     async function removeAsset(asset: CreatorAsset) {
+
         if (deletingAssets) return
         const assetType = asset.type === 'video' ? '视频' : '图片'
         const previewUrl = asset.type === 'image' ? asset.url : asset.coverUrl
@@ -483,22 +525,22 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
         const selected = Array.from(files)
         if (referenceVideoInputRef.current) referenceVideoInputRef.current.value = ''
         if (referenceVideoLimit === 0) {
-            setError(`${selectedVideoCapability?.label ?? videoModel} 不支持视频作为参考素材`)
+            setReferenceError(`${selectedVideoCapability?.label ?? videoModel} 不支持视频作为参考素材`)
             return
         }
         const remaining = referenceVideoLimit - referenceVideoCount
         if (selected.length > remaining) {
-            setError(t('最多上传 {count} 个参考视频').replace('{count}', String(referenceVideoLimit)))
+            setReferenceError(t('最多上传 {count} 个参考视频').replace('{count}', String(referenceVideoLimit)))
             return
         }
         const invalid = selected.find(item => !resolveReferenceVideoMimeType(item.type, item.name) || item.size > MAX_REFERENCE_VIDEO_BYTES)
         if (invalid) {
-            setError(invalid.size > MAX_REFERENCE_VIDEO_BYTES ? `${invalid.name} 超过 300MB` : `${invalid.name} 不是支持的 MP4、MOV 或 WebM 视频`)
+            setReferenceError(invalid.size > MAX_REFERENCE_VIDEO_BYTES ? `${invalid.name} 超过 300MB` : `${invalid.name} 不是支持的 MP4、MOV 或 WebM 视频`)
             return
         }
 
         setUploadingReferenceVideos(true)
-        setError(null)
+        setReferenceError(null)
         try {
             if (!(await requireAuth())) return
             const selectedDurations = referenceVideoDurationRule ? await Promise.all(selected.map(readBrowserVideoDuration)) : []
@@ -525,7 +567,7 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
             }
             pushToast('success', `已上传 ${selected.length} 个参考视频`)
         } catch (uploadError) {
-            setError(uploadError instanceof Error ? uploadError.message : '参考视频上传失败')
+            setReferenceError(uploadError instanceof Error ? uploadError.message : '参考视频上传失败')
         } finally {
             setUploadingReferenceVideos(false)
         }
@@ -534,7 +576,7 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
     async function deleteReferenceVideo(video: StoryboardReferenceVideo) {
         if (deletingReferenceVideoId || uploadingReferenceVideos || loading) return
         setDeletingReferenceVideoId(video.id)
-        setError(null)
+        setReferenceError(null)
         try {
             const response = await clientFetch('/api/create/reference-videos', {
                 method: 'DELETE',
@@ -546,20 +588,59 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
             if (!response.ok || !json.success) throw new Error(json.error ?? '参考视频删除失败')
             setReferenceVideos(current => current.filter(item => item.id !== video.id))
         } catch (deleteError) {
-            setError(deleteError instanceof Error ? deleteError.message : '参考视频删除失败')
+            setReferenceError(deleteError instanceof Error ? deleteError.message : '参考视频删除失败')
         } finally {
             setDeletingReferenceVideoId(null)
         }
     }
 
+    async function ensureThemePlan(force = false) {
+        const input = { ...themeInput }
+        const sourceKey = videoThemeSourceKey(input)
+        if (!force && videoThemePlan?.sourceKey === sourceKey) return parseVideoThemePlan(videoThemePlan)
+        const ownerId = getAuthUser()?.userId
+        setVideoThemePlanning(true)
+        try {
+            let jobId = !force && videoThemePlanJob?.sourceKey === sourceKey ? videoThemePlanJob.id : null
+            if (!jobId) {
+                const response = await clientFetch('/api/create/video/plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input), timeoutMs: 30_000 })
+                const json = await readJsonResponse(response, 'generation')
+                if (!json.success) throw new Error(json.error ?? '创作脚本生成失败')
+                jobId = String(json.data.jobId)
+                setVideoThemePlanJob({ id: jobId, sourceKey })
+            }
+            const deadline = Date.now() + 10 * 60 * 1000
+            while (Date.now() < deadline) {
+                await new Promise(resolve => setTimeout(resolve, getPollingDelay({ baseMs: 3000 })))
+                if (!isLoggedIn() || getAuthUser()?.userId !== ownerId) throw new Error('请先登录')
+                const status = await readCreatorGenerationPoll(`/api/create/video/plan/${encodeURIComponent(jobId)}`, '创作脚本生成失败')
+                if (!status) continue
+                if (status.phase === 'done') {
+                    const plan = parseVideoThemePlan(status.result)
+                    setVideoThemePlan({ ...plan, sourceKey })
+                    setVideoThemePlanJob(null)
+                    return plan
+                }
+                if (status.phase === 'error' || status.phase === 'cancelled') {
+                    setVideoThemePlanJob(null)
+                    throw new Error(status.error ?? '创作脚本生成失败')
+                }
+            }
+            throw new Error('脚本仍在后台编写，请稍后再试')
+        } finally {
+            setVideoThemePlanning(false)
+        }
+    }
+
     async function generate() {
-        if (loading || uploadingReferenceVideos || deletingReferenceVideoId) return
+
+        if (composerBusy || uploadingReferenceVideos || deletingReferenceVideoId) return
         if (referenceImageError) {
             setError(referenceImageError)
             return
         }
-        if (!prompt.trim()) {
-            setError('先描述一下你想生成的画面')
+        if (!(themeMode ? videoTheme.topic : prompt).trim()) {
+            setError(themeMode ? '请输入视频主题' : '先描述一下你想生成的画面')
             return
         }
         if (ratios.length === 0) {
@@ -572,6 +653,10 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
         }
         if (mode === 'video' && referenceVideoDurationViolation) {
             setError(formatReferenceVideoDurationViolation(selectedVideoCapability?.label ?? videoModel, referenceVideoDurationViolation))
+            return
+        }
+        if (themeAudioError) {
+            setError(themeAudioError)
             return
         }
         setLoading(true)
@@ -589,39 +674,41 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
         setResultUrl(null)
         setResultAsset(null)
         setResultAssets([])
+        const generationOwnerId = getAuthUser()?.userId
         const selectedRatios = [...ratios]
 
         const generationMode = mode
         const selectedImageModel = imageModel
         const selectedVideoModel = videoModel
         const selectedDuration = duration
+        let uploadFiles = files
+        let generationPrompt = prompt.trim()
         setGenerationProgress({ done: 0, total: selectedRatios.length })
 
         const createForm = (selectedRatio: AspectRatio) => {
             const form = new FormData()
-            form.append('prompt', prompt.trim())
+            form.append('prompt', generationPrompt)
             form.append('ratio', selectedRatio)
             form.append('provider', generationMode === 'image' ? selectedImageModel : selectedVideoModel)
             if (referenceAsset?.type === 'image') form.append('referenceAssetId', referenceAsset.id)
             if (referenceAsset?.type === 'video') form.append('referenceVideoAssetId', referenceAsset.id)
-            for (const file of files) form.append('image', file)
+            for (const file of uploadFiles) form.append('image', file)
             form.append('referenceVideos', JSON.stringify(referenceVideos))
             return form
         }
 
         const generateImage = async (selectedRatio: AspectRatio) => {
             const response = await clientFetch('/api/create/image', { method: 'POST', body: createForm(selectedRatio), timeoutMs: 55_000 })
-            const json = await readJsonResponse(response)
+            const json = await readJsonResponse(response, 'generation')
             if (!json.success) throw new Error(json.error ?? '图片生成失败')
-            const deadline = Date.now() + 10 * 60 * 1000
+            const deadline = Date.now() + 35 * 60 * 1000
             let statusAttempt = 0
             while (Date.now() < deadline) {
                 const baseMs = [3_000, 5_000, 8_000, 12_000, 15_000][Math.min(statusAttempt++, 4)]
                 await new Promise(resolve => setTimeout(resolve, getPollingDelay({ baseMs })))
-                const statusResponse = await clientFetch(`/api/create/image/status/${encodeURIComponent(json.data.jobId)}`, { timeoutMs: 20_000 })
-                const statusJson = await readJsonResponse(statusResponse)
-                if (!statusJson.success) throw new Error(statusJson.error ?? '图片状态查询失败')
-                const providerSwitch = (statusJson.data.providerSwitch ?? statusJson.data.result?.providerSwitch) as ImageProviderSwitch | undefined
+                const status = await readCreatorGenerationPoll(`/api/create/image/status/${encodeURIComponent(json.data.jobId)}`, '图片状态查询失败')
+                if (!status) continue
+                const providerSwitch = (status.providerSwitch ?? status.result?.providerSwitch) as ImageProviderSwitch | undefined
                 if (providerSwitch?.status === 429 && !providerSwitchToastJobIds.current.has(json.data.jobId)) {
                     providerSwitchToastJobIds.current.add(json.data.jobId)
                     pushToast(
@@ -629,63 +716,65 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
                         `“${selectedRatio} 图片”连续 ${providerSwitch.attempts ?? 3} 次触发 429，已从 ${IMAGE_MODEL_LABELS[providerSwitch.from] ?? providerSwitch.from} 切换至 ${IMAGE_MODEL_LABELS[providerSwitch.to] ?? providerSwitch.to}`
                     )
                 }
-                if (statusJson.data.phase === 'done') {
-                    if (statusJson.data.result.asset) addAsset(statusJson.data.result.asset)
-                    else setResultUrl(statusJson.data.result.url)
+                if (status.phase === 'done') {
+                    if (status.result.asset) addAsset(status.result.asset)
+                    else setResultUrl(status.result.url)
                     return
                 }
-                if (statusJson.data.phase === 'error') throw new Error(statusJson.data.error ?? '图片生成失败')
+                if (status.phase === 'error') throw new Error(status.error ?? '图片生成失败')
             }
-            throw new Error('图片生成超时，请稍后重试')
+            throw new Error('AI 生成仍在后台进行，请稍后刷新查看')
         }
 
         const generateVideo = async (selectedRatio: AspectRatio) => {
             const form = createForm(selectedRatio)
             form.append('duration', selectedDuration)
             const response = await clientFetch('/api/create/video', { method: 'POST', body: form, timeoutMs: 65_000 })
-            const json = await readJsonResponse(response)
+            const json = await readJsonResponse(response, 'generation')
             if (!json.success) throw new Error(json.error ?? '视频任务创建失败')
             let providerTaskId = ''
-            const creationDeadline = Date.now() + 2 * 60 * 1000
+            const creationDeadline = Date.now() + 10 * 60 * 1000
             let creationAttempt = 0
             while (Date.now() < creationDeadline) {
                 const baseMs = [3_000, 5_000, 8_000, 10_000][Math.min(creationAttempt++, 3)]
                 await new Promise(resolve => setTimeout(resolve, getPollingDelay({ baseMs })))
-                const jobResponse = await clientFetch(`/api/create/video/job/${encodeURIComponent(json.data.jobId)}`, { timeoutMs: 20_000 })
-                const jobJson = await readJsonResponse(jobResponse)
-                if (!jobJson.success) throw new Error(jobJson.error ?? '视频任务创建失败')
-                if (jobJson.data.result?.taskId) {
-                    providerTaskId = jobJson.data.result.taskId
+                const job = await readCreatorGenerationPoll(`/api/create/video/job/${encodeURIComponent(json.data.jobId)}`)
+                if (!job) continue
+                if (job.phase === 'error') throw new Error(job.error ?? '视频任务创建失败')
+                if (job.result?.taskId) {
+                    providerTaskId = job.result.taskId
                     break
                 }
-                if (jobJson.data.phase === 'error') throw new Error(jobJson.data.error ?? '视频任务创建失败')
             }
             if (!providerTaskId) throw new Error('视频任务创建超时，请稍后重试')
-            const deadline = Date.now() + 15 * 60 * 1000
+            const deadline = Date.now() + 35 * 60 * 1000
             let statusAttempt = 0
             while (Date.now() < deadline) {
                 const baseMs = [8_000, 10_000, 15_000, 20_000, 30_000][Math.min(statusAttempt++, 4)]
                 await new Promise(resolve => setTimeout(resolve, getPollingDelay({ baseMs })))
-                const statusResponse = await clientFetch(
-                    `/api/create/video/status?provider=${selectedVideoModel}&taskId=${encodeURIComponent(providerTaskId)}&jobId=${encodeURIComponent(json.data.jobId)}`,
-                    { timeoutMs: 180_000 }
+                const status = await readCreatorGenerationPoll(
+                    `/api/create/video/status?provider=${selectedVideoModel}&taskId=${encodeURIComponent(providerTaskId)}&jobId=${encodeURIComponent(json.data.jobId)}`
                 )
-                const statusJson = await readJsonResponse(statusResponse)
-                if (!statusJson.success) throw new Error(statusJson.error ?? '视频状态查询失败')
-                if (statusJson.data.status === 'completed') {
-                    if (statusJson.data.asset) addAsset(statusJson.data.asset)
-                    else setResultUrl(statusJson.data.url)
+                if (!status) continue
+                if (status.status === 'completed') {
+                    if (status.asset) addAsset(status.asset)
+                    else setResultUrl(status.url)
                     return
                 }
-                if (statusJson.data.status === 'failed') {
-                    throw new Error(statusJson.data.error ?? '视频生成失败')
+                if (status.status === 'failed') {
+                    throw new Error(status.error ?? '视频生成失败')
                 }
             }
-            throw new Error('视频仍在生成，请稍后重试')
+            throw new Error('AI 生成仍在后台进行，请稍后刷新查看')
         }
 
         try {
-            const failures: string[] = []
+            if (themeMode) {
+                generationPrompt = (await ensureThemePlan()).prompt
+                if (!isLoggedIn() || getAuthUser()?.userId !== generationOwnerId) throw new Error('请先登录')
+            }
+            if (generationMode === 'video') uploadFiles = await prepareCreatorReferenceUploads(files, selectedVideoModel)
+            const failures: Array<{ ratio: AspectRatio; message: string }> = []
             // Image requests are admitted by the account limit and isolated
             // provider pools on the server. Submit all selected ratios without
             // adding another browser-side queue; videos stay serial because
@@ -694,48 +783,44 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
                 try {
                     await (generationMode === 'image' ? generateImage(selectedRatio) : generateVideo(selectedRatio))
                 } catch (generationError) {
-                    const message = generationError instanceof Error ? generationError.message : String(generationError)
-                    failures.push(`${selectedRatio}：${message}`)
+                    const message = creatorGenerationErrorMessage(generationError)
+                    failures.push({ ratio: selectedRatio, message })
                 } finally {
                     setGenerationProgress(current => ({ ...current, done: current.done + 1 }))
                 }
             })
 
-            if (failures.length > 0) setError(`${selectedRatios.length - failures.length}/${selectedRatios.length} 个比例生成成功；${failures.join('；')}`)
+            setError(creatorGenerationFailureSummary(selectedRatios.length, failures, t))
+        } catch (generationError) {
+
+            setError(creatorGenerationErrorMessage(generationError))
         } finally {
             setLoading(false)
         }
     }
 
     return (
-        <div className="studio-theme studio-create flex min-h-screen flex-col">
+        <div className={`studio-theme studio-create flex min-h-screen flex-col ${mode === 'video' ? styles.videoStudio : styles.imageStudio}`}>
             <SiteHeader
                 sticky
-                className="z-30"
-                contentClassName="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 sm:gap-x-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-                <div className="order-1 flex min-w-0 items-center gap-1.5 sm:gap-3">
-                    <HomeLogoLink />
+                className={styles.header}
+                contentClassName={styles.headerContent}>
+                <div className={styles.headerIdentity}>
+                    <HomeLogoLink
+                        showName
+                        nameClassName={styles.headerBrandName}
+                    />
                     {userId && (
                         <Link
                             href="/projects"
                             aria-label={t('返回项目')}
-                            className="shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-white/5 hover:text-white sm:p-2">
+                            className="app-icon-action shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-white/5 hover:text-white sm:p-2">
                             <ArrowLeft className="h-5 w-5 rtl:rotate-180" />
                         </Link>
                     )}
-                    <div className="min-w-0">
-                        <p className="flex min-w-0 items-center gap-2 font-semibold">
-                            <Sparkles className="hidden h-4 w-4 shrink-0 text-violet-400 sm:block" />
-                            <span
-                                className="truncate"
-                                title={t(product.title)}>
-                                {t(mode === 'image' ? 'AI 图片' : 'AI 视频')}
-                            </span>
-                        </p>
-                    </div>
                 </div>
                 <CreationModeNav mode={mode} />
-                <div className="order-2 flex items-center justify-self-end gap-2 lg:order-3">
+                <div className={styles.headerAccount}>
                     {userId && (
                         <WalletBalance
                             key={userId}
@@ -743,229 +828,304 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
                             compact
                         />
                     )}
-                    <div className="hidden sm:block">
-                        <AuthBar variant="default" />
-                    </div>
-                    <div className="sm:hidden [&_[role=menu]]:end-0 [&_[role=menu]]:start-auto">
-                        <AuthBar variant="compact" />
-                    </div>
+                    <AuthBar variant="compact" />
                 </div>
             </SiteHeader>
 
             <main className={styles.main}>
                 <div className={styles.intro}>
+                    {searchParams.get('studio') === 'anime' && (
+                        <Link
+                            href="/anime"
+                            className="app-action mb-4 inline-flex min-h-10 items-center gap-2 text-sm text-violet-400">
+                            <ArrowLeft size={16} />
+                            {t('返回漫剧与二次元创作')}
+                        </Link>
+                    )}
                     <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{t(product.title)}</h1>
-                    <p className="mt-2 text-sm leading-6 text-slate-400">{t(product.description)}</p>
+                    {mode === 'image' && <p>{t('描述你心中的画面，或添加参考素材开始创作。')}</p>}
                 </div>
+                {mode === 'video' && (
+                    <VideoCreationModes
+                        value={videoCreationMode}
+                        disabled={composerBusy}
+                        onChange={value => {
+                            setVideoCreationMode(value)
+                            setError(null)
+                            setSettingsPanel(null)
+                        }}
+                    />
+                )}
                 <div className={styles.workspace}>
                     <div className={styles.entry}>
-                        <section
-                            ref={formSectionRef}
-                            className={styles.composer}
-                            aria-label={t(product.title)}>
-                            <div className={styles.composerHeading}>
-                                <label htmlFor="create-prompt">
-                                    <Sparkles size={16} />
-                                    {t('画面描述')}
-                                </label>
-                                <span className="tabular-nums">{prompt.length}/4000</span>
-                            </div>
-                            <textarea
-                                id="create-prompt"
-                                value={prompt}
-                                onChange={event => setPrompt(event.target.value)}
-                                maxLength={4000}
-                                rows={5}
-                                placeholder={t(mode === 'image' ? '描述主体、场景、构图、光线与风格…' : '描述场景、人物动作、镜头运动与氛围…')}
-                                className={styles.prompt}
+                        {mergeMode ? (
+                            <VideoMergeComposer
+                                key={userId ?? 'guest'}
+                                userId={userId}
+                                requireAuth={requireAuth}
+                                assets={assets.filter(asset => asset.type === 'video')}
+                                assetsLoading={assetsLoading}
+                                nextCursor={nextCursor}
+                                onLoadMore={() => void loadAssets(nextCursor ?? undefined)}
+                                onComplete={completeVideoMerge}
                             />
-                            {(previews.length > 0 || referenceVideoCount > 0) && (
-                                <div className={styles.attachments}>
-                                    {previews.map((preview, index) => (
-                                        <button
-                                            key={preview.url}
-                                            type="button"
-                                            onClick={() => setSettingsPanel('references')}
-                                            aria-label={`${t('参考图预览')} ${index + 1}`}
-                                            className={styles.attachment}>
-                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img
-                                                src={preview.url}
-                                                alt=""
+                        ) : (
+                            <section
+                                ref={formSectionRef}
+                                className={styles.composer}
+                                aria-label={t(product.title)}>
+                                {themeMode ? (
+                                    <VideoThemeComposer
+                                        draft={videoTheme}
+                                        onChange={setVideoTheme}
+                                        plan={videoThemePlan}
+                                        planCurrent={themePlanCurrent}
+                                        onPlanChange={value => setVideoThemePlan(current => (current ? { ...current, prompt: value } : null))}
+                                        disabled={composerBusy}
+                                    />
+                                ) : (
+                                    <>
+                                        <div className={styles.composerHeading}>
+                                            <label htmlFor="create-prompt">
+                                                <Sparkles size={16} />
+                                                {t('画面描述')}
+                                            </label>
+                                            <span className="tabular-nums">{prompt.length}/4000</span>
+                                        </div>
+                                        <textarea
+                                            id="create-prompt"
+                                            value={prompt}
+                                            disabled={composerBusy}
+                                            onChange={event => setPrompt(event.target.value)}
+                                            maxLength={4000}
+                                            rows={mode === 'image' ? 3 : 5}
+                                            placeholder={t(mode === 'image' ? '描述主体、场景、构图、光线与风格…' : '描述场景、人物动作、镜头运动与氛围…')}
+                                            className={styles.prompt}
+                                        />
+                                    </>
+                                )}
+                                {(previews.length > 0 || referenceVideoCount > 0) && (
+                                    <div className={styles.attachments}>
+                                        {previews.map((preview, index) => (
+                                            <button
+                                                key={preview.url}
+                                                type="button"
+                                                onClick={() => setSettingsPanel('references')}
+                                                aria-label={`${t('参考图预览')} ${index + 1}`}
+                                                className={styles.attachment}>
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img
+                                                    src={preview.url}
+                                                    alt={`${t('参考图预览')} ${index + 1}`}
+                                                />
+                                            </button>
+                                        ))}
+                                        {referenceVideoCount > 0 && (
+                                            <button
+                                                type="button"
+                                                className={styles.optionButton}
+                                                onClick={() => setSettingsPanel('references')}>
+                                                <Video size={16} />
+                                                {t('参考视频')} · {referenceVideoCount}
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+                                <div className={styles.toolbar}>
+                                    <div className={styles.options}>
+                                        {mode === 'image' ? (
+                                            <CustomSelect
+                                                value={imageModel}
+                                                onChange={value => {
+
+                                                    setImageModel(value as ImageModel)
+                                                }}
+                                                ariaLabel="选择图片生成模型"
+                                                className={styles.modelSelect}
+                                                buttonClassName={styles.selectButton}
+                                                disabled={composerBusy}
+                                                options={[
+                                                    { value: 'banana', label: 'Nano Banana', description: '支持文生图和参考图，适合保持人物与风格一致' },
+                                                    { value: 'qwen-image-3.0-pro', label: 'Qwen-Image-3.0-Pro', description: '阿里百炼图片模型，支持文生图和参考图' },
+                                                    { value: 'gemini-3.1-flash-image', label: 'Gemini 3.1 Flash Image', description: 'Himodels Gemini Flash，支持参考图' },
+                                                    { value: 'seedream-5-0-lite', label: 'Seedream 5.0 Lite', description: 'Himodels Seedream 5.0 Lite，2K 文生图与参考图生图' }
+                                                ]}
                                             />
-                                        </button>
-                                    ))}
-                                    {referenceVideoCount > 0 && (
+                                        ) : (
+                                            <CustomSelect
+                                                value={videoModel}
+                                                onChange={value => {
+                                                    const next = value as VideoModel
+
+                                                    setVideoModel(next)
+                                                    setDuration(String(normalizeVideoDuration(next, Number(duration))))
+                                                    if (!isHiModelsH3Provider(next)) {
+                                                        setRatios(current => {
+                                                            const supported = current.filter(value => value !== '21:9')
+                                                            return supported.length ? supported : ['16:9']
+                                                        })
+                                                    }
+                                                }}
+                                                ariaLabel="选择视频生成模型"
+                                                className={styles.modelSelect}
+                                                buttonClassName={styles.selectButton}
+                                                disabled={composerBusy}
+                                                options={[
+                                                    { value: 'seedance25', label: SEEDANCE_25_LABEL, description: 'Seedance 2.5，多模态参考与同步原声；支持 4-30 秒逐秒选择' },
+                                                    { value: 'seedance', label: SEEDANCE_20_LABEL, description: 'Seedance 2.0，支持文生视频、首尾帧与同步原声；时长 4/5/6/8/10/12/15 秒' },
+                                                    { value: 'wan3', label: 'Wan 3.0', description: '阿里百炼 Wan 3.0，多模态参考、最长 30 秒' },
+                                                    { value: 'wan3prime', label: WAN_3_PRIME_LABEL, description: '阿里百炼 Wan 3.0 Prime，1080P、最长 30 秒、生成速度更快' },
+                                                    { value: 'seedance-2.0-global', label: 'Seedance 2.0 Global', description: 'Himodels Seedance 2.0 文生视频' },
+                                                    { value: 'seedance-2.5-global', label: 'Seedance 2.5 Global', description: 'Himodels Seedance 2.5 文生视频' },
+                                                    { value: 'MiniMax-H3', label: 'MiniMax H3', description: 'Himodels 全模态参考、原生音频与多镜头，最高 2K / 15 秒' }
+                                                ]}
+                                            />
+                                        )}
                                         <button
                                             type="button"
                                             className={styles.optionButton}
-                                            onClick={() => setSettingsPanel('references')}>
-                                            <Video size={16} />
-                                            {t('参考视频')} · {referenceVideoCount}
+                                            disabled={composerBusy}
+                                            onClick={() => setSettingsPanel('ratios')}
+                                            aria-haspopup="dialog"
+                                            aria-expanded={settingsPanel === 'ratios'}
+                                            aria-controls="creator-options"
+                                            aria-label={`${t('选择画面比例（可多选）')}：${ratios.join(' / ')}`}>
+                                            <RectangleHorizontal size={16} />
+                                            <span>
+                                                {ratios.length ? previewRatio : t('画面比例')}
+                                                {ratios.length > 1 ? ` +${ratios.length - 1}` : ''}
+                                            </span>
+                                            <ChevronDown size={13} />
                                         </button>
-                                    )}
-                                </div>
-                            )}
-                            <div className={styles.toolbar}>
-                                <div className={styles.options}>
-                                    {mode === 'image' ? (
-                                        <CustomSelect
-                                            value={imageModel}
-                                            onChange={value => {
-                                                setImageModel(value as ImageModel)
-                                            }}
-                                            ariaLabel="选择图片生成模型"
-                                            className={styles.modelSelect}
-                                            buttonClassName={styles.selectButton}
-                                            disabled={loading}
-                                            options={[
-                                                { value: 'banana', label: 'Nano Banana', description: '支持文生图和参考图，适合保持人物与风格一致' },
-                                                { value: 'qwen-image-3.0-pro', label: 'Qwen-Image-3.0-Pro', description: '阿里百炼图片模型，支持文生图和参考图' },
-                                                { value: 'gemini-3.1-flash-image', label: 'Gemini 3.1 Flash Image', description: 'Himodels Gemini Flash，支持参考图' },
-                                                { value: 'seedream-5-0-lite', label: 'Seedream 5.0 Lite', description: 'Himodels Seedream 5.0 Lite，2K 文生图' }
-                                            ]}
-                                        />
-                                    ) : (
-                                        <CustomSelect
-                                            value={videoModel}
-                                            onChange={value => {
-                                                const next = value as VideoModel
-
-                                                setVideoModel(next)
-                                                setDuration(String(normalizeVideoDuration(next, Number(duration))))
-                                                if (!isHiModelsH3Provider(next)) {
-                                                    setRatios(current => {
-                                                        const supported = current.filter(value => value !== '21:9')
-                                                        return supported.length ? supported : ['16:9']
-                                                    })
-                                                }
-                                            }}
-                                            ariaLabel="选择视频生成模型"
-                                            className={styles.modelSelect}
-                                            buttonClassName={styles.selectButton}
-                                            disabled={loading}
-                                            options={[
-                                                { value: 'seedance25', label: SEEDANCE_25_LABEL, description: 'Seedance 2.5，多模态参考与同步原声；支持 4-30 秒逐秒选择' },
-                                                { value: 'seedance', label: SEEDANCE_20_LABEL, description: 'Seedance 2.0，支持文生视频、首尾帧与同步原声；时长 4/5/6/8/10/12/15 秒' },
-                                                { value: 'wan3', label: 'Wan 3.0', description: '阿里百炼 Wan 3.0，多模态参考、最长 30 秒' },
-                                                { value: 'wan3prime', label: WAN_3_PRIME_LABEL, description: '阿里百炼 Wan 3.0 Prime，1080P、最长 30 秒、生成速度更快' },
-                                                { value: 'seedance-2.0-global', label: 'Seedance 2.0 Global', description: 'Himodels Seedance 2.0 文生视频' },
-                                                { value: 'seedance-2.5-global', label: 'Seedance 2.5 Global', description: 'Himodels Seedance 2.5 文生视频' },
-                                                { value: 'MiniMax-H3', label: 'MiniMax H3', description: 'Himodels 全模态参考、原生音频与多镜头，最高 2K / 15 秒' }
-                                            ]}
-                                        />
-                                    )}
+                                        {mode === 'video' && (
+                                            <CustomSelect
+                                                value={duration}
+                                                onChange={setDuration}
+                                                ariaLabel="选择视频时长"
+                                                className={styles.durationSelect}
+                                                buttonClassName={styles.selectButton}
+                                                disabled={composerBusy}
+                                                options={videoDurationOptions.map(value => ({ value: String(value), label: t('{seconds} 秒', { seconds: value }) }))}
+                                            />
+                                        )}
+                                        <button
+                                            type="button"
+                                            className={styles.optionButton}
+                                            disabled={composerBusy}
+                                            onClick={() => setSettingsPanel('references')}
+                                            aria-haspopup="dialog"
+                                            aria-expanded={settingsPanel === 'references'}
+                                            aria-controls="creator-options">
+                                            <Paperclip size={16} />
+                                            <span>
+                                                {t('参考素材')}
+                                                {referenceImageCount + referenceVideoCount > 0 ? ` · ${referenceImageCount + referenceVideoCount}` : ''}
+                                            </span>
+                                        </button>
+                                    </div>
                                     <button
+                                        disabled={
+                                            composerBusy ||
+                                            uploadingReferenceVideos ||
+                                            !!deletingReferenceVideoId ||
+                                            !(themeMode ? videoTheme.topic : prompt).trim() ||
+                                            !!themeAudioError ||
+                                            ratios.length === 0 ||
+                                            !!referenceImageError ||
+                                            !!referenceVideoCountError ||
+                                            !!referenceVideoDurationViolation
+                                        }
+                                        onClick={generate}
                                         type="button"
-                                        className={styles.optionButton}
-                                        onClick={() => setSettingsPanel('ratios')}
-                                        aria-haspopup="dialog"
-                                        aria-expanded={settingsPanel === 'ratios'}
-                                        aria-controls="creator-options"
-                                        aria-label={`${t('选择画面比例（可多选）')}：${ratios.join(' / ')}`}>
-                                        <RectangleHorizontal size={16} />
-                                        <span>
-                                            {ratios.length ? previewRatio : t('画面比例')}
-                                            {ratios.length > 1 ? ` +${ratios.length - 1}` : ''}
-                                        </span>
-                                        <ChevronDown size={13} />
-                                    </button>
-                                    {mode === 'video' && (
-                                        <CustomSelect
-                                            value={duration}
-                                            onChange={setDuration}
-                                            ariaLabel="选择视频时长"
-                                            className={styles.durationSelect}
-                                            buttonClassName={styles.selectButton}
-                                            disabled={loading}
-                                            options={videoDurationOptions.map(value => ({ value: String(value), label: t('{seconds} 秒', { seconds: value }) }))}
-                                        />
-                                    )}
-                                    <button
-                                        type="button"
-                                        className={styles.optionButton}
-                                        onClick={() => setSettingsPanel('references')}
-                                        aria-haspopup="dialog"
-                                        aria-expanded={settingsPanel === 'references'}
-                                        aria-controls="creator-options">
-                                        <Paperclip size={16} />
-                                        <span>
-                                            {t('参考素材')}
-                                            {referenceImageCount + referenceVideoCount > 0 ? ` · ${referenceImageCount + referenceVideoCount}` : ''}
-                                        </span>
+                                        className={styles.generateButton}>
+                                        {signingIn ? (
+                                            <>
+                                                <Loader2 className="h-5 w-5 animate-spin" />
+                                                {t('登录中...')}
+                                            </>
+                                        ) : videoThemePlanning ? (
+                                            <>
+                                                <Loader2 className="h-5 w-5 animate-spin" />
+                                                {t('正在编写脚本')}
+                                            </>
+                                        ) : loading ? (
+                                            <>
+                                                <Loader2 className="h-5 w-5 animate-spin" />
+                                                {t('正在生成')} {generationProgress.done}/{generationProgress.total}
+                                            </>
+                                        ) : (
+                                            <>
+                                                {mode === 'video' ? <Sparkles className="h-4 w-4" /> : <ArrowUp className="h-5 w-5" />}
+                                                {t(mode === 'image' ? '生成图片' : themeMode ? '生成成片' : '生成视频')}
+                                                {ratios.length > 1 ? `（${ratios.length} 个比例）` : ''}
+                                            </>
+                                        )}
                                     </button>
                                 </div>
-                                <button
-                                    disabled={
-                                        loading ||
-                                        uploadingReferenceVideos ||
-                                        !!deletingReferenceVideoId ||
-                                        !prompt.trim() ||
-                                        ratios.length === 0 ||
-                                        !!referenceImageError ||
-                                        !!referenceVideoCountError ||
-                                        !!referenceVideoDurationViolation
-                                    }
-                                    onClick={generate}
-                                    type="button"
-                                    className={styles.generateButton}>
-                                    {signingIn ? (
-                                        <>
-                                            <Loader2 className="h-5 w-5 animate-spin" />
-                                            {t('登录中...')}
-                                        </>
-                                    ) : loading ? (
-                                        <>
-                                            <Loader2 className="h-5 w-5 animate-spin" />
-                                            {t('正在生成')} {generationProgress.done}/{generationProgress.total}
-                                        </>
-                                    ) : (
-                                        <>
-                                            <ArrowUp className="h-5 w-5" />
-                                            {t(mode === 'image' ? '生成图片' : '生成视频')}
-                                            {ratios.length > 1 ? `（${ratios.length} 个比例）` : ''}
-                                        </>
+                                <div
+                                    className={styles.notices}
+                                    aria-live="polite">
+                                    {(referenceImageCount > 0 || referenceVideoCount > 0) &&
+                                        mode === 'image' &&
+                                        (imageModel === 'doubao' || (isHiModelsImageModel(imageModel) && imageModel.startsWith('seedream-'))) && (
+                                            <p>{t('当前所选模型不读取参考素材，本次任务会自动切换至 Nano Banana；移除参考图片和视频即可使用所选模型。')}</p>
+                                        )}
+                                    {mode === 'video' && referenceImageCount > 0 && getVideoProviderCapability(videoModel)?.maxImageReferences === 0 && (
+                                        <p>
+                                            {selectedVideoCapability?.label}
+                                            {t('当前仅支持文字生成视频，请先移除参考图。')}
+                                        </p>
                                     )}
-                                </button>
-                            </div>
-                            <div
-                                className={styles.notices}
-                                aria-live="polite">
-                                {(referenceImageCount > 0 || referenceVideoCount > 0) &&
-                                    mode === 'image' &&
-                                    (imageModel === 'doubao' || (isHiModelsImageModel(imageModel) && imageModel.startsWith('seedream-'))) && (
-                                        <p>{t('当前所选模型不读取参考素材，本次任务会自动切换至 Nano Banana；移除参考图片和视频即可使用所选模型。')}</p>
+                                    {mode === 'video' && referenceVideoCount > 0 && referenceVideoLimit === 0 && (
+                                        <p>
+                                            {selectedVideoCapability?.label ?? videoModel}
+                                            {t('不支持视频作为参考素材，请删除参考视频或更换模型。')}
+                                        </p>
                                     )}
-                                {mode === 'video' && referenceImageCount > 0 && getVideoProviderCapability(videoModel)?.maxImageReferences === 0 && (
-                                    <p>
-                                        {selectedVideoCapability?.label}
-                                        {t('当前仅支持文字生成视频，请先移除参考图。')}
-                                    </p>
-                                )}
-                                {mode === 'video' && referenceVideoCount > 0 && referenceVideoLimit === 0 && (
-                                    <p>
-                                        {selectedVideoCapability?.label ?? videoModel}
-                                        {t('不支持视频作为参考素材，请删除参考视频或更换模型。')}
-                                    </p>
-                                )}
-                                {referenceImageError && <p>{t(referenceImageError)}</p>}
-                                {referenceVideoCountError && <p>{referenceVideoCountError}</p>}
-                                {referenceVideoDurationViolation && <p>{formatReferenceVideoDurationViolation(selectedVideoCapability?.label ?? videoModel, referenceVideoDurationViolation)}</p>}
-                                {error && <p role="alert">{error}</p>}
+                                    {themeAudioError && (
+                                        <p role="alert">
+                                            <DiagnosticMessage message={themeAudioError} />
+                                        </p>
+                                    )}
+                                    {referenceImageError && (
+                                        <p>
+                                            <DiagnosticMessage message={referenceImageError} />
+                                        </p>
+                                    )}
+                                    {referenceVideoCountError && (
+                                        <p>
+                                            <DiagnosticMessage message={referenceVideoCountError} />
+                                        </p>
+                                    )}
+                                    {referenceVideoDurationViolation && <p>{formatReferenceVideoDurationViolation(selectedVideoCapability?.label ?? videoModel, referenceVideoDurationViolation)}</p>}
+                                    {referenceError && (
+                                        <p role="alert">
+                                            <DiagnosticMessage message={referenceError} />
+                                        </p>
+                                    )}
+                                    {error && (
+                                        <p role="alert">
+                                            <DiagnosticMessage message={error} />
+                                        </p>
+                                    )}
+                                </div>
+                            </section>
+                        )}
+                        {!mergeMode && (
+                            <div className={styles.examples}>
+                                {(themeMode ? ['介绍西湖的晨光与湖畔生活，轻松自然，适合旅行推荐', '用一个生活小场景解释为什么睡前要少看手机'] : EXAMPLES[mode]).map((example, index) => (
+                                    <button
+                                        key={example}
+                                        type="button"
+                                        title={t(example)}
+                                        disabled={composerBusy}
+                                        onClick={() => (themeMode ? setVideoTheme(current => ({ ...current, topic: example, purpose: index === 1 ? 'knowledge' : 'travel' })) : setPrompt(example))}>
+                                        <Plus size={13} />
+                                        <span>{t(example)}</span>
+                                    </button>
+                                ))}
                             </div>
-                        </section>
-                        <div className={styles.examples}>
-                            {EXAMPLES[mode].map(example => (
-                                <button
-                                    key={example}
-                                    type="button"
-                                    title={t(example)}
-                                    onClick={() => setPrompt(example)}>
-                                    <Plus size={13} />
-                                    <span>{t(example)}</span>
-                                </button>
-                            ))}
-                        </div>
+                        )}
                         {settingsPanel && (
                             <DramaSettingsDialog
                                 id="creator-options"
@@ -993,6 +1153,7 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
                                                             key={option.value}
                                                             type="button"
                                                             aria-pressed={selected}
+
 
                                                             onClick={() => toggleRatio(option.value)}
                                                             className={`relative flex min-h-[72px] flex-col items-center justify-center gap-2 rounded-xl border px-1.5 py-2 text-center transition ${
@@ -1046,14 +1207,14 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
                                                             )}
                                                             <button
                                                                 type="button"
-                                                                disabled={loading}
+                                                                disabled={composerBusy}
                                                                 onClick={() => {
                                                                     if (preview.file) setFiles(current => current.filter(file => file !== preview.file))
                                                                     else setReferenceAsset(null)
-                                                                    setError(null)
+                                                                    setReferenceError(null)
                                                                 }}
                                                                 aria-label={`${t('移除参考图')} ${index + 1}`}
-                                                                className="absolute right-1 top-1 rounded-full bg-black/70 p-1.5 text-white backdrop-blur disabled:opacity-50">
+                                                                className="app-icon-action absolute right-1 top-1 rounded-full bg-black/70 p-1.5 text-white backdrop-blur disabled:opacity-50">
                                                                 <X className="h-3.5 w-3.5" />
                                                             </button>
                                                         </div>
@@ -1061,7 +1222,8 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
                                                     {referenceImageCount < MAX_CREATOR_REFERENCE_IMAGES && (
                                                         <button
                                                             type="button"
-                                                            disabled={loading}
+                                                            disabled={composerBusy}
+
 
                                                             onClick={() => fileRef.current?.click()}
                                                             aria-describedby="creator-reference-image-hint"
@@ -1079,7 +1241,7 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
                                                 <p
                                                     id="creator-reference-image-hint"
                                                     className="mt-2 text-xs text-slate-500">
-                                                    {t('最多上传 3 张参考图片')}
+                                                    {t('最多上传 6 张参考图片')}
                                                 </p>
                                                 <p className="sr-only">{t(mode === 'image' ? '用于保持人物、构图或风格一致' : '作为视频起始画面')}</p>
                                                 <input
@@ -1094,8 +1256,8 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
 
                                             <details
                                                 className="studio-create-video-reference mt-3"
-                                                open={referenceVideoCount > 0 || uploadingReferenceVideos}>
-                                                <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-300">
+                                                open={referenceVideoCount > 0 || uploadingReferenceVideos || !!referenceError}>
+                                                <summary className="app-action flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-300">
                                                     <Video className="h-4 w-4 text-slate-500" />
                                                     <span className="font-medium">{t('参考视频')}</span>
                                                     <span className="studio-create-optional">{t('可选')}</span>
@@ -1113,19 +1275,19 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
                                                         type="file"
                                                         accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm"
                                                         multiple={referenceVideoLimit > 1}
-                                                        disabled={uploadingReferenceVideos || !!deletingReferenceVideoId || loading}
+                                                        disabled={uploadingReferenceVideos || !!deletingReferenceVideoId || composerBusy}
                                                         className="hidden"
                                                         onChange={event => void uploadReferenceVideos(event.currentTarget.files)}
                                                     />
                                                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                                                         {savedVideoAsset && (
                                                             <div className="relative min-w-0 overflow-hidden rounded-xl border border-violet-400/25 bg-black/30 sm:col-span-3">
-                                                                <video
+                                                                <AppVideo
                                                                     src={savedVideoAsset.url}
                                                                     poster={savedVideoAsset.coverUrl ?? undefined}
                                                                     controls
                                                                     muted
-                                                                    preload="metadata"
+                                                                    preload="auto"
                                                                     playsInline
                                                                     aria-label={t('参考视频')}
                                                                     className="h-40 w-full object-contain"
@@ -1136,13 +1298,13 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
                                                                 </div>
                                                                 <button
                                                                     type="button"
-                                                                    disabled={loading}
+                                                                    disabled={composerBusy}
                                                                     onClick={() => {
                                                                         setReferenceAsset(null)
-                                                                        setError(null)
+                                                                        setReferenceError(null)
                                                                     }}
                                                                     aria-label={t('移除参考视频')}
-                                                                    className="absolute right-2 top-2 rounded-full bg-black/70 p-1.5 text-white backdrop-blur disabled:opacity-50">
+                                                                    className="app-icon-action absolute right-2 top-2 rounded-full bg-black/70 p-1.5 text-white backdrop-blur disabled:opacity-50">
                                                                     <X className="h-3.5 w-3.5" />
                                                                 </button>
                                                             </div>
@@ -1151,11 +1313,11 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
                                                             <div
                                                                 key={video.id}
                                                                 className="relative min-w-0 overflow-hidden rounded-xl border border-blue-400/25 bg-black/30 sm:col-span-3">
-                                                                <video
+                                                                <AppVideo
                                                                     src={video.url}
                                                                     controls
                                                                     muted
-                                                                    preload="metadata"
+                                                                    preload="auto"
                                                                     playsInline
                                                                     className="h-40 w-full object-contain"
                                                                 />
@@ -1170,7 +1332,7 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => void deleteReferenceVideo(video)}
-                                                                    disabled={!!deletingReferenceVideoId || uploadingReferenceVideos || loading}
+                                                                    disabled={!!deletingReferenceVideoId || uploadingReferenceVideos || composerBusy}
                                                                     aria-label={`删除参考视频 ${video.name}`}
                                                                     className="absolute right-2 top-2 rounded-full bg-black/70 p-1.5 text-white backdrop-blur disabled:opacity-50">
                                                                     {deletingReferenceVideoId === video.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
@@ -1181,8 +1343,9 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
                                                             <button
                                                                 type="button"
 
+
                                                                 onClick={() => referenceVideoInputRef.current?.click()}
-                                                                disabled={uploadingReferenceVideos || !!deletingReferenceVideoId || loading || referenceVideoLimit === 0}
+                                                                disabled={uploadingReferenceVideos || !!deletingReferenceVideoId || composerBusy || referenceVideoLimit === 0}
                                                                 className={`${referenceVideoCount === 0 ? 'sm:col-span-3' : ''} studio-create-upload flex min-h-20 min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed px-3 py-3 transition disabled:cursor-not-allowed disabled:opacity-50`}>
                                                                 {uploadingReferenceVideos ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
                                                                 <span className="text-sm font-medium">{uploadingReferenceVideos ? t('上传中...') : t('上传视频')}</span>
@@ -1195,13 +1358,26 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
                                                     {mode === 'image' && <p className="mt-2 text-xs text-slate-500">{t('将从视频中抽取画面，参考人物、构图和风格生成图片')}</p>}
                                                 </div>
                                             </details>
-                                            {referenceVideoCountError && <p className="mt-2 text-xs text-amber-300/80">{referenceVideoCountError}</p>}
-                                            {referenceImageError && <p className="mt-2 text-xs text-amber-300/80">{t(referenceImageError)}</p>}
-                                            {error && (
+                                            {referenceVideoCountError && (
+                                                <p className="mt-2 text-xs text-amber-300/80">
+                                                    <DiagnosticMessage message={referenceVideoCountError} />
+                                                </p>
+                                            )}
+                                            {themeAudioError && (
+                                                <p role="alert">
+                                                    <DiagnosticMessage message={themeAudioError} />
+                                                </p>
+                                            )}
+                                            {referenceImageError && (
+                                                <p className="mt-2 text-xs text-amber-300/80">
+                                                    <DiagnosticMessage message={referenceImageError} />
+                                                </p>
+                                            )}
+                                            {referenceError && (
                                                 <p
                                                     role="alert"
                                                     className="mt-2 text-sm text-red-300">
-                                                    {error}
+                                                    <DiagnosticMessage message={referenceError} />
                                                 </p>
                                             )}
                                             {referenceVideoDurationViolation && (
@@ -1216,150 +1392,141 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
                         )}
                     </div>
 
-                    <section
-                        id="creator-result"
-                        className={`${styles.results} studio-panel flex min-w-0 flex-col rounded-2xl p-4 sm:p-6`}>
-                        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-                            <div className="flex items-center gap-3">
-                                <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-slate-400">
-                                    {mode === 'image' ? <ImageIcon className="h-5 w-5" /> : <Video className="h-5 w-5" />}
-                                </span>
-                                <div>
-                                    <h2 className="text-base font-semibold">{t('生成结果')}</h2>
-                                    <p className="mt-0.5 text-xs text-slate-500">{t('结果生成后会自动保存到我的作品')}</p>
-                                </div>
-                            </div>
-                            {resultUrl && (
-                                <div className="flex items-center gap-2">
-                                    {resultAsset?.type === 'video' && (
-                                        <button
-                                            onClick={() => chooseCover(resultAsset.id)}
-                                            disabled={coverUpdating}
-                                            className="flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-300 hover:bg-white/5 disabled:opacity-50">
-                                            <Images className="h-4 w-4" />
-                                            {t('设置封面')}
-                                        </button>
-                                    )}
-                                    <a
-                                        href={resultUrl}
-
-                                        download
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-300 hover:bg-white/5">
-                                        <Download className="h-4 w-4" />
-                                        {t('下载')}
-                                    </a>
-                                </div>
-                            )}
-                        </div>
-                        <div className="studio-create-canvas relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-xl border border-white/[0.07]">
-                            {resultUrl ? (
-                                (resultAsset?.type ?? mode) === 'image' ? (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img
-                                        src={resultUrl}
-                                        alt={t('生成结果')}
-                                        className="h-full max-h-[640px] min-h-0 w-full object-contain"
-                                    />
-                                ) : (
-                                    <video
-                                        src={resultUrl}
-                                        poster={resultAsset?.coverUrl ?? undefined}
-                                        controls
-                                        autoPlay
-                                        className="h-full max-h-[640px] min-h-0 w-full object-contain"
-                                    />
-                                )
-                            ) : loading ? (
-                                <div
-                                    className="px-6 py-12 text-center"
-                                    role="status"
-                                    aria-live="polite">
-                                    <div className="studio-create-loading mx-auto flex h-20 w-20 items-center justify-center rounded-2xl">
-                                        <Loader2 className="h-8 w-8 animate-spin text-violet-300" />
+                    {(mode === 'video' || loading || resultUrl) && (
+                        <section
+                            id="creator-result"
+                            className={`${styles.results} studio-panel flex min-w-0 flex-col rounded-2xl p-4 sm:p-6`}>
+                            <div className={`${styles.resultHeading} mb-5 flex flex-wrap items-center justify-between gap-3`}>
+                                <div className="flex items-center gap-3">
+                                    <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-slate-400">
+                                        {mode === 'image' ? <ImageIcon className="h-5 w-5" /> : <Video className="h-5 w-5" />}
+                                    </span>
+                                    <div>
+                                        <h2 className="text-base font-semibold">{t('生成结果')}</h2>
+                                        <p className="mt-0.5 text-xs text-slate-500">{t('结果生成后会自动保存到我的作品')}</p>
                                     </div>
-                                    <p className="mt-6 text-base font-medium text-slate-200">{t('AI 正在构思画面')}</p>
-                                    {mode === 'video' && <p className="mt-2 text-xs text-slate-500">{t('视频通常需要几分钟')}</p>}
                                 </div>
-                            ) : (
-                                <div className="relative w-full px-6 py-10 text-center">
+                                {resultUrl && (
+                                    <div className="flex items-center gap-2">
+                                        {resultAsset?.type === 'video' && (
+                                            <button
+                                                onClick={() => chooseCover(resultAsset.id)}
+                                                disabled={coverUpdating}
+                                                className="app-action flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-300 hover:bg-white/5 disabled:opacity-50">
+                                                <Images className="h-4 w-4" />
+                                                {t('设置封面')}
+                                            </button>
+                                        )}
+                                        <a
+                                            href={resultUrl}
+
+
+                                            download
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="app-action flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-300 hover:bg-white/5">
+                                            <Download className="h-4 w-4" />
+                                            {t('下载')}
+                                        </a>
+                                    </div>
+                                )}
+                            </div>
+                            <div
+                                className={`${styles.previewCanvas} studio-create-canvas relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-xl border border-white/[0.07]`}>
+                                {resultUrl ? (
+                                    (resultAsset?.type ?? mode) === 'image' ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                            src={resultUrl}
+                                            alt={t('生成结果')}
+                                            className="h-full max-h-[640px] min-h-0 w-full object-contain"
+                                        />
+                                    ) : (
+                                        <AppVideo
+                                            src={resultUrl}
+                                            poster={resultAsset?.coverUrl ?? undefined}
+                                            controls
+                                            autoPlay
+                                            className="h-full max-h-[640px] min-h-0 w-full object-contain"
+                                        />
+                                    )
+                                ) : loading ? (
                                     <div
-                                        className="studio-create-frame mx-auto flex items-center justify-center rounded-xl"
-                                        style={{
-                                            aspectRatio: `${previewWidth} / ${previewHeight}`,
-                                            width: `${Math.min(240, (152 * previewWidth) / previewHeight)}px`
-                                        }}
-                                        aria-hidden="true">
-                                        {mode === 'image' ? (
-                                            <ImageIcon
-                                                className="h-9 w-9 text-violet-300/70"
-                                                strokeWidth={1.25}
-                                            />
-                                        ) : (
+                                        className="px-6 py-12 text-center"
+                                        role="status"
+                                        aria-live="polite">
+                                        <div
+                                            className="studio-create-loading mx-auto flex h-24 w-24 items-center justify-center rounded-2xl"
+                                            aria-hidden="true">
+                                            <span className="studio-create-loading-orbit studio-create-loading-orbit-primary" />
+                                            <span className="studio-create-loading-orbit studio-create-loading-orbit-secondary" />
+                                            <span className="studio-create-loading-scan" />
+                                            <span className="studio-create-loading-core">
+                                                <span className="studio-create-loading-core-dot" />
+                                            </span>
+                                        </div>
+                                        <p className="mt-6 text-base font-medium text-slate-200">{t('AI 正在构思画面')}</p>
+                                        {mode === 'video' && <p className="mt-2 text-xs text-slate-500">{t('视频通常需要几分钟')}</p>}
+                                    </div>
+                                ) : (
+                                    <div className={`${styles.emptyPreview} relative w-full px-6 py-10 text-center`}>
+                                        <div
+                                            className={`${styles.previewFrame} studio-create-frame mx-auto flex items-center justify-center rounded-xl`}
+                                            style={{
+                                                aspectRatio: `${previewWidth} / ${previewHeight}`,
+                                                width: `${Math.min(240, (152 * previewWidth) / previewHeight)}px`
+                                            }}
+                                            aria-hidden="true">
                                             <Play
                                                 className="h-9 w-9 text-violet-300/70"
                                                 strokeWidth={1.25}
                                             />
-                                        )}
-                                        <span className="absolute inset-x-0 bottom-3 text-[11px] tabular-nums text-violet-300/50">{previewRatio}</span>
+                                            <span className="absolute inset-x-0 bottom-3 text-[11px] tabular-nums text-violet-300/50">{previewRatio}</span>
+                                        </div>
+                                        <p className="mt-8 text-base font-medium text-slate-300">{t('生成结果会显示在这里')}</p>
+                                        <p className="mt-2 text-xs leading-5 text-slate-500">{t('填写创作内容，生成你的第一份素材')}</p>
                                     </div>
-                                    <p className="mt-8 text-base font-medium text-slate-300">{t('生成结果会显示在这里')}</p>
-                                    <p className="mt-2 text-xs leading-5 text-slate-500">{t('填写创作内容，生成你的第一份素材')}</p>
-                                </div>
-                            )}
-                        </div>
-                        {!resultUrl && (
-                            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-xs text-slate-500">
-                                <span>{mode === 'image' ? (IMAGE_MODEL_LABELS[imageModel] ?? imageModel) : (selectedVideoCapability?.label ?? videoModel)}</span>
-                                <span
-                                    className="h-3 w-px bg-white/10"
-                                    aria-hidden="true"
-                                />
-                                <span className="tabular-nums">{ratios.join(' · ')}</span>
-                                {mode === 'video' && (
-                                    <span>
-                                        {duration} {t('秒')}
-                                    </span>
                                 )}
                             </div>
-                        )}
-                        {resultAssets.length > 1 && (
-                            <div className="mt-4 grid grid-cols-3 gap-2">
-                                {resultAssets.map(asset => (
-                                    <button
-                                        key={asset.id}
-                                        type="button"
-                                        onClick={() => {
-                                            setResultAsset(asset)
-                                            setResultUrl(asset.url)
-                                        }}
-                                        className={`relative aspect-video overflow-hidden rounded-xl border bg-black/30 transition ${resultAsset?.id === asset.id ? 'border-violet-400' : 'border-white/10 hover:border-violet-400/40'}`}>
-                                        {asset.type === 'image' || asset.coverUrl ? (
-                                            // eslint-disable-next-line @next/next/no-img-element
-                                            <img
-                                                src={asset.type === 'image' ? asset.url : asset.coverUrl!}
-                                                alt={`${asset.ratio ?? ''} 生成结果`}
-                                                className="h-full w-full object-contain"
-                                            />
-                                        ) : (
-                                            <video
-                                                src={asset.url}
-                                                muted
-                                                preload="metadata"
-                                                className="h-full w-full object-contain"
-                                            />
-                                        )}
-                                        <span className="absolute bottom-1.5 left-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-white">{asset.ratio ?? '未记录比例'}</span>
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </section>
+                            {resultAssets.length > 1 && (
+                                <div className={`${styles.resultVariants} mt-4 grid grid-cols-3 gap-2`}>
+                                    {resultAssets.map(asset => (
+                                        <button
+                                            key={asset.id}
+                                            type="button"
+                                            onClick={() => {
+                                                setResultAsset(asset)
+                                                setResultUrl(asset.url)
+                                            }}
+                                            className={`relative aspect-video overflow-hidden rounded-xl border bg-black/30 transition ${resultAsset?.id === asset.id ? 'border-violet-400' : 'border-white/10 hover:border-violet-400/40'}`}>
+                                            {asset.type === 'image' || asset.coverUrl ? (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img
+                                                    src={asset.type === 'image' ? asset.url : asset.coverUrl!}
+                                                    alt={`${asset.ratio ?? ''} ${t('生成结果')}`}
+                                                    className="h-full w-full object-contain"
+                                                />
+                                            ) : (
+                                                <AppVideo
+                                                    src={asset.url}
+                                                    muted
+                                                    preload="metadata"
+                                                    className="h-full w-full object-contain"
+                                                />
+                                            )}
+                                            <span className="absolute bottom-1.5 left-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-white">{asset.ratio ?? '未记录比例'}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </section>
+                    )}
                 </div>
 
                 {userId && (
-                    <section className="studio-create-library studio-panel mt-6 rounded-2xl p-4 sm:p-6">
+                    <section
+                        id="creator-library"
+                        className={`${styles.library} studio-create-library studio-panel mt-6 rounded-2xl p-4 sm:p-6`}>
                         <div className="flex flex-wrap items-center justify-between gap-4">
                             <div>
                                 <div className="flex items-center gap-2">
@@ -1377,33 +1544,10 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
                                     }}
                                     disabled={deletingAssets || assetsLoading || (!selectingAssets && assets.length === 0)}
                                     aria-pressed={selectingAssets}
-                                    className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs transition disabled:cursor-not-allowed disabled:opacity-50 ${selectingAssets ? 'border-violet-400/40 bg-violet-500/15 text-violet-200' : 'border-white/10 text-slate-300 hover:border-violet-400/40 hover:text-white'}`}>
+                                    className={`app-action flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs transition disabled:cursor-not-allowed disabled:opacity-50 ${selectingAssets ? 'border-violet-400/40 bg-violet-500/15 text-violet-200' : 'border-white/10 text-slate-300 hover:border-violet-400/40 hover:text-white'}`}>
                                     {selectingAssets ? <X className="h-4 w-4" /> : <CheckSquare className="h-4 w-4" />}
                                     {selectingAssets ? t('取消多选') : t('多选')}
                                 </button>
-                                <div className="flex rounded-xl bg-black/25 p-1">
-                                    {(
-                                        [
-                                            ['all', '全部'],
-                                            ['image', '图片'],
-                                            ['video', '视频']
-                                        ] as const
-                                    ).map(([value, label]) => (
-                                        <button
-                                            key={value}
-                                            onClick={() => {
-                                                if (assetFilter === value) return
-                                                setSelectedAssetIds([])
-                                                setAssets([])
-                                                setNextCursor(null)
-                                                setAssetFilter(value)
-                                            }}
-                                            disabled={deletingAssets || assetsLoading}
-                                            className={`rounded-lg px-4 py-2 text-xs transition disabled:cursor-not-allowed disabled:opacity-50 ${assetFilter === value ? 'bg-violet-500 text-white' : 'text-slate-400 hover:text-white'}`}>
-                                            {label}
-                                        </button>
-                                    ))}
-                                </div>
                             </div>
                         </div>
 
@@ -1427,22 +1571,27 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
                                     type="button"
                                     onClick={() => void removeSelectedAssets()}
                                     disabled={deletingAssets || assetsLoading || selectedAssets.length === 0}
-                                    className="flex items-center gap-1.5 rounded-lg border border-red-400/25 bg-red-500/15 px-3 py-2 text-xs font-medium text-red-200 transition hover:bg-red-500/25 disabled:cursor-not-allowed disabled:opacity-40">
+                                    className="app-action flex items-center gap-1.5 rounded-lg border border-red-400/25 bg-red-500/15 px-3 py-2 text-xs font-medium text-red-200 transition hover:bg-red-500/25 disabled:cursor-not-allowed disabled:opacity-40">
                                     {deletingAssets ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                                     {deletingAssets ? t('正在删除…') : t('删除所选（{count}）').replace('{count}', String(selectedAssets.length))}
                                 </button>
                             </div>
                         )}
 
-                        {galleryError && <div className="mt-5 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">{galleryError}</div>}
+                        {galleryError && (
+                            <div className="mt-5 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                                <DiagnosticMessage message={galleryError} />
+                            </div>
+                        )}
                         {assets.length > 0 ? (
-                            <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                            <div className={`${styles.assetGrid} mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`}>
                                 {assets.map(asset => (
                                     <article
                                         key={asset.id}
-                                        className={`group overflow-hidden rounded-2xl border bg-[#0d101a] transition hover:border-violet-400/40 hover:shadow-lg hover:shadow-violet-950/20 ${selectingAssets && selectedAssetIdSet.has(asset.id) ? 'border-violet-400' : 'border-white/[0.08]'}`}>
+                                        className={`${styles.assetCard} group overflow-hidden rounded-2xl border bg-[#0d101a] transition hover:border-violet-400/40 hover:shadow-lg hover:shadow-violet-950/20 ${selectingAssets && selectedAssetIdSet.has(asset.id) ? 'border-violet-400' : 'border-white/[0.08]'}`}>
                                         <button
                                             type="button"
+
 
                                             onClick={() => (selectingAssets ? toggleAssetSelection(asset.id) : reuseAsset(asset))}
                                             role={selectingAssets ? 'checkbox' : undefined}
@@ -1451,12 +1600,12 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
                                             title={selectingAssets ? undefined : t('二次创作')}
                                             disabled={deletingAssets || (selectingAssets && assetsLoading)}
                                             className="block w-full cursor-pointer text-start focus-visible:outline-none">
-                                            <div className="relative aspect-video bg-black/40">
+                                            <div className={`${styles.assetThumbnail} relative aspect-video bg-black/40`}>
                                                 {asset.type === 'image' ? (
                                                     // eslint-disable-next-line @next/next/no-img-element
                                                     <img
                                                         src={asset.url}
-                                                        alt={asset.prompt ?? '生成图片'}
+                                                        alt={asset.prompt?.trim() || t('生成图片')}
                                                         className="h-full w-full object-cover"
                                                     />
                                                 ) : asset.coverUrl ? (
@@ -1467,7 +1616,7 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
                                                         className="h-full w-full object-cover"
                                                     />
                                                 ) : (
-                                                    <video
+                                                    <AppVideo
                                                         src={asset.url}
                                                         preload="metadata"
                                                         className="h-full w-full object-cover"
@@ -1489,14 +1638,39 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
                                                     </span>
                                                 )}
                                             </div>
-                                            <div className={`px-4 pt-4 ${selectingAssets ? 'pb-4' : ''}`}>
-                                                <p className="line-clamp-2 min-h-10 text-sm leading-5 text-slate-200">{asset.prompt || '未记录提示词'}</p>
-                                                <div className="mt-3 flex items-center gap-1.5 text-[11px] text-slate-500">
-                                                    <Clock3 className="h-3.5 w-3.5" />
-                                                    {new Date(asset.createdAt).toLocaleString(locale, { hour12: false })}
-                                                </div>
-                                            </div>
                                         </button>
+                                        <div className={`px-4 pt-4 ${selectingAssets ? 'pb-4' : ''}`}>
+                                            <div className="flex min-w-0 items-start gap-1.5">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => (selectingAssets ? toggleAssetSelection(asset.id) : reuseAsset(asset))}
+                                                    role={selectingAssets ? 'checkbox' : undefined}
+                                                    aria-checked={selectingAssets ? selectedAssetIdSet.has(asset.id) : undefined}
+                                                    aria-label={selectingAssets ? t('选择作品：{name}').replace('{name}', asset.prompt || t('未记录提示词')) : undefined}
+                                                    title={selectingAssets ? undefined : t('二次创作')}
+                                                    disabled={deletingAssets || (selectingAssets && assetsLoading)}
+                                                    className="min-w-0 flex-1 cursor-pointer text-start focus-visible:outline-none">
+                                                    <p className={`text-sm leading-5 text-slate-200 ${expandedAssetPromptIds.has(asset.id) ? 'whitespace-pre-wrap break-words' : 'truncate'}`}>
+                                                        {asset.prompt || '未记录提示词'}
+                                                    </p>
+                                                </button>
+                                                {asset.prompt && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => toggleAssetPrompt(asset.id)}
+                                                        aria-expanded={expandedAssetPromptIds.has(asset.id)}
+                                                        aria-label={t(expandedAssetPromptIds.has(asset.id) ? '收起' : '展开')}
+                                                        title={t(expandedAssetPromptIds.has(asset.id) ? '收起' : '展开')}
+                                                        className="shrink-0 rounded p-0.5 text-slate-500 transition hover:bg-white/10 hover:text-slate-200">
+                                                        <ChevronDown className={`h-4 w-4 transition-transform ${expandedAssetPromptIds.has(asset.id) ? 'rotate-180' : ''}`} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <div className="mt-3 flex items-center gap-1.5 text-[11px] text-slate-500">
+                                                <Clock3 className="h-3.5 w-3.5" />
+                                                {new Date(asset.createdAt).toLocaleString(locale, { hour12: false })}
+                                            </div>
+                                        </div>
                                         {!selectingAssets && (
                                             <div className="p-4 pt-3">
                                                 <div className="flex items-center gap-2">
@@ -1504,7 +1678,7 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
                                                         href={asset.url}
                                                         target="_blank"
                                                         rel="noreferrer"
-                                                        className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-white/10 px-2 py-2 text-xs text-slate-300 hover:bg-white/5">
+                                                        className="app-action flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-white/10 px-2 py-2 text-xs text-slate-300 hover:bg-white/5">
                                                         <Download className="h-3.5 w-3.5" />
                                                         {t('查看/下载')}
                                                     </a>
@@ -1512,7 +1686,7 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
                                                         <button
                                                             onClick={() => chooseCover(asset.id)}
                                                             disabled={coverUpdating || deletingAssets}
-                                                            className="rounded-lg border border-white/10 p-2 text-slate-400 hover:bg-white/5 hover:text-violet-300 disabled:opacity-50"
+                                                            className="app-icon-action rounded-lg border border-white/10 p-2 text-slate-400 hover:bg-white/5 hover:text-violet-300 disabled:opacity-50"
                                                             aria-label={t('设置封面')}>
                                                             <Images className="h-4 w-4" />
                                                         </button>
@@ -1536,7 +1710,7 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
                                     <Images className="h-9 w-9" />
                                     <p className="mt-3 text-sm">
                                         {t('还没有')}
-                                        {assetFilter === 'all' ? '' : assetFilter === 'image' ? '图片' : '视频'}
+                                        {t(mode === 'image' ? '图片' : '视频')}
                                         {t('作品')}
                                     </p>
                                 </div>
@@ -1550,9 +1724,9 @@ export default function CreatorWorkspace({ mode }: { mode: Mode }) {
                         )}
                         {nextCursor && !assetsLoading && (
                             <button
-                                onClick={() => loadAssets(assetFilter, nextCursor)}
+                                onClick={() => loadAssets(nextCursor)}
                                 disabled={deletingAssets}
-                                className="mx-auto mt-6 block rounded-xl border border-white/10 px-5 py-2.5 text-sm text-slate-400 hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-50">
+                                className="app-action mx-auto mt-6 block rounded-xl border border-white/10 px-5 py-2.5 text-sm text-slate-400 hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-50">
                                 {t('加载更多')}
                             </button>
                         )}

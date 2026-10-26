@@ -4,20 +4,28 @@ import { useEffect, useRef, useState, type RefObject } from 'react'
 import { Loader2 } from 'lucide-react'
 import { getVisualStylePreviewSrc, type VisualStylePreset } from '@/lib/novel'
 import { useI18n } from '@/i18n/I18nProvider'
+import { isEditorialStylePreview } from '@/lib/style-preview'
 
 export default function LazyStylePreview({ style, priority, scrollRoot }: { style: VisualStylePreset; priority: boolean; scrollRoot: RefObject<HTMLDivElement | null> }) {
     const { t } = useI18n()
     const frameRef = useRef<HTMLDivElement>(null)
+    const imageRef = useRef<HTMLImageElement>(null)
     const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const [shouldLoad, setShouldLoad] = useState(priority)
     const [loaded, setLoaded] = useState(false)
     const [retryAttempt, setRetryAttempt] = useState(0)
     const [loadFailed, setLoadFailed] = useState(false)
+    const editorial = isEditorialStylePreview(style.key)
     const canLoad = priority || shouldLoad
     const previewSrc = (() => {
         const src = getVisualStylePreviewSrc(style)
         return `${src}${src.includes('?') ? '&' : '?'}retry=${retryAttempt}`
     })()
+
+    useEffect(() => {
+        // A preloaded server-rendered image can finish before React attaches onLoad.
+        if (imageRef.current?.complete && imageRef.current.naturalWidth > 0) setLoaded(true)
+    }, [previewSrc, canLoad])
 
     useEffect(
         () => () => {
@@ -64,7 +72,7 @@ export default function LazyStylePreview({ style, priority, scrollRoot }: { styl
                     </span>
                     <span className="text-[11px] leading-4 text-gray-400">
                         {t(style.label)}
-                        {t('预览加载失败')}
+                        {editorial ? ` · ${t(style.hint)}` : t('预览加载失败')}
                     </span>
                 </div>
             )}
@@ -72,6 +80,7 @@ export default function LazyStylePreview({ style, priority, scrollRoot }: { styl
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                     key={previewSrc}
+                    ref={imageRef}
                     src={previewSrc}
                     alt={`${t(style.label)} · ${t('风格预览')}`}
                     width={400}

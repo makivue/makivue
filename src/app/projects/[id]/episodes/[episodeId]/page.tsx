@@ -158,7 +158,7 @@ function ModelSelect<T extends string>({
                 aria-haspopup="listbox"
                 aria-expanded={open}
                 title={title}
-                className="flex h-9 min-w-[180px] items-center gap-2 rounded-lg border border-gray-700 bg-gray-800/60 px-2.5 text-start transition-colors hover:border-gray-600 hover:bg-gray-800 disabled:cursor-wait disabled:opacity-50">
+                className="app-action flex h-9 min-w-[180px] items-center gap-2 rounded-lg border border-gray-700 bg-gray-800/60 px-2.5 text-start transition-colors hover:border-gray-600 hover:bg-gray-800 disabled:cursor-wait disabled:opacity-50">
                 {icon}
                 <span className="min-w-0 flex-1 truncate text-xs font-medium text-white">{selected.label}</span>
                 {disabled ? <RefreshCw className="h-3.5 w-3.5 animate-spin text-gray-500" /> : <ChevronDown className={`h-3.5 w-3.5 text-gray-500 transition-transform ${open ? 'rotate-180' : ''}`} />}
@@ -191,7 +191,7 @@ function ModelSelect<T extends string>({
                                                 onChange(option.value)
                                                 setOpen(false)
                                             }}
-                                            className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-start transition-colors ${
+                                            className={`app-action flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-start transition-colors ${
                                                 active ? 'bg-purple-500/15 text-purple-100' : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                                             }`}>
                                             <span
@@ -726,7 +726,7 @@ function GenerationCapacityDialog({ category, message, onClose }: { category: Ge
                             type="button"
                             onClick={onClose}
                             aria-label="关闭"
-                            className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-white/5 hover:text-white">
+                            className="app-icon-action rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-white/5 hover:text-white">
                             <CloseIcon className="h-4 w-4" />
                         </button>
                     </div>
@@ -742,7 +742,7 @@ function GenerationCapacityDialog({ category, message, onClose }: { category: Ge
                         type="button"
                         autoFocus
                         onClick={onClose}
-                        className="mt-6 flex w-full items-center justify-center rounded-xl bg-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-purple-950/50 transition-colors hover:bg-purple-500">
+                        className="app-action mt-6 flex w-full items-center justify-center rounded-xl bg-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-purple-950/50 transition-colors hover:bg-purple-500">
                         知道了
                     </button>
                 </div>
@@ -903,7 +903,7 @@ function EpisodeGenerationSettings({
                                     void onAddStoryboard()
                                 }}
                                 disabled={!canAddStoryboard || addingStoryboard}
-                                className="flex items-start gap-2 rounded-lg border border-white/[0.08] px-3 py-2.5 text-start text-slate-200 transition-colors hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-45">
+                                className="app-action flex items-start gap-2 rounded-lg border border-white/[0.08] px-3 py-2.5 text-start text-slate-200 transition-colors hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-45">
                                 {addingStoryboard ? <RefreshCw className="h-4 w-4 shrink-0 animate-spin" /> : <Plus className="h-4 w-4 shrink-0" />}
                                 <strong className="text-xs font-medium">{t('添加分镜')}</strong>
                             </button>
@@ -915,7 +915,7 @@ function EpisodeGenerationSettings({
                                         void onRegenerateStoryboards()
                                     }}
                                     disabled={!canRegenerateStoryboards}
-                                    className="flex items-start gap-2 rounded-lg border border-white/[0.08] px-3 py-2.5 text-start text-slate-200 transition-colors hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-45">
+                                    className="app-action flex items-start gap-2 rounded-lg border border-white/[0.08] px-3 py-2.5 text-start text-slate-200 transition-colors hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-45">
                                     <Sparkles className="mt-0.5 h-4 w-4 shrink-0" />
                                     <span className="grid gap-0.5">
                                         <strong className="text-xs font-medium">重新生成本集分镜</strong>
@@ -930,7 +930,7 @@ function EpisodeGenerationSettings({
                                         setOpen(false)
                                         void onRegenerateAll()
                                     }}
-                                    className="flex items-start gap-2 rounded-lg border border-rose-400/15 px-3 py-2.5 text-start text-rose-300 transition-colors hover:bg-rose-400/[0.06]">
+                                    className="app-action flex items-start gap-2 rounded-lg border border-rose-400/15 px-3 py-2.5 text-start text-rose-300 transition-colors hover:bg-rose-400/[0.06]">
                                     <RefreshCw className="mt-0.5 h-4 w-4 shrink-0" />
                                     <span className="grid gap-0.5">
                                         <strong className="text-xs font-medium">全部重新生成</strong>
@@ -2414,7 +2414,7 @@ function EpisodeWorkspace({ projectId, episodeId }: { projectId: string; episode
                             href="/projects"
                             title="全部项目"
                             aria-label="全部项目"
-                            className="mt-2 flex h-10 w-full items-center justify-center rounded-md text-gray-500 hover:bg-gray-900 hover:text-gray-200 transition-colors">
+                            className="app-action mt-2 flex h-10 w-full items-center justify-center rounded-md text-gray-500 hover:bg-gray-900 hover:text-gray-200 transition-colors">
                             <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
                         </Link>
                     ) : (
@@ -2595,7 +2595,7 @@ function EpisodeWorkspace({ projectId, episodeId }: { projectId: string; episode
                                 onClick={() => goToEpisode(ep.id)}
                                 title={progressNavCollapsed ? (ep.title ?? t('第{number}集', { number: ep.episodeNumber })) : undefined}
                                 aria-current={isActive ? 'page' : undefined}
-                                className={`studio-episode-link w-full text-start rounded-lg flex items-center transition-colors ${
+                                className={`app-action studio-episode-link w-full text-start rounded-lg flex items-center transition-colors ${
                                     progressNavCollapsed ? 'justify-center px-0 py-2' : 'px-3 py-2.5 gap-2'
                                 } ${isActive ? 'bg-purple-500/20 border border-purple-500/40' : 'border border-transparent hover:bg-gray-800/60'}`}>
                                 <span
@@ -2682,7 +2682,7 @@ function EpisodeWorkspace({ projectId, episodeId }: { projectId: string; episode
                             <button
                                 onClick={() => batchGenerateStoryboards('all')}
                                 disabled={batchRunning || batchGenIds.size > 0}
-                                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white text-xs rounded-lg">
+                                className="app-action w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white text-xs rounded-lg">
                                 <RefreshCw className="w-3.5 h-3.5" />
                                 全部重新生成
                             </button>
@@ -2728,18 +2728,20 @@ function EpisodeWorkspace({ projectId, episodeId }: { projectId: string; episode
                 {/* Reuse the workspace shell, but validate cached media before displaying or editing it. */}
                 {!isEpisodeChanging && (
                     <>
-                        <div className="studio-mobile-nav flex shrink-0 items-center gap-4 border-b border-white/[0.07] px-4 py-3 text-xs text-slate-400 md:hidden">
-                            <HomeLogoLink compact />
-                            <Link
-                                href={`/projects/${projectId}?tab=episodes`}
-                                className="me-auto flex items-center gap-1.5">
-                                <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" />
-                                集数
-                            </Link>
-                            <Link href={`/projects/${projectId}/characters`}>角色</Link>
-                            <Link href={`/projects/${projectId}/scenes`}>场景</Link>
-                        </div>
                         <CreationJourney
+                            mobileNavigation={
+                                <>
+                                    <HomeLogoLink compact />
+                                    <Link
+                                        href={`/projects/${projectId}?tab=episodes`}
+                                        className="me-auto flex items-center gap-1.5">
+                                        <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" />
+                                        集数
+                                    </Link>
+                                    <Link href={`/projects/${projectId}/characters`}>角色</Link>
+                                    <Link href={`/projects/${projectId}/scenes`}>场景</Link>
+                                </>
+                            }
                             current={activeTab === 'script' ? 'script' : activeTab === 'finished' ? 'video' : 'storyboard'}
                             steps={{
                                 outline: {
@@ -3087,7 +3089,7 @@ function EpisodeWorkspace({ projectId, episodeId }: { projectId: string; episode
                                                     href={lastMerge.videoUrl}
                                                     target="_blank"
                                                     rel="noreferrer"
-                                                    className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700">
+                                                    className="app-action flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700">
                                                     <Play className="h-4 w-4" />
                                                     打开成片
                                                 </a>
@@ -4027,7 +4029,7 @@ function ShotCard({
                             aria-controls={`shot-${sb.id}-settings`}
                             aria-expanded={showShotSettings}
                             onClick={() => setShowShotSettings(true)}
-                            className="group flex w-full items-center gap-3 rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2.5 text-start transition-colors hover:border-purple-500/40 hover:bg-gray-800/60 focus:outline-none focus-visible:border-purple-400">
+                            className="app-action group flex w-full items-center gap-3 rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2.5 text-start transition-colors hover:border-purple-500/40 hover:bg-gray-800/60 focus:outline-none focus-visible:border-purple-400">
                             <Settings className="h-4 w-4 flex-shrink-0 text-purple-400" />
                             <span className="shrink-0 text-xs font-medium text-gray-200 group-hover:text-white">{t('分镜设置')}</span>
                             <span className="min-w-0 flex-1 truncate text-[11px] text-gray-500">
@@ -4064,7 +4066,7 @@ function ShotCard({
                                                 type="button"
                                                 onClick={() => setShowShotSettings(false)}
                                                 aria-label={t('关闭')}
-                                                className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-800 hover:text-white">
+                                                className="app-icon-action flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-800 hover:text-white">
                                                 <CloseIcon className="h-4 w-4" />
                                             </button>
                                         </div>
@@ -4215,14 +4217,14 @@ function ShotCard({
                                             <button
                                                 type="button"
                                                 onClick={() => setShowShotSettings(false)}
-                                                className="rounded-lg border border-gray-700 px-5 py-2 text-xs text-gray-300 transition-colors hover:bg-gray-800 focus-visible:outline-purple-400">
+                                                className="app-action rounded-lg border border-gray-700 px-5 py-2 text-xs text-gray-300 transition-colors hover:bg-gray-800 focus-visible:outline-purple-400">
                                                 {t('关闭')}
                                             </button>
                                             <button
                                                 type="button"
                                                 onClick={() => void save()}
                                                 disabled={!dirty || savingShotSettings}
-                                                className="rounded-lg bg-purple-600 px-5 py-2 text-xs font-medium text-white transition-colors hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50">
+                                                className="app-action rounded-lg bg-purple-600 px-5 py-2 text-xs font-medium text-white transition-colors hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50">
                                                 {savingShotSettings ? t('保存中...') : savedFlash ? t('✓ 已保存') : t('保存')}
                                             </button>
                                         </div>
@@ -4428,14 +4430,14 @@ function ShotCard({
                                     <div className={`grid gap-2 ${submittingFrame ? 'grid-cols-1' : 'grid-cols-2'}`}>
                                         <button
                                             disabled
-                                            className="flex items-center justify-center gap-1.5 py-2 bg-purple-600/70 text-white text-xs rounded opacity-80">
+                                            className="app-action flex items-center justify-center gap-1.5 py-2 bg-purple-600/70 text-white text-xs rounded opacity-80">
                                             <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                                             {submittingFrame ? '提交中...' : '生成插图中...'}
                                         </button>
                                         {frameGenerating && (
                                             <button
                                                 onClick={() => onCancelGenerate('frame')}
-                                                className="flex items-center justify-center gap-1.5 py-2 bg-red-600/80 hover:bg-red-600 text-white text-xs rounded transition-colors">
+                                                className="app-action flex items-center justify-center gap-1.5 py-2 bg-red-600/80 hover:bg-red-600 text-white text-xs rounded transition-colors">
                                                 <XCircle className="w-3.5 h-3.5" />
                                                 停止生成
                                             </button>
@@ -4562,7 +4564,7 @@ function ShotCard({
                                             </button>
                                             <button
                                                 onClick={() => onCancelGenerate('video')}
-                                                className="flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded px-3 py-2 text-xs text-white transition-colors bg-red-600/80 hover:bg-red-600">
+                                                className="app-action flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded px-3 py-2 text-xs text-white transition-colors bg-red-600/80 hover:bg-red-600">
                                                 <XCircle className="w-3.5 h-3.5" />
                                                 停止生成
                                             </button>
@@ -4586,7 +4588,7 @@ function ShotCard({
                                     <button
                                         type="button"
                                         onClick={() => setShowVideoPrompt(v => !v)}
-                                        className="flex w-full items-center gap-2 px-3 py-2 text-start text-[11px] text-gray-300 hover:bg-gray-900">
+                                        className="app-action flex w-full items-center gap-2 px-3 py-2 text-start text-[11px] text-gray-300 hover:bg-gray-900">
                                         <BookOpen className="w-3.5 h-3.5 text-blue-400" />
                                         <span className="font-medium">{t('视频提示词')}</span>
                                         {showVideoPrompt ? <ChevronUp className="ms-auto w-3.5 h-3.5 text-gray-500" /> : <ChevronDown className="ms-auto w-3.5 h-3.5 text-gray-500" />}
@@ -4686,7 +4688,7 @@ function ShotCard({
                                     <button
                                         onClick={onCompose}
                                         disabled={!sb.videoUrl || sb.composeStatus === 'processing'}
-                                        className="w-full flex items-center justify-center gap-1.5 py-2 bg-pink-600 hover:bg-pink-700 disabled:opacity-40 text-white text-xs rounded transition-colors">
+                                        className="app-action w-full flex items-center justify-center gap-1.5 py-2 bg-pink-600 hover:bg-pink-700 disabled:opacity-40 text-white text-xs rounded transition-colors">
                                         {sb.composeStatus === 'processing' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
                                         {embeddedVideoAudio
                                             ? sb.composeStatus === 'processing'
@@ -4713,7 +4715,7 @@ function ShotCard({
                     <button
                         type="button"
                         onClick={() => setPreviewUrl(null)}
-                        className="absolute top-4 right-4 z-10 text-white/80 hover:text-white p-2"
+                        className="app-icon-action absolute top-4 right-4 z-10 text-white/80 hover:text-white p-2"
                         aria-label="关闭预览">
                         <CloseIcon className="w-6 h-6" />
                     </button>
@@ -4739,7 +4741,7 @@ function ShotCard({
                     <button
                         type="button"
                         onClick={() => setPreviewVideoUrl(null)}
-                        className="absolute right-4 top-4 p-2 text-white/80 hover:text-white"
+                        className="app-icon-action absolute right-4 top-4 p-2 text-white/80 hover:text-white"
                         aria-label="关闭参考视频预览">
                         <CloseIcon className="h-6 w-6" />
                     </button>

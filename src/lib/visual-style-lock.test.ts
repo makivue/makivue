@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { getVisualStyle } from './novel'
 import { buildVisualStyleLock, getVisualStyleFamily, sanitizePromptForVisualStyle } from './visual-style-lock'
 
 const modern = { key: 'modern-drama', label: '现代短剧写实', hint: '现代都市、办公室', imagePromptPrefix: 'modern urban live-action drama', negativePrompt: 'cartoon' }
@@ -8,6 +9,15 @@ describe('visual style lock', () => {
     it('classifies modern and historical fantasy styles', () => {
         expect(getVisualStyleFamily(modern)).toBe('modern')
         expect(getVisualStyleFamily(xianxia)).toBe('historical-fantasy')
+    })
+
+    it('preserves the new historical preset eras when their rendering is photographic', () => {
+        for (const key of ['ancient-indian-war', 'rajput-fortress-war', 'ancient-egypt-epic', 'ancient-greek-epic', 'roman-legion-epic', 'viking-saga', 'medieval-knights', 'ancient-persian-epic', 'three-kingdoms-epic', 'mesoamerican-epic']) {
+            const style = getVisualStyle(key)
+            expect(getVisualStyleFamily(style)).toBe('historical-fantasy')
+            expect(sanitizePromptForVisualStyle('古装骑兵穿着 historical robes 前进', style)).toContain('historical robes')
+            expect(buildVisualStyleLock(style).positive).not.toContain('MUST be contemporary')
+        }
     })
 
     it('removes stale xianxia styling from modern prompts without removing subject/action', () => {

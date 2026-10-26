@@ -255,15 +255,15 @@
         padding: 38px 0 20px;
     }
     .heading {
+        padding-inline: 16px;
         margin-bottom: 27px;
     }
     .eyebrow {
         font-size: 10px;
     }
     .heading h2 {
-        max-width: 310px;
         margin: 13px auto 0;
-        font-size: 27px;
+        font-size: clamp(20px, 6.6vw, 27px);
         line-height: 1.6;
         text-wrap: balance;
     }
@@ -320,5 +320,16 @@
     .poster:hover img,
     .poster:focus-visible img {
         transform: none;
+    }
+}
+
+@media (max-width: 767px) {
+    .closeButton {
+        width: var(--app-icon-control-size);
+        height: var(--app-icon-control-size);
+    }
+    .closeButton svg {
+        width: 16px;
+        height: 16px;
     }
 }

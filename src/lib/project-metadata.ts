@@ -1,5 +1,10 @@
 import { PROJECT_GENRES } from './project-genres'
 
+export const MAX_PROJECT_EPISODES = 500
+export function isProjectEpisodeCount(value: unknown): value is number {
+    return typeof value === 'number' && Number.isSafeInteger(value) && value >= 1 && value <= MAX_PROJECT_EPISODES
+}
+
 export const DEFAULT_VISUAL_STYLE_KEY = 'cinematic'
 export const IMPORT_MAX_TEXT_LENGTH = 200_000
 export const IMPORT_MAX_DOCUMENT_BYTES = 8 * 1024 * 1024

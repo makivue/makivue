@@ -1,13 +1,15 @@
 'use client'
 
 import BrandLogo from '@/components/BrandLogo'
+import FeedbackLink from '@/components/FeedbackLink'
+import { toolNavigation } from '@/i18n/creation-tool-navigation'
 import LegalLinks from '@/components/LegalLinks'
 import { useI18n } from '@/i18n/I18nProvider'
 import Link from '@/i18n/navigation'
 import { SITE_NAME, SITE_OFFICIAL_URL } from '@/lib/seo'
 
 export default function SiteFooter() {
-    const { t } = useI18n()
+    const { t, locale } = useI18n()
 
     return (
         <footer className="home-footer relative z-10 w-full overflow-hidden border-t border-white/[0.08] bg-[#080910]/80 px-4 pb-5 pt-8 text-white print:hidden sm:px-6">
@@ -56,6 +58,10 @@ export default function SiteFooter() {
                         aria-label={t('更多资源')}
                         className="flex flex-col gap-2 text-sm">
                         <span className="home-footer-label mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{t('资源')}</span>
+                        <FeedbackLink />
+                        <Link href="/tools" data-i18n-skip className="home-footer-link w-fit text-slate-300 transition hover:text-violet-200">{toolNavigation[locale].label}</Link>
+                        <Link href="/guides" className="home-footer-link w-fit text-slate-300 transition hover:text-violet-200">{t('查看创作指南')}</Link>
+                        <Link href="/styles" className="home-footer-link w-fit text-slate-300 transition hover:text-violet-200">{t('艺术风格与地域题材')}</Link>
                         <Link
                             href="/works"
                             className="home-footer-link w-fit text-slate-300 transition hover:text-violet-200">

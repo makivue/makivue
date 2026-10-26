@@ -28,6 +28,6 @@ describe('creator asset secondary creation', () => {
         expect(page).toContain('files.length + (savedImageAsset ? 1 : 0)')
         expect(page).toContain('referenceVideos.length + (savedVideoAsset ? 1 : 0)')
         expect(page).toContain('src={savedVideoAsset.url}')
-        expect(page).toContain('open={referenceVideoCount > 0 || uploadingReferenceVideos}')
+        expect(page).toContain('open={referenceVideoCount > 0 || uploadingReferenceVideos || !!referenceError}')
     })
 })

@@ -6,6 +6,7 @@ import { ArrowRight, Film, Plus, Trash2, Clapperboard, Upload, Loader2, FileText
 import { useConfirmDialog } from '@/components/ConfirmDialog'
 import { clientFetch, readApiJson } from '@/lib/client-fetch'
 import { getPollingDelay } from '@/lib/polling'
+import styles from './ProjectsPage.module.css'
 import AuthBar from '@/components/AuthBar'
 import BrandLogo from '@/components/BrandLogo'
 import HomeLogoLink from '@/components/HomeLogoLink'
@@ -286,14 +287,14 @@ export default function ProjectsPage() {
             {/* 顶栏 */}
             <SiteHeader
                 sticky
-                className="z-30"
-                contentClassName="flex flex-wrap items-center justify-between gap-3">
+                className={`z-30 ${styles.header}`}
+                contentClassName="flex items-center justify-between gap-1 lg:gap-3">
                 <Link
                     href="/"
                     aria-label={SITE_NAME}
-                    className="flex items-center gap-2.5 group">
+                    className="group flex shrink-0 items-center gap-2.5">
                     <BrandLogo />
-                    <div className="hidden sm:block">
+                    <div className="hidden lg:block">
                         <span
                             dir="ltr"
                             translate="no"
@@ -303,34 +304,40 @@ export default function ProjectsPage() {
                         <span className="hidden text-[10px] tracking-[0.18em] text-slate-600 sm:block">创作工作室</span>
                     </div>
                 </Link>
-                <div className="ms-auto flex items-center gap-1 sm:gap-2">
+                <div className="ms-auto flex shrink-0 items-center gap-1 sm:gap-2">
                     <Link
                         href="/works"
-                        className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-slate-300">
-                        <Film className="h-4 w-4" />
-                        {t('剧集')}
+                        aria-label={t('剧集')}
+                        title={t('剧集')}
+                        className="app-action inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2 py-2 text-sm text-slate-300 sm:px-3">
+                        <Film className="h-4 w-4 shrink-0" />
+                        <span className="hidden sm:inline">{t('剧集')}</span>
                     </Link>
                     <Link
                         href="/aivideo"
-                        className="hidden items-center gap-2 rounded-xl border border-violet-400/20 bg-violet-500/10 px-3 py-2 text-sm text-violet-200 transition hover:bg-violet-500/20 sm:flex">
+                        className="app-action hidden items-center gap-2 rounded-xl border border-violet-400/20 bg-violet-500/10 px-3 py-2 text-sm text-violet-200 transition hover:bg-violet-500/20 lg:flex">
                         <Sparkles className="h-4 w-4" />
                         AI 创作台
                     </Link>
                     <WalletBalance compact />
-                    <AuthBar variant="default" />
+                    <AuthBar variant="compact" />
                 </div>
             </SiteHeader>
 
             {/* 项目工作区 */}
-            <main className="relative mx-auto w-full max-w-7xl flex-1 px-4 pb-10 sm:px-6">
-                <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.07] pb-6">
-                    <div className="min-w-0 max-w-2xl">
-                        <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-                            {t('我的项目')}
-                            {!loading && !error && projects.length > 0 && <span className="ms-3 text-base font-normal text-slate-400">{projects.length}</span>}
-                        </h1>
-                    </div>
-                    <div className="flex w-full items-center gap-2 sm:w-auto">
+            <main className={`${styles.workspace} relative mx-auto w-full max-w-7xl flex-1 px-4 pb-10 sm:px-6`}>
+                <div className={`${styles.toolbar} border-b border-white/[0.07]`}>
+                    <h1 className={`${styles.title} min-w-0 font-semibold tracking-tight text-white`}>
+                        {t('我的项目')}
+                        {!loading && !error && projects.length > 0 && <span className="ms-2 text-xs font-normal text-slate-400">{projects.length}</span>}
+                    </h1>
+                    <div className={styles.actions}>
+                        <Link
+                            href="/uploads"
+                            className={`${styles.action} border border-white/10 text-slate-300 hover:bg-white/[0.06]`}>
+                            <Film className="h-3.5 w-3.5 shrink-0" />
+                            {t('我的上传')}
+                        </Link>
                         <button
                             type="button"
                             onClick={() => {
@@ -338,15 +345,14 @@ export default function ProjectsPage() {
                                 setImportResult(null)
                                 setShowImport(true)
                             }}
-                            className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.025] px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:border-white/20 hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-violet-400 sm:flex-none">
-                            <Upload className="h-4 w-4" />
+                            className={`${styles.action} border border-white/10 bg-white/[0.025] font-medium text-slate-300 transition-colors hover:border-white/20 hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-violet-400`}>
+                            <Upload className="h-3.5 w-3.5 shrink-0" />
                             导入剧本
                         </button>
                         <Link
-                            href="/"
-
-                            className="studio-primary inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-violet-400 sm:flex-none">
-                            <Plus className="h-4 w-4" />
+                            href="/#drama-description"
+                            className={`${styles.action} studio-primary font-medium text-white transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-violet-400`}>
+                            <Plus className="h-3.5 w-3.5 shrink-0" />
                             创建短剧
                         </Link>
                     </div>
@@ -368,7 +374,7 @@ export default function ProjectsPage() {
                         <p className="text-red-400 text-sm mb-4">{error}</p>
                         <button
                             onClick={fetchProjects}
-                            className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white text-sm transition-colors">
+                            className="app-action px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white text-sm transition-colors">
                             重新加载
                         </button>
                     </div>
@@ -620,14 +626,14 @@ export default function ProjectsPage() {
                                                 setImportJobId(null)
                                                 setImportDraftId(null)
                                             }}
-                                            className="rounded-lg px-4 py-2 text-sm text-gray-400 transition-colors hover:text-white disabled:opacity-40">
+                                            className="app-action rounded-lg px-4 py-2 text-sm text-gray-400 transition-colors hover:text-white disabled:opacity-40">
                                             返回修改内容
                                         </button>
                                         <button
                                             type="button"
                                             onClick={confirmImportProject}
                                             disabled={importing}
-                                            className="flex items-center gap-2 rounded-xl bg-purple-600 px-5 py-2 text-sm font-medium text-white shadow-lg shadow-purple-900/30 transition-colors hover:bg-purple-500 disabled:opacity-40">
+                                            className="app-action flex items-center gap-2 rounded-xl bg-purple-600 px-5 py-2 text-sm font-medium text-white shadow-lg shadow-purple-900/30 transition-colors hover:bg-purple-500 disabled:opacity-40">
                                             {importing && <Loader2 className="h-4 w-4 animate-spin" />}
                                             {importing ? '正在创建项目...' : '确认并导入'}
                                         </button>
@@ -658,7 +664,7 @@ export default function ProjectsPage() {
 
                                             onClick={() => importFileRef.current?.click()}
                                             disabled={importing || parsingDocument}
-                                            className="w-full flex items-center justify-center gap-3 rounded-xl border border-dashed border-purple-500/35 bg-purple-500/[0.06] px-4 py-4 text-sm text-purple-200 hover:border-purple-400/60 hover:bg-purple-500/10 disabled:opacity-40 transition-colors">
+                                            className="w-full flex items-center justify-center gap-2 sm:gap-3 rounded-xl border border-dashed border-purple-500/35 bg-purple-500/[0.06] px-3 py-3 sm:px-4 sm:py-4 text-sm text-purple-200 hover:border-purple-400/60 hover:bg-purple-500/10 disabled:opacity-40 transition-colors">
                                             {parsingDocument ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileText className="h-5 w-5" />}
                                             <span className="text-start">
                                                 <span className="block font-medium">
@@ -699,13 +705,13 @@ export default function ProjectsPage() {
                                         <button
                                             onClick={closeImportDialog}
                                             disabled={importing || parsingDocument}
-                                            className="px-4 py-2 text-sm text-gray-400 hover:text-white disabled:opacity-40 rounded-lg transition-colors">
+                                            className="app-action px-4 py-2 text-sm text-gray-400 hover:text-white disabled:opacity-40 rounded-lg transition-colors">
                                             取消
                                         </button>
                                         <button
                                             onClick={importProject}
                                             disabled={importing || parsingDocument || !importText.trim() || importText.trim().length < 20}
-                                            className="flex items-center gap-2 px-5 py-2 text-sm bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white rounded-xl font-medium transition-colors shadow-lg shadow-purple-900/30">
+                                            className="app-action flex items-center gap-2 px-5 py-2 text-sm bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white rounded-xl font-medium transition-colors shadow-lg shadow-purple-900/30">
                                             {importing ? (
                                                 <>
                                                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -757,7 +763,7 @@ export default function ProjectsPage() {
                                 <div className="flex justify-center gap-2">
                                     <button
                                         onClick={closeImportDialog}
-                                        className="px-4 py-2 text-sm text-gray-400 hover:text-white rounded-lg transition-colors">
+                                        className="app-action px-4 py-2 text-sm text-gray-400 hover:text-white rounded-lg transition-colors">
                                         关闭
                                     </button>
                                     <button
@@ -766,7 +772,7 @@ export default function ProjectsPage() {
                                             closeImportDialog()
                                             router.push(`/projects/${id}`)
                                         }}
-                                        className="px-5 py-2 text-sm bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-medium transition-colors shadow-lg shadow-purple-900/30">
+                                        className="app-action px-5 py-2 text-sm bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-medium transition-colors shadow-lg shadow-purple-900/30">
                                         进入项目
                                     </button>
                                 </div>

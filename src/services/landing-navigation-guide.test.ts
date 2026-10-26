@@ -10,7 +10,9 @@ describe('homepage short-drama creation entry', () => {
     const creator = read('src/app/create/drama/DramaCreator.tsx')
 
     it('uses the homepage for AI drama and preserves image/video destinations', () => {
-        expect(navigation).toContain("href={key === 'drama' ? '/' : `/ai${key}`}")
+        expect(navigation).toContain("key === 'drama' ? '/'")
+        expect(navigation).toContain('`/ai${key}`')
+        expect(navigation).toContain("key === 'anime' ? '/anime'")
         expect(navigation).toContain("key: 'video'")
         expect(navigation).toContain("key: 'image'")
         expect(navigation).not.toContain('preventDefault')
@@ -28,7 +30,7 @@ describe('homepage short-drama creation entry', () => {
     })
 
     it('requires a session at submission before creating and opening a project', () => {
-        const submit = creator.slice(creator.indexOf('async function createProject'), creator.indexOf('\n    return ('))
+        const submit = creator.slice(creator.indexOf('async function createProject'), creator.indexOf('\n    return (', creator.indexOf('async function createProject')))
         expect(submit.indexOf('await requireAuth()')).toBeGreaterThan(-1)
         expect(submit.indexOf('await requireAuth()')).toBeLessThan(submit.indexOf("clientFetch('/api/projects'"))
         expect(submit).toContain('router.push(`/projects/${json.data.id}`)')

@@ -218,7 +218,8 @@ const LEGACY_STYLE_GROUPS = [
             'art-nouveau',
             'charcoal-sketch',
             'stained-glass',
-            'ukiyo-e-print'
+            'ukiyo-e-print',
+            'pixel-art'
         ]
     },
     {
@@ -242,7 +243,31 @@ const LEGACY_STYLE_GROUPS = [
     {
         key: 'realistic',
         label: '写实风格',
-        styles: ['cinematic', 'hk-film', 'hk-crime', 'minguo', 'docu-realism', 'suspense-noir', 'action-thriller', 'legal-drama', 'medical-drama', 'family-ethics', 'business-war', 'social-realism']
+        styles: [
+            'cinematic',
+            'hk-film',
+            'hk-crime',
+            'minguo',
+            'docu-realism',
+            'suspense-noir',
+            'action-thriller',
+            'legal-drama',
+            'medical-drama',
+            'family-ethics',
+            'business-war',
+            'social-realism',
+            'smartphone-pov',
+            'found-footage',
+            'analog-horror',
+            'photoreal-pet-drama',
+            'cozy-sitcom',
+            'mockumentary-comedy',
+            'travel-diary',
+            'outdoor-sports',
+            'stage-musical',
+            'fashion-editorial',
+            'architecture-tour'
+        ]
     },
     {
         key: 'costume',
@@ -333,6 +358,19 @@ const STYLE_CLUSTER_DEFINITIONS = [
     }
 ] as const
 
+const HISTORICAL_EPIC_STYLE_KEYS = [
+    'ancient-indian-war',
+    'rajput-fortress-war',
+    'ancient-egypt-epic',
+    'ancient-greek-epic',
+    'roman-legion-epic',
+    'viking-saga',
+    'medieval-knights',
+    'ancient-persian-epic',
+    'three-kingdoms-epic',
+    'mesoamerican-epic'
+]
+
 export function localizeStyleCluster(locale: Locale, cluster: { key: string; label: string; hint: string }) {
     return { label: translateMessage(locale, cluster.label), hint: translateMessage(locale, cluster.hint) }
 }
@@ -350,6 +388,26 @@ export const STYLE_GROUPS = (() => {
         styles.forEach(key => assigned.add(key))
         groups.push({ key: region.key, label: region.label, hint: region.hint, styles })
     }
+    // Concrete era/civilization recipes remain discoverable alongside costume history.
+    const history = groups.find(group => group.key === 'costume-history')!
+    for (const key of HISTORICAL_EPIC_STYLE_KEYS) {
+        history.styles.push(key)
+        assigned.add(key)
+    }
+    const fantasy = groups.find(group => group.key === 'sci-fi-fantasy')!
+    fantasy.styles.push('surreal-asmr')
+    assigned.add('surreal-asmr')
+    const illustration = groups.find(group => group.key === 'anime-comic')!
+    illustration.styles.push('retro-rubber-hose')
+    assigned.add('retro-rubber-hose')
+    const animation = groups.find(group => group.key === 'three-d-cute')!
+    animation.styles.push('modern-family-animation', 'science-explainer')
+    assigned.add('modern-family-animation')
+    assigned.add('science-explainer')
+    // Object-led photography stays separate from character-led drama references.
+    groups.push({ key: 'commercial-lifestyle', label: '商业与生活', hint: '美食、产品、广告与生活方式影像', styles: ['cooking-macro', 'product-commercial'] })
+    assigned.add('cooking-macro')
+    assigned.add('product-commercial')
     // 新增但尚未录入旧分类的预设也必须可选，统一放入“影视写实”后由搜索查找。
     const unassigned = VISUAL_STYLE_PRESETS.map(style => style.key).filter(styleKey => !assigned.has(styleKey))
     groups[0].styles.push(...unassigned)

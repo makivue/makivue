@@ -88,3 +88,7 @@ __pycache__/
 # Local user records, media, and file-lock artifacts
 /data/
 /data.lock/
+
+# Local browser verification artifacts
+/.playwright-cli/
+/output/playwright/

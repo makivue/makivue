@@ -27,6 +27,7 @@ export async function GET(req: NextRequest, { params }: Params) {
         select: {
             id: true,
             title: true,
+            sourceAnswers: true,
             description: true,
             genre: true,
             totalEpisodes: true,

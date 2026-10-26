@@ -7,12 +7,11 @@ describe('public works genre filter', () => {
     const page = fs.readFileSync(path.join(process.cwd(), 'src/app/works/page.tsx'), 'utf8')
     const css = fs.readFileSync(path.join(process.cwd(), 'src/components/works.css'), 'utf8')
 
-    it('uses a compact collapsible top filter instead of a sidebar', () => {
+    it('keeps all genre links visible in a wrapping top filter', () => {
         expect(shell).not.toContain('works-sidebar')
-        expect(page).toContain('<details className="works-genre-filter">')
+        expect(page).toContain('<div className="works-genre-filter">')
         expect(page).toContain('className="works-genre-options"')
-        expect(page).toContain('className="works-genre-current"')
-        expect(css).toMatch(/\.works-genre-options\s*\{[^}]*overflow-x: auto;/s)
-        expect(css).not.toContain('.works-sidebar')
+        expect(page).not.toContain('works-genre-current')
+        expect(css).toMatch(/\.works-genre-options\s*\{[^}]*flex-wrap: wrap;/s)
     })
 })

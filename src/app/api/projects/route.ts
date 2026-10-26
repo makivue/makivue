@@ -9,6 +9,8 @@ import { normalizeGenre } from '@/lib/project-metadata'
 import { DEFAULT_SUBTITLE_LANGUAGES, isProjectEpisodeFormat, normalizeStringList, publicationFieldsFromSetup } from '@/lib/project-publication'
 import { assertWalletHasCoins, BillingError } from '@/services/billing'
 import { getProjectProductionProgress } from '@/lib/project-progress'
+import { parseApiId } from '@/lib/api-id'
+import { serializeStyleLibraryEntry, styleLibrarySetup } from '@/lib/style-library'
 
 export async function GET(req: NextRequest) {
     const userId = currentUserId(req)
@@ -63,12 +65,26 @@ export async function POST(req: NextRequest) {
     const safeSourceAnswers = sourceAnswers && typeof sourceAnswers === 'object' && !Array.isArray(sourceAnswers) ? sourceAnswers : undefined
     const resolvedVisualStyle = getVisualStyle(typeof visualStyle === 'string' ? visualStyle : setup.visualStyle)
     const safeEpisodeFormat = isProjectEpisodeFormat(episodeFormat) ? episodeFormat : 'micro'
+    let librarySetup = {}
+    if (body.styleLibraryId != null) {
+        const entryId = typeof body.styleLibraryId === 'string' ? parseApiId(body.styleLibraryId) : null
+        if (entryId === null) return apiError('风格或题材不存在', 404)
+        try {
+            const entry = await prisma.styleLibraryEntry.findFirst({ where: { id: entryId, userId } })
+            if (!entry) return apiError('风格或题材不存在', 404)
+            librarySetup = styleLibrarySetup(serializeStyleLibraryEntry(entry))
+        } catch (error) {
+            console.error('Failed to load selected style:', error)
+            return apiError('加载风格库失败，请重试', 503)
+        }
+    }
     const publicationFields = publicationFieldsFromSetup({
         ...setup,
         contentLanguage: safeContentLanguage,
         videoAspectRatio: videoAspectRatio === '16:9' || videoAspectRatio === '1:1' ? videoAspectRatio : '9:16',
         visualStyle: resolvedVisualStyle.key,
-        episodeFormat: safeEpisodeFormat
+        episodeFormat: safeEpisodeFormat,
+        ...librarySetup
     })
     const requestedSeoKeywords = normalizeStringList(seoKeywords)
     const safeSeoKeywords = requestedSeoKeywords.length > 0 ? requestedSeoKeywords : normalizeStringList([normalizedGenre.label, safeTitle])
@@ -109,6 +125,7 @@ export async function POST(req: NextRequest) {
                         episodeFormat: safeEpisodeFormat,
                         visualStyle: resolvedVisualStyle.key,
                         visualStyleProfile: getVisualStyleProfile(resolvedVisualStyle.key),
+                        ...librarySetup,
                         fieldSources: { ...setup.fieldSources, visualStyle: 'user', visualStyleProfile: 'curated-preset' }
                     })
                 }
